@@ -57,7 +57,11 @@ object DemoSeed {
             }
             dao.insertCells(fresh)
             val minutes = (meters / 75).toLong()
-            dao.insertWalk(Walk(start = start, end = start + minutes * 60_000, meters = meters, cells = fresh.size, lat = line.getJSONArray(0).getDouble(0), lon = line.getJSONArray(0).getDouble(1)))
+            val id = dao.insertWalk(Walk(start = start, end = start + minutes * 60_000, meters = meters, cells = fresh.size, lat = line.getJSONArray(0).getDouble(0), lon = line.getJSONArray(0).getDouble(1)))
+            dao.insertWaypoints(List(line.length()) { j ->
+                val p = line.getJSONArray(j)
+                Waypoint(walk = id, at = start + minutes * 60_000 * j / line.length(), lat = p.getDouble(0), lon = p.getDouble(1))
+            })
             val d = days[day] ?: Day(day)
             days[day] = d.copy(cells = d.cells + fresh.size, meters = d.meters + meters, beacon = d.beacon || rnd.nextInt(3) == 0)
         }

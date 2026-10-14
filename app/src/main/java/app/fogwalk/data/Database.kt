@@ -1,9 +1,11 @@
 package app.fogwalk.data
 
 import android.content.Context
+import androidx.room.AutoMigration
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
@@ -46,6 +48,16 @@ data class Walk(
     /** Where it began, for the journal line. */
     val lat: Double = 0.0,
     val lon: Double = 0.0,
+)
+
+/** A point of a walk's route, one per step the walker made (about every 10 m). */
+@Entity(tableName = "waypoints", indices = [Index("walk")])
+data class Waypoint(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val walk: Long,
+    val at: Long,
+    val lat: Double,
+    val lon: Double,
 )
 
 /** An opened cache and what it held. */
@@ -114,6 +126,21 @@ interface FogDao {
     @Upsert
     suspend fun upsertWalk(w: Walk)
 
+    @Query("SELECT * FROM walks WHERE id = :id")
+    fun observeWalk(id: Long): Flow<Walk?>
+
+    @Query("SELECT * FROM walks ORDER BY start")
+    suspend fun walks(): List<Walk>
+
+    @Query("SELECT id FROM walks WHERE start = :start LIMIT 1")
+    suspend fun walkAt(start: Long): Long?
+
+    @Insert
+    suspend fun insertWaypoints(points: List<Waypoint>)
+
+    @Query("SELECT * FROM waypoints WHERE walk = :walk ORDER BY at, id")
+    suspend fun waypoints(walk: Long): List<Waypoint>
+
     @Query("SELECT * FROM finds ORDER BY at")
     fun observeFinds(): Flow<List<Find>>
 
@@ -146,7 +173,13 @@ interface FogDao {
     suspend fun findCoins(): Int
 }
 
-@Database(entities = [Cell::class, Day::class, Walk::class, Find::class, Entry::class], version = 1, exportSchema = true)
+@Database(
+    entities = [Cell::class, Day::class, Walk::class, Find::class, Entry::class, Waypoint::class],
+    version = 2,
+    exportSchema = true,
+    // 2: walk routes.
+    autoMigrations = [AutoMigration(from = 1, to = 2)],
+)
 abstract class FogDatabase : RoomDatabase() {
     abstract fun dao(): FogDao
 

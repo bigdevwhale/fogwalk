@@ -25,6 +25,7 @@ import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Overlay
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
@@ -75,6 +76,14 @@ class WorldOverlay(
     private var fogBitmap: Bitmap? = null
     private var fogCanvas: Canvas? = null
     private var fogKey: List<Any>? = null
+    /** The view the fog bitmap was rendered for: scale and world corner, in Mercator units. */
+    private var cacheAx = 1.0
+    private var cacheAy = 1.0
+    private var cacheOx = 0.0
+    private var cacheOy = 0.0
+    private var lastAx = 0.0
+    private var zoomedAt = 0L
+    private val dst = RectF()
 
     private val clearPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_OUT) }
     private val texPaint = Paint().apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_ATOP) }
@@ -127,7 +136,7 @@ class WorldOverlay(
         ay = (se.y - nw.y) / (my1 - my0)
         by = nw.y - ay * my0
 
-        drawFog(c, s, w, h, mx0, mx1, my0, my1)
+        drawFog(c, s, w, h)
         drawLands(c, s, w, h, mx0, mx1, my0, my1)
         hits.clear()
         val t = System.currentTimeMillis()
@@ -137,45 +146,80 @@ class WorldOverlay(
         drawWalker(c, s)
     }
 
-    private fun drawFog(c: Canvas, s: Scene, w: Int, h: Int, mx0: Double, mx1: Double, my0: Double, my1: Double) {
-        val fw = w / scale + 2
-        val fh = h / scale + 2
-        val key = listOf(fog.version.value, s.style, s.density, w, h, ax.toFloat(), bx.toFloat(), ay.toFloat(), by.toFloat())
-        if (key != fogKey || fogBitmap == null) {
-            var bmp = fogBitmap
-            if (bmp == null || bmp.width != fw || bmp.height != fh) {
-                bmp?.recycle()
-                bmp = Bitmap.createBitmap(fw, fh, Bitmap.Config.ARGB_8888)
-                fogBitmap = bmp
-                fogCanvas = Canvas(bmp)
-            }
-            val fc = fogCanvas!!
-            bmp.eraseColor(0)
-            val look = FogStyles.look(s.style)
-            fill.shader = null
-            fill.color = look.base
-            fill.alpha = (s.density * 255).toInt()
-            fc.drawRect(0f, 0f, fw.toFloat(), fh.toFloat(), fill)
-            // The cloud texture sticks to the world, scaled to stay a few hundred pixels wide.
-            val tex = FogStyles.texture(s.style)
-            val shader = BitmapShader(tex, Shader.TileMode.REPEAT, Shader.TileMode.REPEAT)
-            var tilePx = ax / scale / (1 shl 14)
-            while (tilePx < 200) tilePx *= 2
-            while (tilePx > 400) tilePx /= 2
-            val m = Matrix()
-            val k = (tilePx / tex.width).toFloat()
-            m.setScale(k, k)
-            m.postTranslate(((bx / scale) % tilePx).toFloat(), ((by / scale) % tilePx).toFloat())
-            shader.setLocalMatrix(m)
-            texPaint.shader = shader
-            texPaint.alpha = 255
-            fc.drawRect(0f, 0f, fw.toFloat(), fh.toFloat(), texPaint)
-            cutExplored(fc, mx0, mx1, my0, my1)
+    /**
+     * The fog is rendered once, with a margin around the screen and pinned to a fixed lattice of the
+     * world, then only moved and scaled while the map pans or zooms. Re-rendering it every frame made
+     * the soft edges shimmer as they landed on the coarse bitmap's pixels a fraction differently.
+     * It is redrawn when new ground is revealed, when the view leaves the margin, or once a zoom settles.
+     */
+    private fun drawFog(c: Canvas, s: Scene, w: Int, h: Int) {
+        val key = listOf(fog.version.value, s.style, s.density, w, h)
+        val now = android.os.SystemClock.uptimeMillis()
+        if (ax != lastAx) zoomedAt = now
+        lastAx = ax
+        val bmp = fogBitmap
+        val ratio = ax / cacheAx
+        val rebuild = bmp == null || key != fogKey || run {
+            val l = ax * cacheOx + bx
+            val t = ay * cacheOy + by
+            val r = l + bmp.width * scale * ratio
+            val b = t + bmp.height * scale * (ay / cacheAy)
+            val covers = l <= 0 && t <= 0 && r >= w && b >= h
+            // Mid-zoom the old fog is stretched; it is redrawn sharp when the fingers rest.
+            val settled = abs(ratio - 1) > 0.002 && now - zoomedAt > 220
+            !covers || ratio !in 0.7..1.45 || settled
+        }
+        if (rebuild) {
+            render(s, w, h)
             fogKey = key
         }
-        val src = Rect(0, 0, fogBitmap!!.width, fogBitmap!!.height)
-        val dst = Rect(0, 0, fogBitmap!!.width * scale, fogBitmap!!.height * scale)
-        c.drawBitmap(fogBitmap!!, src, dst, blitPaint)
+        val f = fogBitmap ?: return
+        val l = (ax * cacheOx + bx).toFloat()
+        val t = (ay * cacheOy + by).toFloat()
+        dst.set(l, t, l + (f.width * scale * ax / cacheAx).toFloat(), t + (f.height * scale * ay / cacheAy).toFloat())
+        c.drawBitmap(f, null, dst, blitPaint)
+    }
+
+    private fun render(s: Scene, w: Int, h: Int) {
+        val margin = max(w, h) * 0.3
+        // Mercator units per fog pixel, and the cache's corner snapped to that lattice.
+        cacheAx = ax
+        cacheAy = ay
+        val ux = scale / ax
+        val uy = scale / ay
+        cacheOx = floor(((-margin - bx) / ax) / ux) * ux
+        cacheOy = floor(((-margin - by) / ay) / uy) * uy
+        val fw = ((w + 2 * margin) / scale).toInt() + 3
+        val fh = ((h + 2 * margin) / scale).toInt() + 3
+        var bmp = fogBitmap
+        if (bmp == null || bmp.width != fw || bmp.height != fh) {
+            bmp?.recycle()
+            bmp = Bitmap.createBitmap(fw, fh, Bitmap.Config.ARGB_8888)
+            fogBitmap = bmp
+            fogCanvas = Canvas(bmp)
+        }
+        val fc = fogCanvas!!
+        bmp.eraseColor(0)
+        val look = FogStyles.look(s.style)
+        fill.shader = null
+        fill.color = look.base
+        fill.alpha = (s.density * 255).toInt()
+        fc.drawRect(0f, 0f, fw.toFloat(), fh.toFloat(), fill)
+        // The cloud texture sticks to the world, scaled to stay a few hundred pixels wide.
+        val tex = FogStyles.texture(s.style)
+        val shader = BitmapShader(tex, Shader.TileMode.REPEAT, Shader.TileMode.REPEAT)
+        var tilePx = ax / scale / (1 shl 14)
+        while (tilePx < 200) tilePx *= 2
+        while (tilePx > 400) tilePx /= 2
+        val m = Matrix()
+        val k = (tilePx / tex.width).toFloat()
+        m.setScale(k, k)
+        m.postTranslate(((-cacheOx / ux) % tilePx).toFloat(), ((-cacheOy / uy) % tilePx).toFloat())
+        shader.setLocalMatrix(m)
+        texPaint.shader = shader
+        texPaint.alpha = 255
+        fc.drawRect(0f, 0f, fw.toFloat(), fh.toFloat(), texPaint)
+        cutExplored(fc, cacheOx, cacheOx + fw * ux, cacheOy, cacheOy + fh * uy)
     }
 
     private fun cutExplored(fc: Canvas, mx0: Double, mx1: Double, my0: Double, my1: Double) {
@@ -199,11 +243,13 @@ class WorldOverlay(
         clearPaint.color = 0xFF000000.toInt()
         // A soft edge on each cut so the clearing reads as thinning fog, not a row of coins.
         clearPaint.maskFilter = if (r >= 3) BlurMaskFilter(r * 0.7f, BlurMaskFilter.Blur.NORMAL) else null
+        val kx = ax / scale
+        val ky = ay / scale
         fog.visit(level, x0, y0, x1, y1) { x, y, count ->
             val strength = if (level == Grid.Z) 1.0 else min(1.0, 0.3 + sqrt(count.toDouble() / capacity) * 1.15)
             clearPaint.alpha = (strength * 255).toInt()
-            val cx = ((ax * (x + 0.5) / n + bx) / scale).toFloat()
-            val cy = ((ay * (y + 0.5) / n + by) / scale).toFloat()
+            val cx = (((x + 0.5) / n - mx0) * kx).toFloat()
+            val cy = (((y + 0.5) / n - my0) * ky).toFloat()
             fc.drawCircle(cx, cy, r, clearPaint)
         }
     }

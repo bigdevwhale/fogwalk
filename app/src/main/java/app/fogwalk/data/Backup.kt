@@ -28,8 +28,19 @@ object Backup {
         o.put("ledger", JSONArray().apply {
             dao.ledger().forEach { e -> put(JSONObject().put("ref", e.ref).put("at", e.at).put("coins", e.coins).put("xp", e.xp)) }
         })
+        // Journeys with their routes as flat lat, lon pairs.
+        o.put("walks", JSONArray().apply {
+            dao.walks().forEach { w ->
+                val route = JSONArray()
+                dao.waypoints(w.id).forEach { p -> route.put(round(p.lat)).put(round(p.lon)) }
+                put(JSONObject().put("start", w.start).put("end", w.end).put("meters", w.meters).put("cells", w.cells)
+                    .put("caches", w.caches).put("lat", w.lat).put("lon", w.lon).put("route", route))
+            }
+        })
         return o.toString()
     }
+
+    private fun round(v: Double) = Math.round(v * 1e6) / 1e6
 
     /** Merges a backup into what is already there; nothing is lost on either side. */
     suspend fun import(db: FogDatabase, text: String) {
@@ -69,6 +80,25 @@ object Backup {
             for (i in 0 until ledger.length()) {
                 val e = ledger.getJSONObject(i)
                 dao.grant(Entry(e.getString("ref"), e.getLong("at"), e.getInt("coins"), e.getInt("xp")))
+            }
+            // Backups from 1.0 have no journeys.
+            val walks = o.optJSONArray("walks") ?: JSONArray()
+            for (i in 0 until walks.length()) {
+                val w = walks.getJSONObject(i)
+                val start = w.getLong("start")
+                if (dao.walkAt(start) != null) continue
+                val end = w.getLong("end")
+                val id = dao.insertWalk(
+                    Walk(
+                        start = start, end = end, meters = w.getDouble("meters"), cells = w.getInt("cells"),
+                        caches = w.getInt("caches"), lat = w.getDouble("lat"), lon = w.getDouble("lon"),
+                    )
+                )
+                val route = w.optJSONArray("route") ?: continue
+                val n = route.length() / 2
+                dao.insertWaypoints(List(n) { j ->
+                    Waypoint(walk = id, at = start + (end - start) * j / maxOf(1, n - 1), lat = route.getDouble(j * 2), lon = route.getDouble(j * 2 + 1))
+                })
             }
         }
     }

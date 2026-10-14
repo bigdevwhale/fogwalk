@@ -139,27 +139,18 @@ fun JournalTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
         SectionTitle(stringResource(R.string.badges_count, data.badges.size, Badges.all.size))
         DeedsSummary(data, go)
 
-        if (data.walks.isNotEmpty()) {
+        val walks = remember(data.walks) { journeys(data.walks) }
+        if (walks.isNotEmpty()) {
             SectionTitle(stringResource(R.string.recent_walks))
-            UCard {
-                val l = locale()
-                val fmt = remember(l) { DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT).withLocale(l) }
-                data.walks.take(12).forEachIndexed { i, w ->
-                    Row(Modifier.fillMaxWidth().padding(vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(fmt.format(Instant.ofEpochMilli(w.start).atZone(data.zone)), style = UType.Body.copy(fontSize = 14.sp))
-                            Text(
-                                listOf(
-                                    distance(w.meters, imperial),
-                                    stringResource(R.string.minutes_short, ((w.end - w.start) / 60_000).toInt()),
-                                ).joinToString(" · ") + if (w.caches > 0) " · " + pluralStringResource(R.plurals.caches, w.caches, w.caches) else "",
-                                style = UType.Muted,
-                            )
-                        }
-                        Text("+" + "%,d".format(w.cells), style = UType.Strong.copy(color = U.c.accent))
-                    }
-                    if (i < minOf(12, data.walks.size) - 1) Box(Modifier.fillMaxWidth().height(1.dp).background(U.c.line))
+            UCard(padding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 6.dp)) {
+                walks.take(5).forEachIndexed { i, w ->
+                    Box(Modifier.fillMaxWidth().clip(U.RSm).clickable { go.walk(w.id) }.padding(vertical = 8.dp)) { WalkRow(w, data, imperial) }
+                    Box(Modifier.fillMaxWidth().height(1.dp).background(U.c.line))
                 }
+                Text(
+                    stringResource(R.string.walks_all, walks.size), style = UType.Button.copy(color = U.c.accent),
+                    modifier = Modifier.fillMaxWidth().clip(U.RSm).clickable { go.walks() }.padding(vertical = 12.dp, horizontal = 4.dp),
+                )
             }
         }
     }

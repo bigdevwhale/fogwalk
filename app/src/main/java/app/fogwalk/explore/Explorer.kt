@@ -7,6 +7,7 @@ import app.fogwalk.data.Find
 import app.fogwalk.data.FogDatabase
 import app.fogwalk.data.SettingsStore
 import app.fogwalk.data.Walk
+import app.fogwalk.data.Waypoint
 import app.fogwalk.domain.Beacons
 import app.fogwalk.domain.Cache
 import app.fogwalk.domain.Caches
@@ -94,6 +95,8 @@ class Explorer(
 
     private val track = Track()
     private var walk: Walk? = null
+    /** The walk whose route already has its starting point. */
+    private var routed = -1L
     private var opened = HashSet<String>()
     private var openedWeek = Long.MIN_VALUE
     private val ownedRelics = HashSet<String>()
@@ -280,6 +283,13 @@ class Explorer(
             w = w.copy(end = f.time, meters = w.meters + moved, cells = w.cells + fresh.size, caches = w.caches + foundHere)
             dao.upsertWalk(w)
             walk = w
+            if (from != null) {
+                val route = ArrayList<Waypoint>(2)
+                if (routed != w.id) route += Waypoint(walk = w.id, at = f.time, lat = from.first, lon = from.second)
+                route += Waypoint(walk = w.id, at = f.time, lat = step.lat, lon = step.lon)
+                dao.insertWaypoints(route)
+                routed = w.id
+            }
             // The trail follows steps only; a point for every wobble in place would scribble.
             if (from != null) _live.update { l -> l.copy(walk = w, trail = (l.trail.ifEmpty { listOf(from) } + points).takeLast(4000)) }
             else _live.update { it.copy(walk = w) }

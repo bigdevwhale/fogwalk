@@ -537,7 +537,7 @@ private fun clock(ms: Long): String {
 }
 
 /** Night tiles: inverted, hue turned back so water stays blue, and dimmed. */
-private fun nightTiles(): ColorMatrixColorFilter {
+internal fun nightTiles(): ColorMatrixColorFilter {
     val invert = ColorMatrix(floatArrayOf(-1f, 0f, 0f, 0f, 255f, 0f, -1f, 0f, 0f, 255f, 0f, 0f, -1f, 0f, 255f, 0f, 0f, 0f, 1f, 0f))
     val hue = ColorMatrix(floatArrayOf(-0.574f, 1.43f, 0.144f, 0f, 0f, 0.426f, 0.43f, 0.144f, 0f, 0f, 0.426f, 1.43f, -0.856f, 0f, 0f, 0f, 0f, 0f, 1f, 0f))
     invert.postConcat(hue)
@@ -548,7 +548,7 @@ private fun nightTiles(): ColorMatrixColorFilter {
 }
 
 /** Day tiles as an old atlas: colour drained toward sepia ink on parchment. */
-private fun softTiles(): ColorMatrixColorFilter {
+internal fun softTiles(): ColorMatrixColorFilter {
     val m = ColorMatrix()
     m.setSaturation(0.35f)
     val warm = ColorMatrix(floatArrayOf(1.0f, 0f, 0f, 0f, 6f, 0f, 0.93f, 0f, 0f, 2f, 0f, 0f, 0.78f, 0f, -4f, 0f, 0f, 0f, 1f, 0f))

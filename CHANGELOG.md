@@ -2,6 +2,14 @@
 
 All notable changes to Fogwalk. Versions follow [semantic versioning](https://semver.org/).
 
+## [1.0.3] - 2026-10-14
+
+### Added
+- A history of journeys: every walk by month, with a sketch of its route, and a page for each with the route on the map, distance, time, pace, new cells and chests. Routes are kept from this version on; backups now carry them.
+
+### Fixed
+- The mist no longer shimmers while the map moves. It is drawn once, pinned to the world, and only slid along as you walk or pan; it is redrawn sharp when new ground opens or a zoom comes to rest.
+
 ## [1.0.2] - 2026-10-14
 
 ### Changed

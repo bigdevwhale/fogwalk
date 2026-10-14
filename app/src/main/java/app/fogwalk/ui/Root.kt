@@ -81,6 +81,8 @@ enum class Tab { MAP, QUESTS, TREASURY, JOURNAL }
 class Go(private val nav: NavHostController, private val setTab: (Tab) -> Unit) {
     fun settings() = nav.navigate("settings")
     fun deeds() = nav.navigate("deeds")
+    fun walks() = nav.navigate("walks")
+    fun walk(id: Long) = nav.navigate("walk/$id")
     fun tab(t: Tab) = setTab(t)
     fun back() = nav.popBackStack()
 }
@@ -124,10 +126,12 @@ fun FogwalkRoot(openRoute: MutableStateFlow<String?>, settings: Settings) {
         tab = when (requested) {
             "quests" -> Tab.QUESTS
             "hoard" -> Tab.TREASURY
-            "chronicle", "deeds" -> Tab.JOURNAL
+            "chronicle", "deeds", "walks" -> Tab.JOURNAL
             else -> Tab.MAP
         }
         if (requested == "deeds") go.deeds()
+        if (requested == "walks") go.walks()
+        if (requested == "walk") data.walks.firstOrNull { it.meters > 500 }?.let { go.walk(it.id) }
         openRoute.value = null
     }
 
@@ -153,6 +157,11 @@ fun FogwalkRoot(openRoute: MutableStateFlow<String?>, settings: Settings) {
         composable("main") { MainTabs(tab, { tab = it }, go, data, focus) }
         composable("settings") { SettingsScreen(settings, onBack = { go.back() }) }
         composable("deeds") { app.fogwalk.ui.journal.DeedsScreen(data, onBack = { go.back() }) }
+        composable("walks") { app.fogwalk.ui.journal.WalksScreen(data, onBack = { go.back() }, onOpen = { go.walk(it) }) }
+        composable("walk/{id}") { e ->
+            val id = e.arguments?.getString("id")?.toLongOrNull() ?: -1L
+            app.fogwalk.ui.journal.WalkScreen(id, data, onBack = { go.back() })
+        }
     }
 
     if (settings.onboarded && days != null) Celebrations(data)
