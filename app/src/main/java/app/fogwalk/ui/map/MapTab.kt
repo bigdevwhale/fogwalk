@@ -82,6 +82,7 @@ import app.fogwalk.data.Units
 import app.fogwalk.domain.Caches
 import app.fogwalk.domain.Levels
 import app.fogwalk.domain.Rarity
+import app.fogwalk.domain.Sectors
 import app.fogwalk.explore.ExploreService
 import app.fogwalk.explore.GameEvent
 import app.fogwalk.geo.Grid
@@ -137,7 +138,6 @@ fun MapTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
     val overlay = remember {
         WorldOverlay(
             container.fog, density,
-            titleFace = runCatching { androidx.core.content.res.ResourcesCompat.getFont(context, R.font.sc_bold) }.getOrNull(),
             onPick = { pick = it },
             onLongPress = if (BuildConfig.DEBUG) { lat, lon -> explorer.simulateTo(lat, lon) } else null,
         )
@@ -193,14 +193,13 @@ fun MapTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
     val rarityColors = Rarity.entries.map { rarityColor(it).first.toArgb() }.toIntArray()
     val accent = U.c.accent.toArgb()
     val gold = U.c.gold.toArgb()
-    val paper = U.c.surface.toArgb()
     val beacon = s.beacon.takeIf { it.day == data.today }
     overlay.scene = Scene(
         fix = live.fix, trail = live.trail,
         beacon = beacon?.let { it.lat to it.lon }, beaconReached = data.todayRow.beacon,
         week = data.week, opened = data.opened, radar = s.radarUntil > data.now,
         style = s.fog, density = s.fogDensity, rarityColors = rarityColors, accent = accent, gold = gold,
-        paper = paper, land = { c.sectorName(it) to container.fog.sectorShare(it) },
+        picked = (pick as? Pick.OfLand)?.sector,
     )
     LaunchedEffect(Unit) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
@@ -401,21 +400,28 @@ private fun RoundButton(icon: ImageVector, tint: Color, label: String, onClick: 
 private fun PickCard(p: Pick, data: GameData, imperial: Boolean, onClose: () -> Unit) {
     val c = content()
     val fix = LocalContext.current.container.explorer.live.collectAsStateWithLifecycle().value.fix?.takeIf { it.time > 0 }
-    val (lat, lon) = when (p) {
+    val target = when (p) {
         is Pick.OfCache -> p.cache.lat to p.cache.lon
         Pick.OfBeacon -> data.settings.beacon.lat to data.settings.beacon.lon
+        is Pick.OfLand -> null
     }
-    val meters = fix?.let { Grid.distance(it.lat, it.lon, lat, lon) }
+    val meters = if (fix != null && target != null) Grid.distance(fix.lat, fix.lon, target.first, target.second) else null
     val (color, soft) = when (p) {
         is Pick.OfCache -> if (p.sensed) U.c.muted to U.c.surface2 else rarityColor(p.cache.rarity)
         Pick.OfBeacon -> U.c.gold to U.c.goldSoft
+        is Pick.OfLand -> U.c.accent to U.c.accentSoft
     }
     Row(
         Modifier.fillMaxWidth().padding(bottom = 8.dp).shadow(8.dp, U.RMd).clip(U.RMd).background(U.c.surface).border(1.dp, U.c.gilt, U.RMd).padding(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.size(44.dp).clip(CircleShape).background(soft), contentAlignment = Alignment.Center) {
-            Icon(if (p is Pick.OfBeacon) Icons.Rounded.Flare else Icons.Rounded.Inventory2, null, Modifier.size(22.dp), tint = color)
+            val icon = when (p) {
+                is Pick.OfCache -> Icons.Rounded.Inventory2
+                Pick.OfBeacon -> Icons.Rounded.Flare
+                is Pick.OfLand -> Icons.Rounded.TravelExplore
+            }
+            Icon(icon, null, Modifier.size(22.dp), tint = color)
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
@@ -423,6 +429,7 @@ private fun PickCard(p: Pick, data: GameData, imperial: Boolean, onClose: () -> 
                 when (p) {
                     is Pick.OfCache -> if (p.sensed) stringResource(R.string.cache_unknown) else stringResource(R.string.cache_of, c.rarity(p.cache.rarity))
                     Pick.OfBeacon -> stringResource(R.string.beacon_of_day)
+                    is Pick.OfLand -> c.sectorName(p.sector)
                 },
                 style = UType.Strong,
             )
@@ -430,6 +437,15 @@ private fun PickCard(p: Pick, data: GameData, imperial: Boolean, onClose: () -> 
             val hint = when (p) {
                 is Pick.OfCache -> stringResource(R.string.cache_hint, Caches.OPEN_M.toInt())
                 Pick.OfBeacon -> if (data.todayRow.beacon) stringResource(R.string.beacon_done) else stringResource(R.string.beacon_hint)
+                is Pick.OfLand -> {
+                    val share = data.share(p.sector)
+                    val next = Sectors.milestones.firstOrNull { share < it.first }
+                    listOfNotNull(
+                        stringResource(R.string.land_here).takeIf { fix != null && Grid.sector(Grid.cell(fix.lat, fix.lon)) == p.sector },
+                        stringResource(R.string.land_charted, (share * 100).toInt()),
+                        if (next != null) stringResource(R.string.land_next, (next.first * 100).toInt()) else stringResource(R.string.land_done),
+                    ).joinToString(" · ")
+                }
             }
             Text((meters?.let { distance(it, imperial) + " · " } ?: "") + hint, style = UType.Muted)
         }

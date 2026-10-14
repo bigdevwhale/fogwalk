@@ -2,6 +2,11 @@
 
 All notable changes to Fogwalk. Versions follow [semantic versioning](https://semver.org/).
 
+## [1.0.2] - 2026-10-14
+
+### Changed
+- Land names no longer sit on the map. Tap a land to see its name, how much of it is charted and the next reward; the land lights up until you tap it again.
+
 ## [1.0.1] - 2026-10-14
 
 ### Fixed

@@ -35,6 +35,7 @@ import kotlin.math.sqrt
 sealed interface Pick {
     data class OfCache(val cache: Cache, val sensed: Boolean) : Pick
     data object OfBeacon : Pick
+    data class OfLand(val sector: Long) : Pick
 }
 
 /** What the overlay needs from the app; swapped as a whole when anything changes. */
@@ -51,10 +52,8 @@ class Scene(
     val rarityColors: IntArray,
     val accent: Int,
     val gold: Int,
-    /** Card colour, for the halo behind land names. */
-    val paper: Int,
-    /** A land's name and how much of it is charted, 0..1. */
-    val land: (Long) -> Pair<String, Double>,
+    /** The land tapped on the map, highlighted. */
+    val picked: Long?,
 )
 
 /**
@@ -66,7 +65,6 @@ class Scene(
 class WorldOverlay(
     private val fog: FogStore,
     private val density: Float,
-    private val titleFace: Typeface?,
     private val onPick: (Pick?) -> Unit,
     private val onLongPress: ((Double, Double) -> Unit)?,
 ) : Overlay() {
@@ -92,7 +90,6 @@ class WorldOverlay(
         style = Paint.Style.STROKE
         strokeCap = Paint.Cap.ROUND
     }
-    private val label = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER }
     private val path = Path()
 
     /** Screen = a * mercator + b, refreshed each frame. */
@@ -100,6 +97,9 @@ class WorldOverlay(
     private var bx = 0.0
     private var ay = 0.0
     private var by = 0.0
+
+    /** Lands are drawn at this map scale, so a tap between markers may pick one. */
+    private var landsShown = false
 
     /** Markers drawn this frame, for taps. */
     private val hits = ArrayList<Pair<Pick, FloatArray>>()
@@ -209,13 +209,14 @@ class WorldOverlay(
     }
 
     /**
-     * Borders of the lands as dashed gilt lines, the walker's own land drawn bolder, and the name of
-     * each visited land where it can be read: at its centre, or pulled toward it from the screen edge.
+     * Borders of the lands as dashed gilt lines, the walker's own land drawn bolder. Names stay off
+     * the map; tapping a land shows its card.
      */
     private fun drawLands(c: Canvas, s: Scene, w: Int, h: Int, mx0: Double, mx1: Double, my0: Double, my1: Double) {
         val n = 1 shl Grid.SECTOR_Z
         val sidePx = ax / n
-        if (sidePx < 70 * density) return
+        landsShown = sidePx >= 70 * density
+        if (!landsShown) return
         val x0 = floor(mx0 * n).toInt()
         val x1 = floor(mx1 * n).toInt()
         val y0 = floor(my0 * n).toInt()
@@ -244,43 +245,18 @@ class WorldOverlay(
             c.drawRect((ax * hx / n + bx).toFloat(), (ay * hy / n + by).toFloat(), (ax * (hx + 1) / n + bx).toFloat(), (ay * (hy + 1) / n + by).toFloat(), border)
         }
         border.pathEffect = null
-
-        // Names stay clear of the panels at the top and bottom of the map.
-        val left = 70 * d
-        val right = w - 70 * d
-        val top = 175 * d
-        val bottom = h - 340 * d
-        if (right <= left || bottom <= top) return
-        label.typeface = titleFace ?: Typeface.DEFAULT_BOLD
-        label.textSize = (if (sidePx > 600 * d) 17 else 14) * d
-        for (x in x0..x1) for (y in y0..y1) {
-            val key = Grid.key(x, y)
-            if (fog.count(key, Grid.SECTOR_Z) == 0) continue
-            val l = (ax * x / n + bx).toFloat()
-            val t = (ay * y / n + by).toFloat()
-            val r = (ax * (x + 1) / n + bx).toFloat()
-            val b = (ay * (y + 1) / n + by).toFloat()
-            // The part of the land on screen, inset; skip slivers.
-            val vl = max(l + 12 * d, left)
-            val vr = min(r - 12 * d, right)
-            val vt = max(t + 24 * d, top)
-            val vb = min(b - 12 * d, bottom)
-            if (vb < vt) continue
-            val (name, share) = s.land(key)
-            val text = if (share >= 0.01) "$name · ${(share * 100).toInt()}%" else name
-            val half = label.measureText(text) / 2
-            if (vr - vl < half * 2) continue
-            val cx = ((l + r) / 2).coerceIn(vl + half, vr - half)
-            val cy = ((t + b) / 2).coerceIn(vt, vb)
-            label.style = Paint.Style.STROKE
-            label.strokeWidth = 4f * d
-            label.color = s.paper
-            label.alpha = 220
-            c.drawText(text, cx, cy, label)
-            label.style = Paint.Style.FILL
-            label.color = s.gold
-            label.alpha = 255
-            c.drawText(text, cx, cy, label)
+        // The land picked on the map, washed in gold.
+        s.picked?.let { k ->
+            val px = Grid.x(k)
+            val py = Grid.y(k)
+            val r = RectF((ax * px / n + bx).toFloat(), (ay * py / n + by).toFloat(), (ax * (px + 1) / n + bx).toFloat(), (ay * (py + 1) / n + by).toFloat())
+            fill.shader = null
+            fill.color = withAlpha(s.gold, 40)
+            c.drawRect(r, fill)
+            border.color = s.gold
+            border.alpha = 255
+            border.strokeWidth = 3f * d
+            c.drawRect(r, border)
         }
     }
 
@@ -474,8 +450,19 @@ class WorldOverlay(
         val r = 30 * density
         val hit = hits.minByOrNull { (_, p) -> (p[0] - e.x) * (p[0] - e.x) + (p[1] - e.y) * (p[1] - e.y) }
             ?.takeIf { (_, p) -> (p[0] - e.x) * (p[0] - e.x) + (p[1] - e.y) * (p[1] - e.y) <= r * r }
-        onPick(hit?.first)
-        return hit != null
+        if (hit != null) {
+            onPick(hit.first)
+            return true
+        }
+        // Between markers a tap names the land beneath it; tapping the picked land again lets it go.
+        if (!landsShown) {
+            onPick(null)
+            return false
+        }
+        val g = mapView.projection.fromPixels(e.x.toInt(), e.y.toInt())
+        val land = Grid.sector(Grid.cell(g.latitude, g.longitude))
+        onPick(if (scene?.picked == land) null else Pick.OfLand(land))
+        return true
     }
 
     override fun onLongPress(e: MotionEvent, mapView: MapView): Boolean {

@@ -66,6 +66,10 @@
     <string name="cache_of">%1$s сундук</string>
     <string name="cache_unknown">Что-то мерцает в тумане</string>
     <string name="cache_hint">подойдите на %1$d м, чтобы открыть</string>
+    <string name="land_charted">нанесено на карту %1$d%%</string>
+    <string name="land_next">следующая награда на %1$d%%</string>
+    <string name="land_done">все награды этой земли получены</string>
+    <string name="land_here">вы здесь</string>
     <string name="cache_opened">Сундук открыт</string>
     <string name="start_walk">В путь</string>
     <string name="start_walk_hint">Странствие продолжится и с выключенным экраном</string>
