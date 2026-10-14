@@ -10,6 +10,8 @@ import app.fogwalk.domain.Levels
 import app.fogwalk.domain.Quests
 import app.fogwalk.domain.Relics
 import app.fogwalk.domain.Streaks
+import app.fogwalk.explore.Fix
+import app.fogwalk.explore.Track
 import app.fogwalk.geo.Grid
 import app.fogwalk.geo.LongIntMap
 import app.fogwalk.geo.LongSet
@@ -137,5 +139,71 @@ class FogwalkTest {
     private object LocalDays {
         /** 2026-10-12, a Monday. */
         const val MONDAY = 20_738L
+    }
+
+    /** A walk east from Moscow's centre: [seconds] fixes at [speed] m/s with GPS-like noise. */
+    private fun noisyWalk(seconds: Int, speed: Double, sigma: Double, spikes: Boolean, network: Boolean, doppler: Boolean): List<Fix> {
+        val rnd = java.util.Random(7)
+        val lat0 = 55.75
+        val lon0 = 37.6
+        val mLon = 111_320.0 * Math.cos(Math.toRadians(lat0))
+        // GPS error drifts rather than jumping: a slowly wandering offset plus a little white noise.
+        var ex = 0.0
+        var ey = 0.0
+        val out = ArrayList<Fix>()
+        for (t in 0 until seconds) {
+            ex = ex * 0.9 + rnd.nextGaussian() * sigma * 0.45
+            ey = ey * 0.9 + rnd.nextGaussian() * sigma * 0.45
+            var x = speed * t + ex + rnd.nextGaussian() * 2
+            var y = ey + rnd.nextGaussian() * 2
+            if (spikes && t % 37 == 0 && t > 0) { x += 70; y -= 50 }
+            val time = 1_000_000L + t * 1000L
+            out += Fix(lat0 + y / 111_320.0, lon0 + x / mLon, (sigma * 1.5).toFloat(), time, speed = if (doppler) speed.toFloat() else null)
+            if (network && t % 5 == 2) {
+                out += Fix(lat0 + (y + 35) / 111_320.0, lon0 + (x - 30) / mLon, 30f, time + 1, gps = false)
+            }
+        }
+        return out
+    }
+
+    private fun run(fixes: List<Fix>): Triple<Double, Int, Int> {
+        val track = Track()
+        var meters = 0.0
+        var fast = 0
+        var steps = 0
+        for (f in fixes) {
+            val s = track.add(f) ?: continue
+            meters += s.meters
+            if (s.fast) fast++
+            if (s.from != null) steps++
+        }
+        return Triple(meters, fast, steps)
+    }
+
+    @Test
+    fun noisyWalkCountsTheRealDistance() {
+        // 1.4 m/s for 12 minutes: about 1 km.
+        for (doppler in listOf(true, false)) {
+            val (meters, fast, _) = run(noisyWalk(720, 1.4, 8.0, spikes = true, network = true, doppler = doppler))
+            assertTrue("walked $meters m (doppler=$doppler)", meters in 850.0..1150.0)
+            assertEquals("never too fast (doppler=$doppler)", 0, fast)
+        }
+    }
+
+    @Test
+    fun standingStillAddsAlmostNothing() {
+        // Satellite fixes carry their own speed; without it a slow drift can't be told from a stroll.
+        val (meters, fast, _) = run(noisyWalk(900, 0.0, 10.0, spikes = true, network = true, doppler = true))
+        assertTrue("drifted $meters m", meters < 60)
+        assertEquals(0, fast)
+    }
+
+    @Test
+    fun aCarIsTooFast() {
+        for (doppler in listOf(true, false)) {
+            val (meters, fast, _) = run(noisyWalk(120, 14.0, 5.0, spikes = false, network = false, doppler = doppler))
+            assertTrue("fast fixes $fast (doppler=$doppler)", fast > 60)
+            assertTrue("counted $meters m in a car", meters < 150)
+        }
     }
 }

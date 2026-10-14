@@ -137,6 +137,7 @@ fun MapTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
     val overlay = remember {
         WorldOverlay(
             container.fog, density,
+            titleFace = runCatching { androidx.core.content.res.ResourcesCompat.getFont(context, R.font.sc_bold) }.getOrNull(),
             onPick = { pick = it },
             onLongPress = if (BuildConfig.DEBUG) { lat, lon -> explorer.simulateTo(lat, lon) } else null,
         )
@@ -192,12 +193,14 @@ fun MapTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
     val rarityColors = Rarity.entries.map { rarityColor(it).first.toArgb() }.toIntArray()
     val accent = U.c.accent.toArgb()
     val gold = U.c.gold.toArgb()
+    val paper = U.c.surface.toArgb()
     val beacon = s.beacon.takeIf { it.day == data.today }
     overlay.scene = Scene(
         fix = live.fix, trail = live.trail,
         beacon = beacon?.let { it.lat to it.lon }, beaconReached = data.todayRow.beacon,
         week = data.week, opened = data.opened, radar = s.radarUntil > data.now,
         style = s.fog, density = s.fogDensity, rarityColors = rarityColors, accent = accent, gold = gold,
+        paper = paper, land = { c.sectorName(it) to container.fog.sectorShare(it) },
     )
     LaunchedEffect(Unit) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {

@@ -46,6 +46,10 @@ data class Fix(
     val bearing: Float? = null,
     /** From the debug walker: skips the vehicle check. */
     val simulated: Boolean = false,
+    /** False for network (cell and Wi-Fi) positions, which are shown but never walked on. */
+    val gps: Boolean = true,
+    /** Ground speed from the satellites, m/s, when the phone reports it. */
+    val speed: Float? = null,
 )
 
 /** What the map shows live: where the walker is and how the current walk goes. */
@@ -88,7 +92,7 @@ class Explorer(
     private val _events = MutableSharedFlow<GameEvent>(extraBufferCapacity = 32)
     val events: SharedFlow<GameEvent> = _events
 
-    private var anchor: Fix? = null
+    private val track = Track()
     private var walk: Walk? = null
     private var opened = HashSet<String>()
     private var openedWeek = Long.MIN_VALUE
@@ -143,8 +147,14 @@ class Explorer(
         if (!f.simulated && System.currentTimeMillis() < simulatingUntil) return
         val prev = _live.value.fix
         if (prev != null && prev.time > 0 && f.time <= prev.time && !f.simulated) return
-        _live.update { it.copy(fix = f) }
-        if (f.accuracy > MAX_ACCURACY) return
+        val step = track.add(f)
+        if (step == null) {
+            // Not walkable; still worth a dot on the map while satellites are silent.
+            if (!track.hasGps(f.time) && f.accuracy < 200) _live.update { it.copy(fix = f) }
+            return
+        }
+        _live.update { it.copy(fix = f.copy(lat = step.lat, lon = step.lon), tooFast = step.fast) }
+        if (step.fast) return
 
         val local = Instant.ofEpochMilli(f.time).atZone(zone())
         val day = local.toLocalDate().toEpochDay()
@@ -152,32 +162,17 @@ class Explorer(
         val s = settings.now()
         val radius = REVEAL_M * if (s.lanternUntil > f.time) Shop.LANTERN_FACTOR else 1.0
 
-        // Fill the way from the last good fix, unless it was long ago or looked like a vehicle.
-        val a = anchor
+        // The way from the last committed point, filled in so a walk leaves a continuous corridor.
         val points = ArrayList<Pair<Double, Double>>()
-        var moved = 0.0
-        if (a == null || f.time - a.time > GAP_MS) {
-            points += f.lat to f.lon
-            anchor = f
+        val from = step.from
+        val moved = step.meters
+        if (from == null) {
+            points += step.lat to step.lon
         } else {
-            val d = Grid.distance(a.lat, a.lon, f.lat, f.lon)
-            val dt = max(1.0, (f.time - a.time) / 1000.0)
-            if (!f.simulated && d > 50 && d / dt > MAX_SPEED) {
-                anchor = f
-                _live.update { it.copy(tooFast = true) }
-                return
-            }
-            _live.update { it.copy(tooFast = false) }
-            if (d < max(MIN_STEP, f.accuracy * 0.4)) {
-                points += f.lat to f.lon
-            } else {
-                moved = d
-                val steps = ceil(d / FILL_STEP).toInt()
-                for (i in 1..steps) {
-                    val t = i.toDouble() / steps
-                    points += (a.lat + (f.lat - a.lat) * t) to (a.lon + (f.lon - a.lon) * t)
-                }
-                anchor = f
+            val steps = ceil(moved / FILL_STEP).toInt().coerceAtLeast(1)
+            for (i in 1..steps) {
+                val t = i.toDouble() / steps
+                points += (from.first + (step.lat - from.first) * t) to (from.second + (step.lon - from.second) * t)
             }
         }
 
@@ -208,9 +203,10 @@ class Explorer(
         var foundHere = 0
         var rareHere = 0
         val reach = Caches.OPEN_M + min(f.accuracy.toDouble(), 20.0)
-        for (c in Caches.near(f.lat, f.lon, NEAR_M, week)) {
+        for (c in Caches.near(step.lat, step.lon, NEAR_M + moved, week)) {
             if (c.key in opened) continue
-            val m = Grid.distance(f.lat, f.lon, c.lat, c.lon)
+            // Anywhere along the step counts, so a chest isn't missed between two fixes.
+            val m = points.minOf { (la, lo) -> Grid.distance(la, lo, c.lat, c.lon) }
             if (m <= reach) {
                 val loot = Caches.open(c, ownedRelics)
                 val find = Find(
@@ -237,12 +233,13 @@ class Explorer(
         var b = s.beacon
         if (b.day != day) {
             val level = Levels.level(Wallet.xp(fog.size, dao.finds(), dao.ledger()))
-            val (lat, lon) = Beacons.place(day, 0, f.lat, f.lon, level) { la, lo -> fog.exploredAround(la, lo, 120.0) }
+            val (lat, lon) = Beacons.place(day, 0, step.lat, step.lon, level) { la, lo -> fog.exploredAround(la, lo, 120.0) }
             settings.update { it.copy(beacon = app.fogwalk.data.BeaconSpot(day, lat, lon)) }
             b = app.fogwalk.data.BeaconSpot(day, lat, lon)
         }
         val today = dao.day(day) ?: Day(day)
-        if (!today.beacon && Grid.distance(f.lat, f.lon, b.lat, b.lon) <= Beacons.REACH_M + min(f.accuracy.toDouble(), 20.0)) {
+        val toBeacon = points.minOf { (la, lo) -> Grid.distance(la, lo, b.lat, b.lon) }
+        if (!today.beacon && toBeacon <= Beacons.REACH_M + min(f.accuracy.toDouble(), 20.0)) {
             beacon = true
             dao.grant(Entry("q:$day:2", f.time, Beacons.COINS, Beacons.XP))
             _events.tryEmit(GameEvent.Beacon)
@@ -276,20 +273,22 @@ class Explorer(
             )
             var w = walk
             if (w == null || f.time - w.end > WALK_GAP_MS) {
-                w = Walk(start = f.time, end = f.time, lat = f.lat, lon = f.lon)
+                w = Walk(start = f.time, end = f.time, lat = step.lat, lon = step.lon)
                 w = w.copy(id = dao.insertWalk(w))
                 _live.update { it.copy(trail = emptyList()) }
             }
             w = w.copy(end = f.time, meters = w.meters + moved, cells = w.cells + fresh.size, caches = w.caches + foundHere)
             dao.upsertWalk(w)
             walk = w
-            _live.update { l -> l.copy(walk = w, trail = (l.trail + points).takeLast(4000)) }
+            // The trail follows steps only; a point for every wobble in place would scribble.
+            if (from != null) _live.update { l -> l.copy(walk = w, trail = (l.trail.ifEmpty { listOf(from) } + points).takeLast(4000)) }
+            else _live.update { it.copy(walk = w) }
         }
         if (fresh.isNotEmpty()) fog.changed()
 
         if (f.time - lastSaved > 60_000) {
             lastSaved = f.time
-            settings.update { it.copy(lastLat = f.lat, lastLon = f.lon) }
+            settings.update { it.copy(lastLat = step.lat, lastLon = step.lon) }
         }
     }
 
@@ -329,12 +328,9 @@ class Explorer(
     companion object {
         /** Radius of ground revealed around each point of a walk. */
         const val REVEAL_M = 40.0
-        const val MAX_ACCURACY = 45f
         /** Faster than this (m/s, about 30 km/h) is a vehicle. */
         const val MAX_SPEED = 8.5
-        const val MIN_STEP = 6.0
         const val FILL_STEP = 8.0
-        const val GAP_MS = 3 * 60_000L
         const val WALK_GAP_MS = 20 * 60_000L
         const val NEAR_M = 150.0
     }

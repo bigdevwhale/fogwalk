@@ -52,9 +52,9 @@ class LocationFeed(private val context: Context, private val explorer: Explorer)
         try {
             val providers = lm.getProviders(true)
             if (LocationManager.GPS_PROVIDER in providers) {
-                lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 2000L, 0f, listener, Looper.getMainLooper())
+                lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 0f, listener, Looper.getMainLooper())
             }
-            // Network positions are coarse but arrive at once indoors; the explorer ignores the worst of them.
+            // Network positions arrive at once indoors; they only place the dot until satellites answer.
             if (LocationManager.NETWORK_PROVIDER in providers) {
                 lm.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 5000L, 0f, listener, Looper.getMainLooper())
             }
@@ -75,6 +75,8 @@ class LocationFeed(private val context: Context, private val explorer: Explorer)
                 accuracy = if (l.hasAccuracy()) l.accuracy else 50f,
                 time = l.time,
                 bearing = if (l.hasBearing()) l.bearing else null,
+                gps = l.provider == LocationManager.GPS_PROVIDER,
+                speed = if (l.hasSpeed()) l.speed else null,
             )
         )
     }

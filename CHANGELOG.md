@@ -2,6 +2,16 @@
 
 All notable changes to Fogwalk. Versions follow [semantic versioning](https://semver.org/).
 
+## [1.0.1] - 2026-10-14
+
+### Fixed
+- Walks no longer zigzag or count several times the real distance. Coarse network positions only place the dot until the satellites answer, a filter tuned to walking pace smooths the rest, lone wild fixes are dropped, and standing still adds nothing.
+- No more "too fast" warnings on foot: a vehicle is now told by the satellites' own speed, or by several fast steps in a row, never by a single jumpy fix.
+- Chests and the shrine are found anywhere along the way between two positions, so a jumpy fix no longer walks you past them.
+
+### Added
+- The borders of the lands on the map, the one you are in drawn bolder, with each visited land's name and how much of it is charted.
+
 ## [1.0.0] - 2026-10-14
 
 The first release.

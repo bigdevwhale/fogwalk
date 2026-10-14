@@ -51,6 +51,10 @@ class Scene(
     val rarityColors: IntArray,
     val accent: Int,
     val gold: Int,
+    /** Card colour, for the halo behind land names. */
+    val paper: Int,
+    /** A land's name and how much of it is charted, 0..1. */
+    val land: (Long) -> Pair<String, Double>,
 )
 
 /**
@@ -59,7 +63,13 @@ class Scene(
  * with filtering, which gives soft cloud-like edges for free. It is rebuilt only when the view or the
  * explored ground changes; the pulsing markers on top redraw every frame.
  */
-class WorldOverlay(private val fog: FogStore, private val density: Float, private val onPick: (Pick?) -> Unit, private val onLongPress: ((Double, Double) -> Unit)?) : Overlay() {
+class WorldOverlay(
+    private val fog: FogStore,
+    private val density: Float,
+    private val titleFace: Typeface?,
+    private val onPick: (Pick?) -> Unit,
+    private val onLongPress: ((Double, Double) -> Unit)?,
+) : Overlay() {
     @Volatile
     var scene: Scene? = null
 
@@ -78,6 +88,11 @@ class WorldOverlay(private val fog: FogStore, private val density: Float, privat
         textAlign = Paint.Align.CENTER
     }
     private val glow = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val border = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+    }
+    private val label = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER }
     private val path = Path()
 
     /** Screen = a * mercator + b, refreshed each frame. */
@@ -113,6 +128,7 @@ class WorldOverlay(private val fog: FogStore, private val density: Float, privat
         by = nw.y - ay * my0
 
         drawFog(c, s, w, h, mx0, mx1, my0, my1)
+        drawLands(c, s, w, h, mx0, mx1, my0, my1)
         hits.clear()
         val t = System.currentTimeMillis()
         drawTrail(c, s)
@@ -189,6 +205,82 @@ class WorldOverlay(private val fog: FogStore, private val density: Float, privat
             val cx = ((ax * (x + 0.5) / n + bx) / scale).toFloat()
             val cy = ((ay * (y + 0.5) / n + by) / scale).toFloat()
             fc.drawCircle(cx, cy, r, clearPaint)
+        }
+    }
+
+    /**
+     * Borders of the lands as dashed gilt lines, the walker's own land drawn bolder, and the name of
+     * each visited land where it can be read: at its centre, or pulled toward it from the screen edge.
+     */
+    private fun drawLands(c: Canvas, s: Scene, w: Int, h: Int, mx0: Double, mx1: Double, my0: Double, my1: Double) {
+        val n = 1 shl Grid.SECTOR_Z
+        val sidePx = ax / n
+        if (sidePx < 70 * density) return
+        val x0 = floor(mx0 * n).toInt()
+        val x1 = floor(mx1 * n).toInt()
+        val y0 = floor(my0 * n).toInt()
+        val y1 = floor(my1 * n).toInt()
+        if ((x1 - x0 + 1).toLong() * (y1 - y0 + 1) > 400) return
+        val d = density
+        border.color = s.gold
+        border.alpha = 150
+        border.strokeWidth = 1.6f * d
+        border.pathEffect = android.graphics.DashPathEffect(floatArrayOf(9 * d, 6 * d), 0f)
+        for (x in x0..x1 + 1) {
+            val px = (ax * x / n + bx).toFloat()
+            c.drawLine(px, 0f, px, h.toFloat(), border)
+        }
+        for (y in y0..y1 + 1) {
+            val py = (ay * y / n + by).toFloat()
+            c.drawLine(0f, py, w.toFloat(), py, border)
+        }
+        val here = s.fix?.takeIf { it.time > 0 }?.let { Grid.sector(Grid.cell(it.lat, it.lon)) }
+        if (here != null) {
+            val hx = Grid.x(here)
+            val hy = Grid.y(here)
+            border.alpha = 235
+            border.strokeWidth = 3f * d
+            border.pathEffect = android.graphics.DashPathEffect(floatArrayOf(14 * d, 6 * d), 0f)
+            c.drawRect((ax * hx / n + bx).toFloat(), (ay * hy / n + by).toFloat(), (ax * (hx + 1) / n + bx).toFloat(), (ay * (hy + 1) / n + by).toFloat(), border)
+        }
+        border.pathEffect = null
+
+        // Names stay clear of the panels at the top and bottom of the map.
+        val left = 70 * d
+        val right = w - 70 * d
+        val top = 175 * d
+        val bottom = h - 340 * d
+        if (right <= left || bottom <= top) return
+        label.typeface = titleFace ?: Typeface.DEFAULT_BOLD
+        label.textSize = (if (sidePx > 600 * d) 17 else 14) * d
+        for (x in x0..x1) for (y in y0..y1) {
+            val key = Grid.key(x, y)
+            if (fog.count(key, Grid.SECTOR_Z) == 0) continue
+            val l = (ax * x / n + bx).toFloat()
+            val t = (ay * y / n + by).toFloat()
+            val r = (ax * (x + 1) / n + bx).toFloat()
+            val b = (ay * (y + 1) / n + by).toFloat()
+            // The part of the land on screen, inset; skip slivers.
+            val vl = max(l + 12 * d, left)
+            val vr = min(r - 12 * d, right)
+            val vt = max(t + 24 * d, top)
+            val vb = min(b - 12 * d, bottom)
+            if (vb < vt) continue
+            val (name, share) = s.land(key)
+            val text = if (share >= 0.01) "$name · ${(share * 100).toInt()}%" else name
+            val half = label.measureText(text) / 2
+            if (vr - vl < half * 2) continue
+            val cx = ((l + r) / 2).coerceIn(vl + half, vr - half)
+            val cy = ((t + b) / 2).coerceIn(vt, vb)
+            label.style = Paint.Style.STROKE
+            label.strokeWidth = 4f * d
+            label.color = s.paper
+            label.alpha = 220
+            c.drawText(text, cx, cy, label)
+            label.style = Paint.Style.FILL
+            label.color = s.gold
+            label.alpha = 255
+            c.drawText(text, cx, cy, label)
         }
     }
 
