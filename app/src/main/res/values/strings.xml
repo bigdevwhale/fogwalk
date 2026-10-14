@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">Fogwalk</string>
+
+    <string name="tab_map">Map</string>
+    <string name="tab_quests">Quests</string>
+    <string name="tab_treasury">Hoard</string>
+    <string name="tab_journal">Chronicle</string>
+
+    <string name="back">Back</string>
+    <string name="cancel">Cancel</string>
+    <string name="close">Close</string>
+    <string name="next">Next</string>
+    <string name="nice">Nice</string>
+    <string name="save">Save</string>
+    <string name="done">Done</string>
+    <string name="later">Later</string>
+    <string name="take">Claim the loot</string>
+
+    <!-- Units -->
+    <string name="unit_m">%1$d m</string>
+    <string name="unit_km">%1$s km</string>
+    <string name="unit_ft">%1$d ft</string>
+    <string name="unit_mi">%1$s mi</string>
+    <string name="unit_m2">%1$s m²</string>
+    <string name="unit_km2">%1$s km²</string>
+    <string name="unit_mi2">%1$s mi²</string>
+    <string name="minutes_short">%1$d min</string>
+    <string name="min_left">%1$d min</string>
+
+    <plurals name="cells">
+        <item quantity="one">%1$d cell</item>
+        <item quantity="other">%1$d cells</item>
+    </plurals>
+    <plurals name="caches">
+        <item quantity="one">%1$d chest</item>
+        <item quantity="other">%1$d chests</item>
+    </plurals>
+    <plurals name="day_streak">
+        <item quantity="one">%1$d-day streak</item>
+        <item quantity="other">%1$d-day streak</item>
+    </plurals>
+    <plurals name="shields">
+        <item quantity="one">%1$d streak shield</item>
+        <item quantity="other">%1$d streak shields</item>
+    </plurals>
+
+    <!-- Map -->
+    <string name="today_line">Today %1$s · %2$s</string>
+    <string name="xp_to_next">%1$d XP to the next level</string>
+    <string name="my_location">My location</string>
+    <string name="beacon">Shrine</string>
+    <string name="beacon_of_day">Shrine of the day</string>
+    <string name="beacon_away">%1$s away, deep in the mist</string>
+    <string name="beacon_waiting">Awakens with your first steps today</string>
+    <string name="beacon_done">Reached today. Another awakens tomorrow</string>
+    <string name="beacon_hint">Reach it for 60 gold and 120 XP</string>
+    <string name="beacon_reached">The shrine is yours!</string>
+    <string name="beacon_reached_text">+60 gold and 120 XP. A new shrine awakens tomorrow.</string>
+    <string name="cache_of">%1$s chest</string>
+    <string name="cache_unknown">Something glimmers in the mist</string>
+    <string name="cache_hint">walk within %1$d m to open</string>
+    <string name="cache_opened">Chest opened</string>
+    <string name="start_walk">Set out</string>
+    <string name="start_walk_hint">The journey goes on with the screen off</string>
+    <string name="stop_walk">Stop</string>
+    <string name="walking_now">On the road</string>
+    <string name="walking_wait">Waiting for your first steps…</string>
+    <string name="too_fast">Too fast, traveller. The mist only parts for those on foot or on a bike.</string>
+    <string name="need_location_title">The atlas needs to know where you stand</string>
+    <string name="need_location_text">The mist parts wherever you walk. Your path never leaves this phone.</string>
+    <string name="allow_location">Allow location</string>
+    <string name="osm_credit">© OpenStreetMap contributors</string>
+    <string name="toast_sector">New land: %1$s</string>
+    <string name="toast_milestone">%1$s is %2$d%% charted · +%3$d gold</string>
+
+    <!-- Chest -->
+    <string name="plus_sparks">+%1$d gold</string>
+    <string name="plus_xp">+%1$d XP</string>
+    <string name="relic_new">New relic</string>
+    <string name="relic_duplicate">Already in your hoard, melted into gold</string>
+    <string name="relic_set_progress">%1$s: %2$d of %3$d</string>
+
+    <!-- Quests -->
+    <string name="quests_reset">New quests in %1$d h %2$d min</string>
+    <string name="quests_today">Today</string>
+    <string name="quests_week">This week</string>
+    <string name="days_left">%1$d d left</string>
+    <string name="claim">Claim</string>
+    <string name="show_on_map">Show on the map</string>
+    <string name="streak_safe">Today counts. The streak is safe</string>
+    <string name="streak_need">Reveal %1$d new cells, walk 1 km or reach the shrine today</string>
+    <string name="best_streak">best %1$d</string>
+    <string name="caches_refill">Chests refill across the whole realm every Monday, even on roads you already know.</string>
+
+    <!-- Treasury -->
+    <string name="treasury_sub">%1$d of %2$d relics in your hoard</string>
+    <string name="relics">Relics</string>
+    <string name="shop">Merchant</string>
+    <string name="relic_unknown">Not found</string>
+    <string name="relic_found_times">Found %1$d×</string>
+    <string name="set_reward">Complete the set for %1$d gold</string>
+    <string name="set_title">Title: %1$s</string>
+    <string name="fog_styles">Mists of the realm</string>
+    <string name="style_active">In use</string>
+    <string name="style_use">Tap to use</string>
+    <string name="boosts">Potions and charms</string>
+    <string name="lantern">Torch</string>
+    <string name="lantern_text">Burns a wider path for an hour</string>
+    <string name="radar">Seeing stone</string>
+    <string name="radar_text">Shows every chest through the mist for an hour</string>
+    <string name="shield">Ward of the streak</string>
+    <string name="shield_text">Guards the streak on a missed day. You have %1$d of %2$d</string>
+    <string name="reroll">Scroll of wandering</string>
+    <string name="reroll_text">Moves today\'s shrine elsewhere, once a day</string>
+    <string name="buy">Buy</string>
+    <string name="buy_title">Buy %1$s?</string>
+    <string name="buy_text">It costs %1$d gold. You have %2$d.</string>
+    <string name="not_enough">Not enough gold yet</string>
+
+    <!-- Journal -->
+    <string name="explored">Charted</string>
+    <string name="world_share">%1$s%% of the known world</string>
+    <string name="stat_walked">walked</string>
+    <string name="stat_sectors">lands</string>
+    <string name="stat_caches">chests</string>
+    <string name="stat_beacons">shrines</string>
+    <string name="stat_best_streak">best streak</string>
+    <string name="stat_cells">cells</string>
+    <string name="activity">Days on the road</string>
+    <string name="activity_note">Days out exploring: %1$d</string>
+    <string name="sectors">Your lands</string>
+    <string name="sectors_empty">The realm is divided into named lands about a kilometre across. The first appears with your first steps.</string>
+    <string name="badges_count">Deeds · %1$d of %2$d</string>
+    <string name="badge_unlocked">Deed accomplished</string>
+    <string name="badge_locked">Not yet</string>
+    <string name="badge_more">And %1$d more!</string>
+    <string name="badge_progress">%1$d%% of the way</string>
+    <string name="deeds_next">Closest deeds</string>
+    <string name="deeds_open">Open the book of deeds</string>
+    <string name="deeds_all_done">Every rung climbed</string>
+    <string name="recent_walks">Recent journeys</string>
+
+    <!-- Celebrations -->
+    <string name="level_up">Level up</string>
+    <string name="level_n">Level %1$d</string>
+    <string name="level_up_text">The atlas remembers every step. Take %1$d gold for the road.</string>
+    <string name="set_complete">Set complete</string>
+    <string name="set_complete_text">You earn the title «%1$s» and %2$d gold.</string>
+
+    <!-- Onboarding -->
+    <string name="ob1_title">The realm is lost in mist</string>
+    <string name="ob1_text">Wherever you walk, the mist parts for good. Week by week, road by road, your city becomes an atlas of your own.</string>
+    <string name="ob2_title">The mist hides wonders</string>
+    <string name="ob2_caches">Treasure chests</string>
+    <string name="ob2_caches_text">Hidden all across the realm and refilled every Monday. Walk up to one to open it.</string>
+    <string name="ob2_beacon">Shrine of the day</string>
+    <string name="ob2_beacon_text">Each day a shrine awakens where the mist is thickest. Reach it for the day\'s richest reward.</string>
+    <string name="ob2_relics">Relics and deeds</string>
+    <string name="ob2_relics_text">Thirty-six relics in six sets, from a brass compass to a dragon\'s scale, and over a hundred and fifty deeds to accomplish.</string>
+    <string name="ob2_streak">Quests and streaks</string>
+    <string name="ob2_streak_text">New quests every dawn, a great quest every week, and a streak that grows with every day on the road.</string>
+    <string name="ob3_title">Where does your journey begin?</string>
+    <string name="ob3_text">Fogwalk needs your location to part the mist. Nothing leaves this phone: no account, no server, no ads.</string>
+
+    <!-- Settings -->
+    <string name="settings">Settings</string>
+    <string name="perm_title">Turn on notifications</string>
+    <string name="perm_text">For the evening streak reminder and chests nearby on the road.</string>
+    <string name="set_notifications">Notifications</string>
+    <string name="set_remind">Evening reminder</string>
+    <string name="set_remind_text">Only on days you haven\'t been out yet</string>
+    <string name="set_remind_at">At %1$s</string>
+    <string name="set_nearby">Chests nearby</string>
+    <string name="set_nearby_text">On a journey, a call when a chest is close</string>
+    <string name="autostart_title">Journeys stop with the screen off?</string>
+    <string name="autostart_text">Some phones close apps in the background. Allow autostart and turn off battery restrictions for Fogwalk.</string>
+    <string name="set_fog">Mist</string>
+    <string name="set_fog_density">Density</string>
+    <string name="set_fog_density_text">How much of the realm shows through the mist</string>
+    <string name="set_units">Units</string>
+    <string name="units_metric">Kilometres</string>
+    <string name="units_imperial">Miles</string>
+    <string name="set_feel">Feel</string>
+    <string name="set_haptics">Vibration</string>
+    <string name="set_haptics_text">A tap when you open a chest or reach the shrine</string>
+    <string name="set_appearance">Appearance</string>
+    <string name="theme_system">System</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="language">Language</string>
+    <string name="lang_system">System</string>
+    <string name="backup">Backup</string>
+    <string name="backup_text">Save your atlas, hoard and progress to a file, or bring them back from one. Importing merges with what you have.</string>
+    <string name="backup_export">Export</string>
+    <string name="backup_import">Import</string>
+    <string name="backup_import_title">Import a backup?</string>
+    <string name="backup_import_text">The charted lands, chests and rewards in the file are added to this phone.</string>
+    <string name="backup_done">Backup saved</string>
+    <string name="backup_restored">Backup imported</string>
+    <string name="backup_failed">Something went wrong</string>
+    <string name="about">About</string>
+    <string name="about_text">Fogwalk is free, with no ads, accounts or tracking. Your atlas stays on this phone.</string>
+    <string name="about_map">Map data © OpenStreetMap contributors, available under the Open Database License.</string>
+    <string name="about_version">Version %1$s</string>
+
+    <!-- Notifications -->
+    <string name="channel_walk">Journey in progress</string>
+    <string name="channel_walk_desc">Shown while Fogwalk charts the realm with the screen off</string>
+    <string name="channel_alerts">Chests and reminders</string>
+    <string name="channel_alerts_desc">Chests nearby, the shrine and the evening reminder</string>
+    <string name="notif_walk_title">On the road</string>
+    <string name="notif_walk_start">The mist parts as you walk</string>
+    <string name="notif_walk_text">%1$s charted · %2$s</string>
+    <string name="notif_near_title">%1$s chest nearby</string>
+    <string name="notif_near_text">About %1$s away. Open the map to find it.</string>
+    <string name="notif_opened_title">%1$s chest opened</string>
+    <string name="notif_opened_text">+%1$d gold. Open Fogwalk to see what was inside.</string>
+    <string name="notif_streak_title">Your %1$d-day streak needs a journey</string>
+    <string name="notif_beacon_title">The shrine has awakened</string>
+</resources>

@@ -1,0 +1,253 @@
+package app.fogwalk.ui
+
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.MenuBook
+import androidx.compose.material.icons.rounded.Inventory2
+import androidx.compose.material.icons.rounded.Map
+import androidx.compose.material.icons.rounded.TaskAlt
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import app.fogwalk.BuildConfig
+import app.fogwalk.R
+import app.fogwalk.container
+import app.fogwalk.data.Entry
+import app.fogwalk.data.Settings
+import app.fogwalk.domain.Levels
+import app.fogwalk.domain.Relics
+import app.fogwalk.notify.Alarms
+import app.fogwalk.ui.components.CelebrateDialog
+import app.fogwalk.ui.components.ChestDialog
+import app.fogwalk.ui.components.rememberNow
+import app.fogwalk.ui.journal.JournalTab
+import app.fogwalk.ui.map.MapTab
+import app.fogwalk.ui.onboarding.OnboardingScreen
+import app.fogwalk.ui.quests.QuestsTab
+import app.fogwalk.ui.settings.SettingsScreen
+import app.fogwalk.ui.theme.Sans
+import app.fogwalk.ui.theme.U
+import app.fogwalk.ui.treasury.TreasuryTab
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
+
+enum class Tab { MAP, QUESTS, TREASURY, JOURNAL }
+
+/** Everything a tab can open. */
+class Go(private val nav: NavHostController, private val setTab: (Tab) -> Unit) {
+    fun settings() = nav.navigate("settings")
+    fun deeds() = nav.navigate("deeds")
+    fun tab(t: Tab) = setTab(t)
+    fun back() = nav.popBackStack()
+}
+
+/** Where the map should look when it opens next: the beacon, a cache, a sector. */
+class MapFocus(val lat: Double, val lon: Double, val zoom: Double)
+
+@Composable
+fun FogwalkRoot(openRoute: MutableStateFlow<String?>, settings: Settings) {
+    val context = LocalContext.current
+    val container = context.container
+    val nav = rememberNavController()
+    var tab by rememberSaveable { mutableStateOf(Tab.MAP) }
+    val go = remember(nav) { Go(nav) { tab = it } }
+    val start = remember { if (settings.onboarded) "main" else "welcome" }
+    val focus = remember { MutableStateFlow<MapFocus?>(null) }
+
+    val dao = container.db.dao()
+    val days by dao.observeDays().collectAsStateWithLifecycle(initialValue = null)
+    val finds by dao.observeFinds().collectAsStateWithLifecycle(initialValue = emptyList())
+    val ledger by dao.observeLedger().collectAsStateWithLifecycle(initialValue = emptyList())
+    val walks by dao.observeWalks().collectAsStateWithLifecycle(initialValue = emptyList())
+    val fogVersion by container.fog.version.collectAsStateWithLifecycle()
+    val minute = rememberNow(60_000)
+    val data = remember(days, finds, ledger, walks, fogVersion, settings, minute / 60_000) {
+        val fog = container.fog
+        GameData(settings, days.orEmpty(), finds, ledger, walks, fog.size, fog.areaM2, fog.sectors(), System.currentTimeMillis())
+    }
+
+    // Onboarding finished elsewhere (the demo seed, a restored backup) skips the welcome.
+    LaunchedEffect(settings.onboarded) {
+        if (settings.onboarded && nav.currentDestination?.route == "welcome") {
+            nav.navigate("main") { popUpTo("welcome") { inclusive = true } }
+        }
+    }
+
+    val requested by openRoute.collectAsStateWithLifecycle()
+    LaunchedEffect(requested, settings.onboarded) {
+        if (requested == null || !settings.onboarded) return@LaunchedEffect
+        nav.popBackStack("main", inclusive = false)
+        tab = when (requested) {
+            "quests" -> Tab.QUESTS
+            "hoard" -> Tab.TREASURY
+            "chronicle", "deeds" -> Tab.JOURNAL
+            else -> Tab.MAP
+        }
+        if (requested == "deeds") go.deeds()
+        openRoute.value = null
+    }
+
+    val askPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    LaunchedEffect(settings.onboarded) {
+        if (settings.onboarded && Build.VERSION.SDK_INT >= 33 && !Alarms.canNotify(context) && !BuildConfig.DEMO) {
+            askPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    NavHost(
+        navController = nav,
+        startDestination = start,
+        modifier = Modifier.background(U.c.bg),
+        enterTransition = { fadeIn(tween(240)) },
+        exitTransition = { fadeOut(tween(180)) },
+        popEnterTransition = { fadeIn(tween(240)) },
+        popExitTransition = { fadeOut(tween(180)) },
+    ) {
+        composable("welcome") {
+            OnboardingScreen { nav.navigate("main") { popUpTo("welcome") { inclusive = true } } }
+        }
+        composable("main") { MainTabs(tab, { tab = it }, go, data, focus) }
+        composable("settings") { SettingsScreen(settings, onBack = { go.back() }) }
+        composable("deeds") { app.fogwalk.ui.journal.DeedsScreen(data, onBack = { go.back() }) }
+    }
+
+    if (settings.onboarded && days != null) Celebrations(data)
+}
+
+/** Chests, new badges, a new level and finished relic sets, each shown once. */
+@Composable
+private fun Celebrations(data: GameData) {
+    val container = LocalContext.current.container
+    val s = data.settings
+    val c = content()
+    val chest = data.finds.firstOrNull { !it.seen }
+    val fresh = data.badges.filter { it.id !in s.seenBadges }
+    val newSet = Relics.completeSets(data.relics).firstOrNull { "set:$it" !in s.seenBadges }
+    when {
+        chest != null -> ChestDialog(chest, data.relics) {
+            container.scope.launch { container.db.dao().markSeen(chest.key) }
+        }
+        newSet != null -> {
+            val (coins, _) = Relics.setReward(newSet)
+            CelebrateDialog(
+                icon = setIcon(newSet), color = U.c.violet, soft = U.c.violetSoft,
+                eyebrow = stringResource(R.string.set_complete),
+                title = c.setName(newSet),
+                text = stringResource(R.string.set_complete_text, c.setTitle(newSet), coins),
+            ) { container.scope.launch { container.settings.update { it.copy(seenBadges = it.seenBadges + "set:$newSet") } } }
+        }
+        fresh.isNotEmpty() -> {
+            val b = fresh.last()
+            val (color, soft) = badgeColor(b)
+            CelebrateDialog(
+                icon = badgeIcon(b), color = color, soft = soft,
+                eyebrow = stringResource(R.string.badge_unlocked),
+                title = c.badgeTitle(b.id),
+                text = c.badgeText(b) + if (fresh.size > 1) "\n" + stringResource(R.string.badge_more, fresh.size - 1) else "",
+            ) { container.scope.launch { container.settings.update { it.copy(seenBadges = it.seenBadges + fresh.map { f -> f.id }) } } }
+        }
+        data.level > s.levelSeen -> CelebrateDialog(
+            icon = Icons.Rounded.Map, color = U.c.accent, soft = U.c.accentSoft,
+            eyebrow = stringResource(R.string.level_up),
+            title = stringResource(R.string.level_n, data.level) + " · " + c.rank(Levels.rank(data.level)),
+            text = stringResource(R.string.level_up_text, (s.levelSeen + 1..data.level).sumOf { Levels.reward(it) }),
+        ) {
+            val level = data.level
+            container.scope.launch {
+                val now = System.currentTimeMillis()
+                for (l in s.levelSeen + 1..level) container.db.dao().grant(Entry("lvl:$l", now, Levels.reward(l), 0))
+                container.settings.update { it.copy(levelSeen = level) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MainTabs(tab: Tab, onTab: (Tab) -> Unit, go: Go, data: GameData, focus: MutableStateFlow<MapFocus?>) {
+    Column(Modifier.fillMaxSize().background(U.c.bg)) {
+        Box(Modifier.weight(1f)) {
+            when (tab) {
+                Tab.MAP -> MapTab(data, go, focus)
+                Tab.QUESTS -> QuestsTab(data, go, focus)
+                Tab.TREASURY -> TreasuryTab(data, go, focus)
+                Tab.JOURNAL -> JournalTab(data, go, focus)
+            }
+        }
+        HorizontalDivider(color = U.c.line)
+        Row(
+            Modifier.fillMaxWidth().background(U.c.surface).navigationBarsPadding().height(66.dp).padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            NavItem(Icons.Rounded.Map, stringResource(R.string.tab_map), tab == Tab.MAP) { onTab(Tab.MAP) }
+            NavItem(Icons.Rounded.TaskAlt, stringResource(R.string.tab_quests), tab == Tab.QUESTS, dot = data.toClaim > 0) { onTab(Tab.QUESTS) }
+            NavItem(Icons.Rounded.Inventory2, stringResource(R.string.tab_treasury), tab == Tab.TREASURY) { onTab(Tab.TREASURY) }
+            NavItem(Icons.AutoMirrored.Rounded.MenuBook, stringResource(R.string.tab_journal), tab == Tab.JOURNAL) { onTab(Tab.JOURNAL) }
+        }
+    }
+}
+
+@Composable
+private fun RowScope.NavItem(icon: ImageVector, label: String, selected: Boolean, dot: Boolean = false, onClick: () -> Unit) {
+    val color = if (selected) U.c.accent else U.c.faint
+    Column(
+        Modifier
+            .weight(1f)
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick)
+            .padding(vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box {
+            Box(
+                Modifier.clip(RoundedCornerShape(50)).background(if (selected) U.c.accentSoft else Color.Transparent).padding(horizontal = 18.dp, vertical = 4.dp),
+            ) { Icon(icon, null, Modifier.size(22.dp), tint = color) }
+            if (dot) Box(Modifier.align(Alignment.TopEnd).offset((-12).dp, 2.dp).size(9.dp).clip(CircleShape).background(U.c.flame))
+        }
+        Spacer(Modifier.height(3.dp))
+        Text(label, fontFamily = Sans, fontSize = 11.5.sp, color = color, maxLines = 1)
+    }
+}

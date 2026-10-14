@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path android:pathData="M0,0h108v108h-108z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="54"
+                android:centerY="50"
+                android:gradientRadius="80"
+                android:startColor="#FF2F5A48"
+                android:endColor="#FF102219" />
+        </aapt:attr>
+    </path>
+    <!-- Wisps of mist -->
+    <path android:fillColor="#1FFFFFFF" android:pathData="M0,24c10,-6 22,-6 32,0s22,6 32,0s22,-6 44,0v8c-14,-6 -30,-6 -44,0s-22,6 -32,0s-22,-6 -32,0z" />
+    <path android:fillColor="#17FFFFFF" android:pathData="M0,82c12,-6 24,-6 34,0s22,6 34,0s26,-6 40,0v8c-14,-6 -28,-6 -40,0s-22,6 -34,0s-22,-6 -34,0z" />
+</vector>

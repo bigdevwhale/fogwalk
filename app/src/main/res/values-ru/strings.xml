@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tab_map">Карта</string>
+    <string name="tab_quests">Квесты</string>
+    <string name="tab_treasury">Сокровищница</string>
+    <string name="tab_journal">Летопись</string>
+
+    <string name="back">Назад</string>
+    <string name="cancel">Отмена</string>
+    <string name="close">Закрыть</string>
+    <string name="next">Далее</string>
+    <string name="nice">Отлично</string>
+    <string name="save">Сохранить</string>
+    <string name="done">Готово</string>
+    <string name="later">Позже</string>
+    <string name="take">Забрать добычу</string>
+
+    <!-- Units -->
+    <string name="unit_m">%1$d м</string>
+    <string name="unit_km">%1$s км</string>
+    <string name="unit_ft">%1$d фт</string>
+    <string name="unit_mi">%1$s миль</string>
+    <string name="unit_m2">%1$s м²</string>
+    <string name="unit_km2">%1$s км²</string>
+    <string name="unit_mi2">%1$s кв. миль</string>
+    <string name="minutes_short">%1$d мин</string>
+    <string name="min_left">%1$d мин</string>
+
+    <plurals name="cells">
+        <item quantity="one">%1$d клетка</item>
+        <item quantity="few">%1$d клетки</item>
+        <item quantity="many">%1$d клеток</item>
+        <item quantity="other">%1$d клетки</item>
+    </plurals>
+    <plurals name="caches">
+        <item quantity="one">%1$d сундук</item>
+        <item quantity="few">%1$d сундука</item>
+        <item quantity="many">%1$d сундуков</item>
+        <item quantity="other">%1$d сундука</item>
+    </plurals>
+    <plurals name="day_streak">
+        <item quantity="one">%1$d день подряд</item>
+        <item quantity="few">%1$d дня подряд</item>
+        <item quantity="many">%1$d дней подряд</item>
+        <item quantity="other">%1$d дня подряд</item>
+    </plurals>
+    <plurals name="shields">
+        <item quantity="one">%1$d щит серии</item>
+        <item quantity="few">%1$d щита серии</item>
+        <item quantity="many">%1$d щитов серии</item>
+        <item quantity="other">%1$d щита серии</item>
+    </plurals>
+
+    <!-- Map -->
+    <string name="today_line">Сегодня %1$s · %2$s</string>
+    <string name="xp_to_next">%1$d опыта до следующего уровня</string>
+    <string name="my_location">Где я</string>
+    <string name="beacon">Святилище</string>
+    <string name="beacon_of_day">Святилище дня</string>
+    <string name="beacon_away">%1$s, в самом тумане</string>
+    <string name="beacon_waiting">Пробудится с первыми шагами сегодня</string>
+    <string name="beacon_done">Сегодня достигнуто. Завтра пробудится новое</string>
+    <string name="beacon_hint">Дойдите и получите 60 золота и 120 опыта</string>
+    <string name="beacon_reached">Святилище ваше!</string>
+    <string name="beacon_reached_text">+60 золота и 120 опыта. Завтра пробудится новое святилище.</string>
+    <string name="cache_of">%1$s сундук</string>
+    <string name="cache_unknown">Что-то мерцает в тумане</string>
+    <string name="cache_hint">подойдите на %1$d м, чтобы открыть</string>
+    <string name="cache_opened">Сундук открыт</string>
+    <string name="start_walk">В путь</string>
+    <string name="start_walk_hint">Странствие продолжится и с выключенным экраном</string>
+    <string name="stop_walk">Стоп</string>
+    <string name="walking_now">В пути</string>
+    <string name="walking_wait">Ждём ваших первых шагов…</string>
+    <string name="too_fast">Слишком быстро, путник. Туман расступается только перед пешими и велосипедистами.</string>
+    <string name="need_location_title">Атласу нужно знать, где вы</string>
+    <string name="need_location_text">Туман расступается там, где вы идёте. Ваш путь не покидает этот телефон.</string>
+    <string name="allow_location">Разрешить геолокацию</string>
+    <string name="osm_credit">© участники OpenStreetMap</string>
+    <string name="toast_sector">Новая земля: %1$s</string>
+    <string name="toast_milestone">%1$s: нанесено на карту %2$d%% · +%3$d золота</string>
+
+    <!-- Chest -->
+    <string name="plus_sparks">+%1$d золота</string>
+    <string name="plus_xp">+%1$d опыта</string>
+    <string name="relic_new">Новая реликвия</string>
+    <string name="relic_duplicate">Уже есть в сокровищнице, переплавлена в золото</string>
+    <string name="relic_set_progress">%1$s: %2$d из %3$d</string>
+
+    <!-- Quests -->
+    <string name="quests_reset">Новые квесты через %1$d ч %2$d мин</string>
+    <string name="quests_today">Сегодня</string>
+    <string name="quests_week">На этой неделе</string>
+    <string name="days_left">осталось %1$d дн.</string>
+    <string name="claim">Забрать</string>
+    <string name="show_on_map">Показать на карте</string>
+    <string name="streak_safe">Сегодня засчитано. Серия в безопасности</string>
+    <string name="streak_need">Откройте %1$d новых клеток, пройдите 1 км или дойдите до святилища</string>
+    <string name="best_streak">рекорд %1$d</string>
+    <string name="caches_refill">Каждый понедельник сундуки появляются по всему королевству заново, даже на знакомых дорогах.</string>
+
+    <!-- Treasury -->
+    <string name="treasury_sub">В сокровищнице %1$d из %2$d реликвий</string>
+    <string name="relics">Реликвии</string>
+    <string name="shop">Торговец</string>
+    <string name="relic_unknown">Не найдено</string>
+    <string name="relic_found_times">Найдено раз: %1$d</string>
+    <string name="set_reward">Соберите набор и получите %1$d золота</string>
+    <string name="set_title">Титул: %1$s</string>
+    <string name="fog_styles">Туманы королевства</string>
+    <string name="style_active">Выбран</string>
+    <string name="style_use">Нажмите, чтобы выбрать</string>
+    <string name="boosts">Зелья и обереги</string>
+    <string name="lantern">Факел</string>
+    <string name="lantern_text">На час прожигает более широкую тропу</string>
+    <string name="radar">Камень прозрения</string>
+    <string name="radar_text">На час показывает все сундуки сквозь туман</string>
+    <string name="shield">Оберег серии</string>
+    <string name="shield_text">Хранит серию в пропущенный день. У вас %1$d из %2$d</string>
+    <string name="reroll">Свиток странствий</string>
+    <string name="reroll_text">Переносит сегодняшнее святилище в другое место, раз в день</string>
+    <string name="buy">Купить</string>
+    <string name="buy_title">Купить «%1$s»?</string>
+    <string name="buy_text">Стоит %1$d золота. У вас %2$d.</string>
+    <string name="not_enough">Пока не хватает золота</string>
+
+    <!-- Journal -->
+    <string name="explored">Нанесено на карту</string>
+    <string name="world_share">%1$s%% известного мира</string>
+    <string name="stat_walked">пройдено</string>
+    <string name="stat_sectors">земель</string>
+    <string name="stat_caches">сундуков</string>
+    <string name="stat_beacons">святилищ</string>
+    <string name="stat_best_streak">лучшая серия</string>
+    <string name="stat_cells">клеток</string>
+    <string name="activity">Дни в пути</string>
+    <string name="activity_note">Дней в пути: %1$d</string>
+    <string name="sectors">Ваши земли</string>
+    <string name="sectors_empty">Королевство поделено на земли около километра в поперечнике, у каждой своё имя. Первая появится с первыми шагами.</string>
+    <string name="badges_count">Деяния · %1$d из %2$d</string>
+    <string name="badge_unlocked">Деяние совершено</string>
+    <string name="badge_locked">Пока нет</string>
+    <string name="badge_more">И ещё %1$d!</string>
+    <string name="badge_progress">Пройдено %1$d%% пути</string>
+    <string name="deeds_next">Ближайшие деяния</string>
+    <string name="deeds_open">Открыть книгу деяний</string>
+    <string name="deeds_all_done">Все ступени пройдены</string>
+    <string name="recent_walks">Последние странствия</string>
+
+    <!-- Celebrations -->
+    <string name="level_up">Новый уровень</string>
+    <string name="level_n">Уровень %1$d</string>
+    <string name="level_up_text">Атлас помнит каждый шаг. Вот %1$d золота в дорогу.</string>
+    <string name="set_complete">Набор собран</string>
+    <string name="set_complete_text">Вы получаете титул «%1$s» и %2$d золота.</string>
+
+    <!-- Onboarding -->
+    <string name="ob1_title">Королевство скрыто туманом</string>
+    <string name="ob1_text">Где бы вы ни прошли, туман расступается навсегда. Неделя за неделей, дорога за дорогой, город становится вашим собственным атласом.</string>
+    <string name="ob2_title">Туман таит чудеса</string>
+    <string name="ob2_caches">Сундуки с сокровищами</string>
+    <string name="ob2_caches_text">Спрятаны по всему королевству и появляются заново каждый понедельник. Подойдите к сундуку, чтобы открыть его.</string>
+    <string name="ob2_beacon">Святилище дня</string>
+    <string name="ob2_beacon_text">Каждый день там, где туман гуще всего, пробуждается святилище. Дойдите до него за самой щедрой наградой дня.</string>
+    <string name="ob2_relics">Реликвии и деяния</string>
+    <string name="ob2_relics_text">Тридцать шесть реликвий в шести наборах, от латунного компаса до чешуи дракона, и больше ста пятидесяти деяний.</string>
+    <string name="ob2_streak">Квесты и серии</string>
+    <string name="ob2_streak_text">Новые квесты каждый рассвет, великий квест на неделю и серия, что растёт с каждым днём в пути.</string>
+    <string name="ob3_title">Откуда начнётся ваш путь?</string>
+    <string name="ob3_text">Fogwalk нужна геолокация, чтобы рассеивать туман. Ничего не покидает телефон: ни аккаунта, ни сервера, ни рекламы.</string>
+
+    <!-- Settings -->
+    <string name="settings">Настройки</string>
+    <string name="perm_title">Включите уведомления</string>
+    <string name="perm_text">Для вечернего напоминания о серии и сундуков рядом в пути.</string>
+    <string name="set_notifications">Уведомления</string>
+    <string name="set_remind">Вечернее напоминание</string>
+    <string name="set_remind_text">Только в те дни, когда вы ещё не выходили</string>
+    <string name="set_remind_at">В %1$s</string>
+    <string name="set_nearby">Сундуки рядом</string>
+    <string name="set_nearby_text">В пути сообщать, когда сундук близко</string>
+    <string name="autostart_title">Странствие обрывается с выключенным экраном?</string>
+    <string name="autostart_text">Некоторые телефоны закрывают приложения в фоне. Разрешите Fogwalk автозапуск и уберите ограничения батареи.</string>
+    <string name="set_fog">Туман</string>
+    <string name="set_fog_density">Плотность</string>
+    <string name="set_fog_density_text">Насколько королевство просвечивает сквозь туман</string>
+    <string name="set_units">Единицы</string>
+    <string name="units_metric">Километры</string>
+    <string name="units_imperial">Мили</string>
+    <string name="set_feel">Ощущения</string>
+    <string name="set_haptics">Вибрация</string>
+    <string name="set_haptics_text">Отклик, когда открываете сундук или доходите до святилища</string>
+    <string name="set_appearance">Оформление</string>
+    <string name="theme_system">Как в системе</string>
+    <string name="theme_light">Светлая</string>
+    <string name="theme_dark">Тёмная</string>
+    <string name="language">Язык</string>
+    <string name="lang_system">Как в системе</string>
+    <string name="backup">Резервная копия</string>
+    <string name="backup_text">Сохраните атлас, сокровищницу и прогресс в файл или верните их из файла. Импорт объединяет данные с текущими.</string>
+    <string name="backup_export">Экспорт</string>
+    <string name="backup_import">Импорт</string>
+    <string name="backup_import_title">Импортировать копию?</string>
+    <string name="backup_import_text">Нанесённые на карту земли, сундуки и награды из файла добавятся к тем, что уже есть на телефоне.</string>
+    <string name="backup_done">Копия сохранена</string>
+    <string name="backup_restored">Копия импортирована</string>
+    <string name="backup_failed">Что-то пошло не так</string>
+    <string name="about">О приложении</string>
+    <string name="about_text">Fogwalk бесплатен, без рекламы, аккаунтов и слежки. Ваш атлас хранится только на этом телефоне.</string>
+    <string name="about_map">Картографические данные © участники OpenStreetMap, лицензия Open Database License.</string>
+    <string name="about_version">Версия %1$s</string>
+
+    <!-- Notifications -->
+    <string name="channel_walk">Идёт странствие</string>
+    <string name="channel_walk_desc">Показывается, пока Fogwalk наносит королевство на карту с выключенным экраном</string>
+    <string name="channel_alerts">Сундуки и напоминания</string>
+    <string name="channel_alerts_desc">Сундуки рядом, святилище и вечернее напоминание</string>
+    <string name="notif_walk_title">В пути</string>
+    <string name="notif_walk_start">Туман расступается, пока вы идёте</string>
+    <string name="notif_walk_text">Нанесено: %1$s · %2$s</string>
+    <string name="notif_near_title">%1$s сундук рядом</string>
+    <string name="notif_near_text">Примерно в %1$s. Откройте карту, чтобы его найти.</string>
+    <string name="notif_opened_title">%1$s сундук открыт</string>
+    <string name="notif_opened_text">+%1$d золота. Откройте Fogwalk и посмотрите, что внутри.</string>
+    <string name="notif_streak_title">Серии в %1$d дн. нужно странствие</string>
+    <string name="notif_beacon_title">Святилище пробудилось</string>
+</resources>
