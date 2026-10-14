@@ -17,7 +17,7 @@
 
 [English](README.md) · **Русский** · [Сайт](https://bigdevwhale.github.io/stillcraft/apps/fogwalk/) · [Изменения](CHANGELOG.md)
 
-<img src="docs/screenshots/overview.ru.png" alt="Fogwalk на телефоне: старая Прага, наполовину открытая из тумана, открытие сундука и книга деяний" width="100%" />
+<img src="docs/screenshots/overview.ru.png" alt="Fogwalk на телефоне: старая Прага, наполовину открытая из тумана, сокровищница реликвий и книга деяний" width="100%" />
 
 </div>
 
@@ -48,7 +48,6 @@ Fogwalk превращает город в старинный атлас, зат
 <table>
   <tr>
     <td><img src="docs/screenshots/map.ru.png" alt="Карта: открытые улицы старой Праги и туман вокруг" /></td>
-    <td><img src="docs/screenshots/chest.ru.png" alt="Открытие сундука" /></td>
     <td><img src="docs/screenshots/quests.ru.png" alt="Квесты и серия" /></td>
     <td><img src="docs/screenshots/onboarding.ru.png" alt="Приветствие: королевство скрыто туманом" /></td>
   </tr>

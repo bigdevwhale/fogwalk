@@ -17,7 +17,7 @@
 
 **English** · [Русский](README.ru.md) · [Website](https://bigdevwhale.github.io/stillcraft/apps/fogwalk/) · [Changelog](CHANGELOG.md)
 
-<img src="docs/screenshots/overview.png" alt="Fogwalk on a phone: Prague's old town half revealed from the mist, a chest being opened, and the book of deeds" width="100%" />
+<img src="docs/screenshots/overview.png" alt="Fogwalk on a phone: Prague's old town half revealed from the mist, the hoard of relics and the book of deeds" width="100%" />
 
 </div>
 
@@ -48,7 +48,6 @@ Fogwalk turns the city into an old atlas lost in mist. Wherever you walk, the mi
 <table>
   <tr>
     <td><img src="docs/screenshots/map.png" alt="The map: charted streets of Prague's old town and the mist around them" /></td>
-    <td><img src="docs/screenshots/chest.png" alt="A chest being opened" /></td>
     <td><img src="docs/screenshots/quests.png" alt="Quests and the streak" /></td>
     <td><img src="docs/screenshots/onboarding.png" alt="Welcome: the realm is lost in mist" /></td>
   </tr>
