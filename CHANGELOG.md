@@ -6,6 +6,7 @@ All notable changes to Fogwalk. Versions follow [semantic versioning](https://se
 
 ### Fixed
 - The shrine of the day appears again as soon as the app knows roughly where you are, indoors too. Since 1.0.1 it waited for a precise satellite fix, so on days begun at home it could stay asleep.
+- Indoors your position shows on the map again, however rough, with its circle of uncertainty, until the satellites answer.
 
 ## [1.1.0] - 2026-10-15
 

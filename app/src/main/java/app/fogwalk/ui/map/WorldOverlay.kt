@@ -562,7 +562,7 @@ class WorldOverlay(
         val y = sy(f.lat)
         val d = density
         val metersPx = (ax / Grid.N / Grid.cellMeters(f.lat)).toFloat()
-        if (f.accuracy in 15f..300f) {
+        if (f.accuracy in 15f..2000f) {
             fill.shader = null
             fill.color = withAlpha(s.accent, 34)
             c.drawCircle(x, y, f.accuracy * metersPx, fill)

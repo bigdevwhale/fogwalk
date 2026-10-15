@@ -170,7 +170,7 @@ class Explorer(
         val step = track.add(f)
         if (step == null) {
             // Not walkable; still worth a dot on the map while satellites are silent.
-            if (!track.hasGps(f.time) && f.accuracy < 200) _live.update { it.copy(fix = f) }
+            if (!track.hasGps(f.time)) _live.update { it.copy(fix = f) }
             return
         }
         _live.update { it.copy(fix = f.copy(lat = step.lat, lon = step.lon), tooFast = step.fast) }
@@ -506,7 +506,7 @@ class Explorer(
         const val FILL_STEP = 8.0
         const val WALK_GAP_MS = 20 * 60_000L
         /** Worst accuracy, m, that may still place the day's shrine. */
-        const val BEACON_ACCURACY = 300f
+        const val BEACON_ACCURACY = 1000f
         const val NEAR_M = 150.0
     }
 }
