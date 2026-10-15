@@ -101,6 +101,10 @@ data class Facts(
     val walks: Int,
     val gold: Int,
     val styles: Int,
+    val oaths: Int,
+    val treasures: Int,
+    val races: Int,
+    val gear: Int,
 )
 
 /** One deed: a [tier] of a [group], reached when the group's value hits [goal]. */
@@ -109,7 +113,7 @@ data class Badge(val id: String, val group: String, val tier: Int, val goal: Dou
     fun share(f: Facts) = (value(f) / goal).coerceIn(0.0, 1.0)
 }
 
-/** The book of deeds: a ladder of tiers per kind of feat, about a hundred and sixty in all. */
+/** The book of deeds: a ladder of tiers per kind of feat, about a hundred and seventy-five in all. */
 object Badges {
     class Group(val id: String, val goals: List<Double>, val value: (Facts) -> Double)
 
@@ -142,6 +146,10 @@ object Badges {
         g("walks", 1, 10, 50, 100, 250, 500) { it.walks },
         g("gold", 500, 2000, 10_000) { it.gold },
         g("style", 2, 4, 6) { it.styles },
+        g("oath", 1, 3, 10, 25) { it.oaths },
+        g("treasure", 1, 3, 10, 25) { it.treasures },
+        g("race", 1, 3, 10, 25) { it.races },
+        g("gear", 1, 5, 10, 20) { it.gear },
     )
 
     val all: List<Badge> = groups.flatMap { gr -> gr.goals.mapIndexed { i, goal -> Badge("${gr.id}_${i + 1}", gr.id, i, goal, gr.value) } }

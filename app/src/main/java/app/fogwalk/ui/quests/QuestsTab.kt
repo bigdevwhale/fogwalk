@@ -80,6 +80,9 @@ fun QuestsTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
 
         StreakCard(data)
 
+        SectionTitle(stringResource(R.string.oath_title))
+        OathCard(data, imperial)
+
         SectionTitle(stringResource(R.string.quests_today))
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             data.quests.forEach { q ->

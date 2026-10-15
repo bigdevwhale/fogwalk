@@ -10,6 +10,12 @@ import app.fogwalk.domain.Levels
 import app.fogwalk.domain.Quests
 import app.fogwalk.domain.Relics
 import app.fogwalk.domain.Streaks
+import app.fogwalk.domain.Oaths
+import app.fogwalk.domain.OathGoal
+import app.fogwalk.domain.Races
+import app.fogwalk.domain.Rarity
+import app.fogwalk.domain.Treasures
+import app.fogwalk.domain.pickRelic
 import app.fogwalk.explore.Fix
 import app.fogwalk.explore.Track
 import app.fogwalk.geo.Grid
@@ -205,5 +211,81 @@ class FogwalkTest {
             assertTrue("fast fixes $fast (doppler=$doppler)", fast > 60)
             assertTrue("counted $meters m in a car", meters < 150)
         }
+    }
+
+    @Test
+    fun oathsAreSizedToTheWeekAndCountOnlyAfterTheVow() {
+        val monday = 20_374L // a Monday: weeks start where (day + 3) % 7 == 0
+        assertEquals(0, Math.floorMod(monday + 3, 7L).toInt())
+        val days = (1..28).map { Day(monday - it, cells = 100, meters = 2000.0, caches = 1, beacon = it % 3 == 0) }
+        val offers = Oaths.offers(monday, days)
+        assertEquals(3, offers.size)
+        assertEquals(3, offers.map { it.goal }.toSet().size)
+        assertTrue(offers.all { it.target > 0 })
+        // Thursday offers ask for less than Monday's on the same goal.
+        val thursday = Oaths.offers(monday + 3, days)
+        val m = offers.first { it.goal == OathGoal.METERS || it.goal == OathGoal.CELLS }
+        val t = thursday.firstOrNull { it.goal == m.goal }
+        if (t != null && t.level == m.level) assertTrue(t.target < m.target)
+
+        val o = offers.first().copy(goal = OathGoal.METERS, target = 5000, stake = 250, day = monday + 1, base = 1500.0)
+        val week = listOf(Day(monday + 1, meters = 3000.0), Day(monday + 2, meters = 2000.0), Day(monday + 8, meters = 9000.0), Day(monday, meters = 9000.0))
+        // 3000 − 1500 already walked when sworn + 2000; the next week and the day before don't count.
+        assertEquals(3500.0, Oaths.progress(o, week), 0.01)
+        assertFalse(Oaths.kept(o, week))
+        assertTrue(Oaths.kept(o, week + Day(monday + 6, meters = 1500.0)))
+    }
+
+    @Test
+    fun biggerStakesBuyRarerRelics() {
+        assertEquals(Rarity.COMMON, Oaths.rarity(100, 0))
+        assertEquals(Rarity.RARE, Oaths.rarity(250, 0))
+        assertEquals(Rarity.EPIC, Oaths.rarity(1000, 1))
+        assertEquals(Rarity.LEGENDARY, Oaths.rarity(1000, 2))
+        assertEquals(Rarity.LEGENDARY, Oaths.rarity(2000, 2))
+    }
+
+    @Test
+    fun rewardRelicsPreferMissingOnes() {
+        val epic = Relics.all.filter { it.rarity == Rarity.EPIC }
+        val owned = epic.dropLast(1).map { it.id }.toSet()
+        repeat(20) { seed ->
+            val (r, dup) = pickRelic(Rarity.EPIC, owned, seed.toLong())
+            assertEquals(epic.last().id, r.id)
+            assertFalse(dup)
+        }
+        assertTrue(pickRelic(Rarity.EPIC, epic.map { it.id }.toSet(), 1).second)
+    }
+
+    @Test
+    fun treasureLiesInsideItsCircleAtTheRightDistance() {
+        for (tier in Treasures.tiers.indices) {
+            val t = Treasures.tiers[tier]
+            repeat(30) { n ->
+                val map = Treasures.place(1_000_000L + n * 7919, tier, 55.75, 37.6) { _, _ -> 0 }
+                val d = Grid.distance(55.75, 37.6, map.lat, map.lon)
+                assertTrue("tier $tier at $d m", d in t.minM - 1..t.maxM + 1)
+                assertTrue(Grid.distance(map.lat, map.lon, map.cLat, map.cLon) <= map.radius)
+            }
+        }
+        assertEquals(0, Treasures.warmth(20.0))
+        assertEquals(3, Treasures.warmth(400.0))
+    }
+
+    @Test
+    fun aRaceFollowsTheRouteAndTheShadowKeepsTheOldPace() {
+        // A straight route east, a point every 10 m, walked at 1 m/s.
+        val route = (0..50).map { i -> Grid.offset(55.75, 37.6, i * 10.0, 90.0) }
+        val along = Races.along(route)
+        assertEquals(500.0, along.last(), 1.0)
+        val times = LongArray(route.size) { it * 10_000L }
+        assertEquals(250.0, Races.shadow(times, along, 250_000), 1.0)
+        assertEquals(500.0, Races.shadow(times, along, 9_999_999), 0.01)
+
+        // Walking the first 103 m passes every point up to 30 m beyond.
+        val walked = (0..10).map { i -> Grid.offset(55.75, 37.6, i * 10.0 + 3, 90.0) }
+        assertEquals(13, Races.advance(route, 0, walked))
+        // Jumping straight to the finish from the start doesn't count.
+        assertEquals(0, Races.advance(route, 0, listOf(route.last())))
     }
 }

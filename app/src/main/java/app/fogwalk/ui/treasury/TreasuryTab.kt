@@ -23,7 +23,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Backpack
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Cloud
+import androidx.compose.material.icons.rounded.Hiking
+import androidx.compose.material.icons.rounded.Map
+import androidx.compose.material.icons.rounded.RecordVoiceOver
+import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.Flare
 import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material.icons.rounded.Radar
@@ -58,6 +64,10 @@ import app.fogwalk.R
 import app.fogwalk.container
 import app.fogwalk.data.BeaconSpot
 import app.fogwalk.domain.Beacons
+import app.fogwalk.domain.Gear
+import app.fogwalk.domain.Rumors
+import app.fogwalk.domain.Treasures
+import app.fogwalk.explore.Bought
 import app.fogwalk.domain.Relic
 import app.fogwalk.domain.Relics
 import app.fogwalk.domain.Shop
@@ -228,14 +238,16 @@ private fun ShopPart(data: GameData) {
     SectionTitle(stringResource(R.string.boosts))
     val now = System.currentTimeMillis()
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        BoostRow(Icons.Rounded.Lightbulb, U.c.gold, U.c.goldSoft, stringResource(R.string.lantern), stringResource(R.string.lantern_text), Shop.LANTERN, data.coins) {
+        val boost = Gear.boostMs(s.gear)
+        val boostMin = (boost / 60_000).toInt()
+        BoostRow(Icons.Rounded.Lightbulb, U.c.gold, U.c.goldSoft, stringResource(R.string.lantern), stringResource(R.string.lantern_text, boostMin), Shop.LANTERN, data.coins) {
             confirm = Triple(context.getString(R.string.lantern), Shop.LANTERN) {
-                buy("lantern", Shop.LANTERN) { container.settings.update { it.copy(lanternUntil = maxOf(it.lanternUntil, now) + Shop.BOOST_MS) } }
+                buy("lantern", Shop.LANTERN) { container.settings.update { it.copy(lanternUntil = maxOf(it.lanternUntil, now) + boost) } }
             }
         }
-        BoostRow(Icons.Rounded.Radar, U.c.violet, U.c.violetSoft, stringResource(R.string.radar), stringResource(R.string.radar_text), Shop.RADAR, data.coins) {
+        BoostRow(Icons.Rounded.Radar, U.c.violet, U.c.violetSoft, stringResource(R.string.radar), stringResource(R.string.radar_text, boostMin), Shop.RADAR, data.coins) {
             confirm = Triple(context.getString(R.string.radar), Shop.RADAR) {
-                buy("radar", Shop.RADAR) { container.settings.update { it.copy(radarUntil = maxOf(it.radarUntil, now) + Shop.BOOST_MS) } }
+                buy("radar", Shop.RADAR) { container.settings.update { it.copy(radarUntil = maxOf(it.radarUntil, now) + boost) } }
             }
         }
         BoostRow(
@@ -259,6 +271,23 @@ private fun ShopPart(data: GameData) {
         }
     }
 
+    SectionTitle(stringResource(R.string.treasure_title))
+    TreasureMaps(data) { name, price, action -> confirm = Triple(name, price, action) }
+
+    SectionTitle(stringResource(R.string.gear_title))
+    GearRows(data) { name, price, action -> confirm = Triple(name, price, action) }
+
+    SectionTitle(stringResource(R.string.tavern_title))
+    val heard = data.settings.rumor?.week == data.week
+    BoostRow(
+        Icons.Rounded.RecordVoiceOver, U.c.flame, U.c.flameSoft, stringResource(R.string.rumor),
+        stringResource(if (heard) R.string.rumor_heard else R.string.rumor_text), Rumors.PRICE, data.coins, enabled = !heard,
+    ) {
+        confirm = Triple(context.getString(R.string.rumor), Rumors.PRICE) {
+            container.scope.launch { report(context, container.explorer.hearRumor()) }
+        }
+    }
+
     confirm?.let { (name, price, action) ->
         ConfirmDialog(
             title = stringResource(R.string.buy_title, name),
@@ -267,6 +296,100 @@ private fun ShopPart(data: GameData) {
             onConfirm = action,
             onDismiss = { confirm = null },
         )
+    }
+}
+
+/** What a purchase came to, said in a toast unless it simply went through. */
+private suspend fun report(context: android.content.Context, b: Bought) {
+    val text = when (b) {
+        Bought.OK, Bought.BUSY -> return
+        Bought.NO_GOLD -> R.string.not_enough
+        Bought.NO_FIX -> R.string.need_fix
+        Bought.NOTHING -> R.string.rumor_nothing
+    }
+    withContext(Dispatchers.Main) { Toast.makeText(context, text, Toast.LENGTH_SHORT).show() }
+}
+
+@Composable
+private fun TreasureMaps(data: GameData, ask: (String, Int, () -> Unit) -> Unit) {
+    val context = LocalContext.current
+    val container = context.container
+    val c = content()
+    val active = data.settings.treasure
+    val names = listOf(R.string.treasure_0, R.string.treasure_1, R.string.treasure_2)
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        if (active != null) {
+            UCard {
+                Text(stringResource(R.string.treasure_active, stringResource(names[active.tier])), style = UType.Strong)
+                Spacer(Modifier.height(2.dp))
+                Text(stringResource(R.string.treasure_hint), style = UType.Muted)
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    stringResource(R.string.treasure_drop), style = UType.Button.copy(color = U.c.danger),
+                    modifier = Modifier.clip(U.RSm).clickable { container.explorer.dropTreasure() }.padding(vertical = 4.dp),
+                )
+            }
+        }
+        Treasures.tiers.forEachIndexed { i, t ->
+            val name = stringResource(names[i])
+            val imperial = data.settings.units == app.fogwalk.data.Units.IMPERIAL
+            val span = app.fogwalk.ui.distance(t.minM, imperial) + "–" + app.fogwalk.ui.distance(t.maxM, imperial)
+            BoostRow(
+                Icons.Rounded.Map, U.c.gold, U.c.goldSoft, name, stringResource(R.string.treasure_text, span, c.relicOf(t.rarity)),
+                t.price, data.coins, enabled = active == null,
+            ) {
+                ask(name, t.price) { container.scope.launch { report(context, container.explorer.buyTreasure(i)) } }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GearRows(data: GameData, ask: (String, Int, () -> Unit) -> Unit) {
+    val context = LocalContext.current
+    val container = context.container
+    val gear = data.settings.gear
+    val imperial = data.settings.units == app.fogwalk.data.Units.IMPERIAL
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Gear.pieces.forEach { p ->
+            val level = gear[p.id] ?: 0
+            val price = Gear.price(level)
+            val (icon, name) = when (p.id) {
+                "cloak" -> Icons.Rounded.Cloud to R.string.gear_cloak
+                "senses" -> Icons.Rounded.Visibility to R.string.gear_senses
+                "satchel" -> Icons.Rounded.Backpack to R.string.gear_satchel
+                else -> Icons.Rounded.Hiking to R.string.gear_boots
+            }
+            @Composable
+            fun effect(lvl: Int): String {
+                val g = mapOf(p.id to lvl)
+                return when (p.id) {
+                    "cloak" -> stringResource(R.string.gear_cloak_text, Gear.revealM(g).toInt())
+                    "senses" -> stringResource(R.string.gear_senses_text, Gear.senseM(g).toInt())
+                    "satchel" -> stringResource(R.string.gear_satchel_text, (Gear.boostMs(g) / 60_000).toInt())
+                    else -> stringResource(R.string.gear_boots_text, Gear.openM(g).toInt())
+                }
+            }
+            val title = stringResource(name) + " · " + stringResource(R.string.gear_level, level, Gear.MAX)
+            // Exact metres: the usual distance rounds to tens, which would hide a 4 m step.
+            @Composable
+            fun meters(m: Double) = if (imperial) stringResource(R.string.unit_ft, (m * 3.28084).toInt()) else stringResource(R.string.unit_m, m.toInt())
+
+            @Composable
+            fun value(lvl: Int): String {
+                val g = mapOf(p.id to lvl)
+                return when (p.id) {
+                    "cloak" -> meters(Gear.revealM(g))
+                    "senses" -> meters(Gear.senseM(g))
+                    "satchel" -> stringResource(R.string.minutes_short, (Gear.boostMs(g) / 60_000).toInt())
+                    else -> meters(Gear.openM(g))
+                }
+            }
+            val text = effect(level) + "\n" + if (price != null) stringResource(R.string.gear_next, value(level + 1)) else stringResource(R.string.gear_max)
+            BoostRow(icon, U.c.sage, U.c.sageSoft, title, text, price ?: 0, data.coins, enabled = price != null) {
+                if (price != null) ask(context.getString(name), price) { container.scope.launch { report(context, container.explorer.buyGear(p.id)) } }
+            }
+        }
     }
 }
 

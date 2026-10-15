@@ -6,7 +6,7 @@
 
 ### Your city, hidden in mist. Walk to reveal it.
 
-*A fantasy exploration game for real walks: the map starts grey, and every street you walk is charted for good. Treasure chests, a shrine of the day, 36 relics, 160 deeds, quests and streaks. Free, no ads, no account.*
+*A fantasy exploration game for real walks: the map starts grey, and every street you walk is charted for good. Treasure chests, a shrine of the day, 36 relics, 176 deeds, quests, oaths, treasure maps and races against your own shadow. Free, no ads, no account.*
 
 [![Android CI](https://github.com/bigdevwhale/fogwalk/actions/workflows/android.yml/badge.svg)](https://github.com/bigdevwhale/fogwalk/actions/workflows/android.yml)
 [![Release](https://img.shields.io/github/v/release/bigdevwhale/fogwalk?color=1E6B50&label=download&logo=android)](https://github.com/bigdevwhale/fogwalk/releases/latest)
@@ -40,8 +40,11 @@ Fogwalk turns the city into an old atlas lost in mist. Wherever you walk, the mi
 | 🏺 | **36 relics** | Six sets, from the Wayfarer's Pack to the Gifts of the Heavens: a brass compass, a dragon's scale, a void pearl. A full set earns a title and gold. |
 | 📜 | **Quests** | Three new quests every dawn, a great quest every week. |
 | 🔥 | **Streaks** | Reveal 25 cells, walk 1 km or reach the shrine to keep the flame alive. A ward from the merchant guards a missed day. |
-| 🏅 | **160 deeds** | 25 ladders of deeds: walk 1 km… 100 km… 1,000 km… 5,000 km; chart a clearing… a kingdom; open a chest… a thousand; a year-long streak; night and dawn journeys. |
-| 🪙 | **Gold and the merchant** | Gold buys mists for the map (Old Parchment, Starlit Night, Dragon's Ash, Elven Lights…), a torch that burns a wider path, a seeing stone that shows every chest, wards and a scroll that moves the shrine. |
+| 🤝 | **Oath of the week** | Vow a goal for the rest of the week (easy, hard or heroic, sized to your own pace) and stake gold on it. Keep it, and the stake comes back with a relic and experience that grow with it. Break it, and the gold is gone. |
+| 🗺️ | **Treasure maps** | Buy a map and a circle appears in the mist 1–4 km away. Search it on foot by *warmer, colder*; the treasure holds a rare, epic or legendary relic, one you don't have yet if there is any. |
+| 👤 | **Race your shadow** | Pick a past journey and walk it again while your shadow retraces it at the old pace. The map shows it, the panel says who is ahead. |
+| 🏅 | **176 deeds** | 29 ladders of deeds: walk 1 km… 100 km… 1,000 km… 5,000 km; chart a clearing… a kingdom; open a chest… a thousand; a year-long streak; night and dawn journeys. |
+| 🪙 | **Gold and the merchant** | Gold buys mists for the map (Old Parchment, Starlit Night, Dragon's Ash, Elven Lights…), gear that improves in five ever dearer steps (a wider reveal, chests felt and opened from farther, longer charms), treasure maps, a weekly tavern rumour of the finest chest nearby, a torch, a seeing stone, wards and a scroll that moves the shrine. |
 | 👣 | **Journeys with the screen off** | Tap *Set out* and Fogwalk keeps charting in a quiet notification, with a call when a chest is close. It ignores anything faster than a bike. |
 | 📖 | **Chronicle** | Charted area (and your share of the known world), lands, days on the road, your levels, from *Wanderer* to *Legend of the Realm*, and every journey with its route on the map. |
 

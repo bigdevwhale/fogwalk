@@ -8,6 +8,8 @@ import java.util.Locale
 /** Words of the world in one language: relics, sectors, ranks, badges, quests and nudges. */
 interface Content {
     fun rarity(r: Rarity): String
+    /** "a rare relic", "редкая реликвия". */
+    fun relicOf(r: Rarity): String
     fun relicName(id: String): String
     fun relicLore(id: String): String
     fun setName(set: String): String
@@ -22,6 +24,8 @@ interface Content {
     fun styleName(id: String): String
     fun styleText(id: String): String
     fun quest(q: Quest): String
+    /** The vow itself, e.g. "Walk 12 km by Sunday". */
+    fun oath(o: app.fogwalk.domain.Oath): String
     /** The evening nudge, rotating by [day]. */
     fun nudge(day: Long, streak: Boolean): String
     /** A line for the map's empty fog, rotating by [day]. */

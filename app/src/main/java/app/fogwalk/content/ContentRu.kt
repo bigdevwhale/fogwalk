@@ -13,6 +13,13 @@ object ContentRu : Content {
         Rarity.LEGENDARY -> "Легендарный"
     }
 
+    override fun relicOf(r: Rarity) = when (r) {
+        Rarity.COMMON -> "обычная реликвия"
+        Rarity.RARE -> "редкая реликвия"
+        Rarity.EPIC -> "эпическая реликвия"
+        Rarity.LEGENDARY -> "легендарная реликвия"
+    }
+
     private val relics = mapOf(
         "compass" to ("Латунный компас" to "Стрелка дрожит и тянется туда, где вы ещё не были."),
         "boots" to ("Стоптанные ботинки" to "Кто-то прошёл в них тысячу улиц. Теперь ваша очередь."),
@@ -145,6 +152,10 @@ object ContentRu : Content {
         "walks" to listOf("Первое странствие", "Десять странствий", "Пятьдесят странствий", "Сто странствий", "Двести пятьдесят странствий", "Пятьсот странствий"),
         "gold" to listOf("Кошель", "Тяжёлый кошель", "Драконье золото"),
         "style" to listOf("Повелитель погоды", "Призыватель туманов", "Властелин туманов"),
+        "oath" to listOf("Слово сдержано", "Связанный клятвой", "Человек слова", "Железное слово"),
+        "treasure" to listOf("Крестик на карте", "Искатель кладов", "Копатель сокровищ", "Владыка потерянных карт"),
+        "race" to listOf("Быстрее, чем вчера", "Догоняющий тень", "Обогнавший", "Быстрее памяти"),
+        "gear" to listOf("Снаряжён", "В полной выкладке", "Бывалый снаряжальщик", "При всём параде"),
     )
 
     override fun badgeTitle(id: String): String {
@@ -178,6 +189,10 @@ object ContentRu : Content {
         "level" -> "Уровни"
         "walks" -> "Странствия"
         "gold" -> "Золото"
+        "oath" -> "Сдержанные клятвы"
+        "treasure" -> "Выкопанные клады"
+        "race" -> "Обогнанные тени"
+        "gear" -> "Снаряжение"
         else -> "Туманы"
     }
 
@@ -211,6 +226,10 @@ object ContentRu : Content {
             "walks" -> if (g == 1L) "Завершите первое странствие" else "Совершите $n ${plural(i, "странствие", "странствия", "странствий")}"
             "gold" -> "Заработайте всего $n золота"
             "style" -> "Соберите $n ${plural(i, "туман", "тумана", "туманов")}"
+            "oath" -> if (g == 1L) "Сдержите клятву" else "Сдержите $n ${plural(i, "клятву", "клятвы", "клятв")}"
+            "treasure" -> if (g == 1L) "Выкопайте клад по карте" else "Выкопайте $n ${plural(i, "клад", "клада", "кладов")}"
+            "race" -> if (g == 1L) "Обгоните свою тень" else "Обгоните свою тень $n ${plural(i, "раз", "раза", "раз")}"
+            "gear" -> if (g == 1L) "Улучшите снаряжение" else "Улучшите снаряжение $n ${plural(i, "раз", "раза", "раз")}"
             else -> ""
         }
     }
@@ -239,6 +258,13 @@ object ContentRu : Content {
         Goal.CACHES -> if (q.target == 1) "Откройте сундук" else "Откройте ${q.target} ${plural(q.target, "сундук", "сундука", "сундуков")}"
         Goal.RARE -> "Откройте редкий сундук или лучше"
         Goal.BEACON -> "Дойдите до святилища дня"
+    }
+
+    override fun oath(o: app.fogwalk.domain.Oath): String = when (o.goal) {
+        app.fogwalk.domain.OathGoal.METERS -> "Пройти ${km(o.target)} км до воскресенья"
+        app.fogwalk.domain.OathGoal.CELLS -> "Открыть ${o.target} ${plural(o.target, "новую клетку", "новые клетки", "новых клеток")} до воскресенья"
+        app.fogwalk.domain.OathGoal.CHESTS -> if (o.target == 1) "Открыть сундук до воскресенья" else "Открыть ${o.target} ${plural(o.target, "сундук", "сундука", "сундуков")} до воскресенья"
+        app.fogwalk.domain.OathGoal.SHRINES -> if (o.target == 1) "Дойти до святилища до воскресенья" else "Дойти до ${o.target} святилищ до воскресенья"
     }
 
     private fun km(m: Int) = if (m % 1000 == 0) "${m / 1000}" else String.format(java.util.Locale.ROOT, "%.1f", m / 1000.0).replace('.', ',')

@@ -38,7 +38,9 @@ object DemoSeed {
         for (i in 0 until walks.length()) {
             val line = walks.getJSONArray(i)
             val day = today.minusDays(dayOf[i]).toEpochDay()
-            val start = LocalDate.ofEpochDay(day).atTime(8 + rnd.nextInt(11), rnd.nextInt(60)).atZone(zone).toInstant().toEpochMilli()
+            var start = LocalDate.ofEpochDay(day).atTime(8 + rnd.nextInt(11), rnd.nextInt(60)).atZone(zone).toInstant().toEpochMilli()
+            // Today's walk is over by now, whatever the hour.
+            if (day == today.toEpochDay()) start = minOf(start, System.currentTimeMillis() - 2 * 3_600_000L)
             val fresh = ArrayList<Cell>()
             var meters = 0.0
             var prev: Pair<Double, Double>? = null

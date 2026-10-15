@@ -20,6 +20,7 @@ import androidx.compose.material.icons.rounded.Flare
 import androidx.compose.material.icons.rounded.FlashOn
 import androidx.compose.material.icons.rounded.Grain
 import androidx.compose.material.icons.rounded.GridView
+import androidx.compose.material.icons.rounded.Handshake
 import androidx.compose.material.icons.rounded.Hiking
 import androidx.compose.material.icons.rounded.HourglassBottom
 import androidx.compose.material.icons.rounded.Inventory2
@@ -185,6 +186,10 @@ fun groupIcon(group: String): ImageVector = when (group) {
     "level" -> Icons.Rounded.MilitaryTech
     "walks" -> Icons.AutoMirrored.Rounded.DirectionsWalk
     "gold" -> Icons.Rounded.Savings
+    "oath" -> Icons.Rounded.Handshake
+    "treasure" -> Icons.Rounded.Map
+    "race" -> Icons.Rounded.Timer
+    "gear" -> Icons.Rounded.Backpack
     else -> Icons.Rounded.Brush
 }
 
@@ -198,6 +203,8 @@ fun groupColor(group: String): Pair<Color, Color> = when (group) {
     "cache", "legend", "bigday", "gold" -> U.c.gold to U.c.goldSoft
     "relic", "set", "epic", "style" -> U.c.violet to U.c.violetSoft
     "streak", "level" -> U.c.flame to U.c.flameSoft
-    "beacon", "dawn" -> U.c.rose to U.c.roseSoft
+    "beacon", "dawn", "oath" -> U.c.rose to U.c.roseSoft
+    "treasure", "gear" -> U.c.gold to U.c.goldSoft
+    "race" -> U.c.sage to U.c.sageSoft
     else -> U.c.sky to U.c.skySoft
 }

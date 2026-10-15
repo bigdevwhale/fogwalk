@@ -29,6 +29,7 @@ import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Inventory2
 import androidx.compose.material.icons.rounded.Map
 import androidx.compose.material.icons.rounded.TaskAlt
+import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -160,7 +161,11 @@ fun FogwalkRoot(openRoute: MutableStateFlow<String?>, settings: Settings) {
         composable("walks") { app.fogwalk.ui.journal.WalksScreen(data, onBack = { go.back() }, onOpen = { go.walk(it) }) }
         composable("walk/{id}") { e ->
             val id = e.arguments?.getString("id")?.toLongOrNull() ?: -1L
-            app.fogwalk.ui.journal.WalkScreen(id, data, onBack = { go.back() })
+            app.fogwalk.ui.journal.WalkScreen(id, data, onBack = { go.back() }, onRace = { walk ->
+                container.explorer.startRace(walk)
+                nav.popBackStack("main", inclusive = false)
+                tab = Tab.MAP
+            })
         }
     }
 
@@ -176,7 +181,24 @@ private fun Celebrations(data: GameData) {
     val chest = data.finds.firstOrNull { !it.seen }
     val fresh = data.badges.filter { it.id !in s.seenBadges }
     val newSet = Relics.completeSets(data.relics).firstOrNull { "set:$it" !in s.seenBadges }
+    val race = data.ledger.lastOrNull { it.ref.startsWith("race:") && it.ref !in s.seenBadges }
     when {
+        race != null -> {
+            val won = race.ref.endsWith(":w")
+            // The margin is not stored; the walk's duration against the race's tells it.
+            val parts = race.ref.split(":")
+            val walk = data.walks.firstOrNull { it.id == parts.getOrNull(1)?.toLongOrNull() }
+            val started = parts.getOrNull(2)?.toLongOrNull() ?: 0L
+            val margin = if (walk != null) kotlin.math.abs((walk.end - walk.start) - (race.at - started)) else 0L
+            val gap = "%d:%02d".format(margin / 60_000, margin / 1000 % 60)
+            CelebrateDialog(
+                icon = Icons.Rounded.Timer, color = if (won) U.c.sage else U.c.faint, soft = if (won) U.c.sageSoft else U.c.surface2,
+                eyebrow = stringResource(R.string.race_title),
+                title = stringResource(if (won) R.string.race_won else R.string.race_lost),
+                text = stringResource(if (won) R.string.race_won_text else R.string.race_lost_text, gap, race.xp),
+                confetti = won,
+            ) { container.scope.launch { container.settings.update { it.copy(seenBadges = it.seenBadges + race.ref) } } }
+        }
         chest != null -> ChestDialog(chest, data.relics) {
             container.scope.launch { container.db.dao().markSeen(chest.key) }
         }

@@ -93,9 +93,15 @@ fun ChestDialog(find: Find, owned: Set<String>, onDismiss: () -> Unit) {
                 Modifier.fillMaxWidth().clip(U.RLg).background(U.c.bg).padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text(stringResource(R.string.cache_opened).uppercase(), style = UType.Eyebrow.copy(color = color))
+                // Treasure maps and kept oaths open the same way, under their own names.
+                val (eyebrow, title) = when {
+                    find.key.startsWith("t:") -> stringResource(R.string.treasure_found) to stringResource(R.string.treasure_one)
+                    find.key.startsWith("o:") -> stringResource(R.string.oath_kept) to stringResource(R.string.oath_title)
+                    else -> stringResource(R.string.cache_opened) to stringResource(R.string.cache_of, c.rarity(rarity))
+                }
+                Text(eyebrow.uppercase(), style = UType.Eyebrow.copy(color = color))
                 Spacer(Modifier.height(4.dp))
-                Text(stringResource(R.string.cache_of, c.rarity(rarity)), style = UType.Title.copy(fontSize = 22.sp))
+                Text(title, style = UType.Title.copy(fontSize = 22.sp))
                 Box(Modifier.size(190.dp), contentAlignment = Alignment.Center) {
                     if (open) Canvas(Modifier.size(190.dp).rotate(angle)) { rays(color) }
                     Canvas(Modifier.size(110.dp).rotate(shake.value * 6f)) { chest(color, lid.value) }

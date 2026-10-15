@@ -13,6 +13,13 @@ object ContentEn : Content {
         Rarity.LEGENDARY -> "Legendary"
     }
 
+    override fun relicOf(r: Rarity) = when (r) {
+        Rarity.COMMON -> "a common relic"
+        Rarity.RARE -> "a rare relic"
+        Rarity.EPIC -> "an epic relic"
+        Rarity.LEGENDARY -> "a legendary relic"
+    }
+
     private val relics = mapOf(
         "compass" to ("Brass Compass" to "Its needle wavers toward places you have never been."),
         "boots" to ("Worn Boots" to "Someone walked a thousand streets in these. Now it's your turn."),
@@ -119,6 +126,10 @@ object ContentEn : Content {
         "walks" to listOf("First Journey", "Ten Journeys", "Fifty Journeys", "Hundred Journeys", "Two Hundred Fifty Journeys", "Five Hundred Journeys"),
         "gold" to listOf("Coin Purse", "Heavy Purse", "Dragon's Gold"),
         "style" to listOf("Weather Witch", "Mistcaller", "Master of Mists"),
+        "oath" to listOf("Word Kept", "Oathbound", "True to the Word", "Voice of Iron"),
+        "treasure" to listOf("X Marks the Spot", "Treasure Seeker", "Digger of Hoards", "Lord of Lost Maps"),
+        "race" to listOf("Faster Than Yesterday", "Shadow Chaser", "Outrunner", "Swifter Than Memory"),
+        "gear" to listOf("Kitted Out", "Well Equipped", "Seasoned Outfitter", "Fully Arrayed"),
     )
 
     override fun badgeTitle(id: String): String {
@@ -152,6 +163,10 @@ object ContentEn : Content {
         "level" -> "Levels"
         "walks" -> "Journeys"
         "gold" -> "Gold"
+        "oath" -> "Oaths kept"
+        "treasure" -> "Treasures dug up"
+        "race" -> "Shadows outrun"
+        "gear" -> "Gear"
         else -> "Mists"
     }
 
@@ -184,6 +199,10 @@ object ContentEn : Content {
             "walks" -> if (g == 1L) "Finish your first journey" else "Make $n journeys"
             "gold" -> "Earn $n gold in all"
             "style" -> "Own $n mists"
+            "oath" -> if (g == 1L) "Keep an oath" else "Keep $n oaths"
+            "treasure" -> if (g == 1L) "Dig up a treasure from a map" else "Dig up $n treasures"
+            "race" -> if (g == 1L) "Outrun your shadow" else "Outrun your shadow $n times"
+            "gear" -> if (g == 1L) "Improve a piece of gear" else "Improve your gear $n times"
             else -> ""
         }
     }
@@ -212,6 +231,13 @@ object ContentEn : Content {
         Goal.CACHES -> if (q.target == 1) "Open a chest" else "Open ${q.target} chests"
         Goal.RARE -> "Open a rare chest or better"
         Goal.BEACON -> "Reach the shrine of the day"
+    }
+
+    override fun oath(o: app.fogwalk.domain.Oath): String = when (o.goal) {
+        app.fogwalk.domain.OathGoal.METERS -> "Walk ${km(o.target)} km by Sunday"
+        app.fogwalk.domain.OathGoal.CELLS -> "Reveal ${o.target} new cells by Sunday"
+        app.fogwalk.domain.OathGoal.CHESTS -> if (o.target == 1) "Open a chest by Sunday" else "Open ${o.target} chests by Sunday"
+        app.fogwalk.domain.OathGoal.SHRINES -> if (o.target == 1) "Reach a shrine by Sunday" else "Reach ${o.target} shrines by Sunday"
     }
 
     private fun km(m: Int) = if (m % 1000 == 0) "${m / 1000}" else String.format(java.util.Locale.ROOT, "%.1f", m / 1000.0)

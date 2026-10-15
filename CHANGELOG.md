@@ -2,6 +2,21 @@
 
 All notable changes to Fogwalk. Versions follow [semantic versioning](https://semver.org/).
 
+## [1.1.0] - 2026-10-15
+
+Gold has somewhere to go, and there is more to do on a walk.
+
+### Added
+- **Oath of the week.** Three vows for the rest of the week, easy to heroic, sized to your own pace of the last four weeks. Stake 100 to 2,000 gold; keep the oath and the stake comes back with a relic (rarer for bigger stakes) and experience, break it and the gold is gone.
+- **Treasure maps** from the merchant: a circle in the mist 0.8–4 km away with a treasure hidden inside, found by *hot, warm, cool, cold*. A rare, epic or legendary relic inside, a missing one first; the gold inside is a small part of the price.
+- **The wanderer's gear**: a mistcloak, hunter's senses, an alchemist's satchel and seven-league boots, each improving in five steps from 300 to 5,000 gold.
+- **Tavern rumours**: once a week, for 80 gold, the finest unopened chest within 2 km shows through the mist with an arrow to it.
+- **Race your shadow**: walk a past journey again while its shadow retraces it at the old pace.
+- 16 new deeds (176 in all) for oaths kept, treasures dug up, shadows outrun and gear.
+
+### Changed
+- Chest deeds count chests only, not treasures or oath rewards.
+
 ## [1.0.3] - 2026-10-14
 
 ### Added

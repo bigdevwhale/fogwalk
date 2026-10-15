@@ -18,7 +18,9 @@ import android.view.MotionEvent
 import app.fogwalk.domain.Cache
 import app.fogwalk.domain.Caches
 import app.fogwalk.domain.FogStore
+import app.fogwalk.domain.Races
 import app.fogwalk.domain.Rarity
+import app.fogwalk.domain.TreasureMap
 import app.fogwalk.explore.Fix
 import app.fogwalk.geo.Grid
 import org.osmdroid.util.GeoPoint
@@ -37,6 +39,19 @@ sealed interface Pick {
     data class OfCache(val cache: Cache, val sensed: Boolean) : Pick
     data object OfBeacon : Pick
     data class OfLand(val sector: Long) : Pick
+    data object OfTreasure : Pick
+}
+
+/** A race in progress, ready to draw: the route, when the old walk passed each point, and how far along each is. */
+class RaceView(
+    val route: List<Pair<Double, Double>>,
+    val times: LongArray,
+    val along: DoubleArray,
+    val started: Long,
+    val reached: Int,
+) {
+    /** Metres along the route the shadow has come at [now]. */
+    fun shadowM(now: Long): Double = if (started == 0L) 0.0 else Races.shadow(times, along, now - started)
 }
 
 /** What the overlay needs from the app; swapped as a whole when anything changes. */
@@ -55,6 +70,12 @@ class Scene(
     val gold: Int,
     /** The land tapped on the map, highlighted. */
     val picked: Long?,
+    /** How far chests glimmer through the mist. */
+    val senseM: Double,
+    /** A chest the tavern told of, shown through the mist. */
+    val rumor: String?,
+    val treasure: TreasureMap?,
+    val race: RaceView?,
 )
 
 /**
@@ -140,6 +161,8 @@ class WorldOverlay(
         drawLands(c, s, w, h, mx0, mx1, my0, my1)
         hits.clear()
         val t = System.currentTimeMillis()
+        drawTreasure(c, s)
+        drawRace(c, s, t)
         drawTrail(c, s)
         drawCaches(c, s, mx0, mx1, my0, my1, t)
         drawBeacon(c, s, t)
@@ -306,6 +329,82 @@ class WorldOverlay(
         }
     }
 
+    private fun metersPx(lat: Double) = (ax / Grid.N / Grid.cellMeters(lat)).toFloat()
+
+    /** The treasure map's circle: a dashed gilt ring with a faint wash and a "?" at its heart. */
+    private fun drawTreasure(c: Canvas, s: Scene) {
+        val t = s.treasure ?: return
+        val x = sx(t.cLon)
+        val y = sy(t.cLat)
+        val d = density
+        val r = (t.radius.toFloat() * metersPx(t.cLat)).coerceAtLeast(10 * d)
+        fill.shader = null
+        fill.color = withAlpha(s.gold, 34)
+        c.drawCircle(x, y, r, fill)
+        stroke.pathEffect = android.graphics.DashPathEffect(floatArrayOf(10 * d, 7 * d), 0f)
+        stroke.strokeWidth = 2.4f * d
+        stroke.color = s.gold
+        stroke.alpha = 230
+        c.drawCircle(x, y, r, stroke)
+        stroke.pathEffect = null
+        text.color = s.gold
+        text.textSize = 20 * d
+        text.setShadowLayer(4 * d, 0f, 0f, 0x88FFFFFF.toInt())
+        c.drawText("?", x, y + 7 * d, text)
+        text.clearShadowLayer()
+        hits += Pick.OfTreasure to floatArrayOf(x, y)
+    }
+
+    /** The raced route, the part already retraced in ink, the start and finish, and the shadow on its way. */
+    private fun drawRace(c: Canvas, s: Scene, now: Long) {
+        val r = s.race ?: return
+        if (r.route.size < 2) return
+        val d = density
+        path.reset()
+        r.route.forEachIndexed { i, (lat, lon) -> if (i == 0) path.moveTo(sx(lon), sy(lat)) else path.lineTo(sx(lon), sy(lat)) }
+        stroke.strokeCap = Paint.Cap.ROUND
+        stroke.strokeJoin = Paint.Join.ROUND
+        stroke.pathEffect = android.graphics.DashPathEffect(floatArrayOf(2 * d, 7 * d), 0f)
+        stroke.strokeWidth = 4.5f * d
+        stroke.color = 0xFF5E5A66.toInt()
+        stroke.alpha = 200
+        c.drawPath(path, stroke)
+        stroke.pathEffect = null
+        if (r.started > 0 && r.reached > 0) {
+            path.reset()
+            for (i in 0..r.reached) {
+                val (lat, lon) = r.route[i]
+                if (i == 0) path.moveTo(sx(lon), sy(lat)) else path.lineTo(sx(lon), sy(lat))
+            }
+            stroke.color = s.accent
+            stroke.alpha = 230
+            stroke.strokeWidth = 5 * d
+            c.drawPath(path, stroke)
+        }
+        fun dot(p: Pair<Double, Double>, color: Int) {
+            fill.shader = null
+            fill.color = 0xFFFFFFFF.toInt()
+            c.drawCircle(sx(p.second), sy(p.first), 8 * d, fill)
+            fill.color = color
+            c.drawCircle(sx(p.second), sy(p.first), 5.5f * d, fill)
+        }
+        dot(r.route.first(), 0xFF5E8C4A.toInt())
+        dot(r.route.last(), s.gold)
+        if (r.started > 0) {
+            val (lat, lon) = Races.pointAt(r.route, r.along, r.shadowM(now))
+            val x = sx(lon)
+            val y = sy(lat)
+            // The shadow: the walker's token in smoke.
+            glow.shader = RadialGradient(x, y, 26 * d, intArrayOf(0x995E5A66.toInt(), 0x005E5A66), null, Shader.TileMode.CLAMP)
+            c.drawCircle(x, y, 26 * d, glow)
+            glow.shader = null
+            fill.color = 0xCC3C3946.toInt()
+            c.drawCircle(x, y, 11 * d, fill)
+            fill.color = 0x99D8D4E0.toInt()
+            c.drawCircle(x, y, 6 * d, fill)
+        }
+    }
+
     private fun drawTrail(c: Canvas, s: Scene) {
         if (s.trail.size < 2) return
         path.reset()
@@ -330,14 +429,15 @@ class WorldOverlay(
         for (cache in list) {
             if (cache.key in s.opened) continue
             val revealed = Grid.cell(cache.lat, cache.lon) in fog
-            val near = me != null && me.accuracy < 200 && Grid.distance(me.lat, me.lon, cache.lat, cache.lon) <= Caches.SENSE_M
-            if (!revealed && !s.radar && !near) continue
+            val told = cache.key == s.rumor
+            val near = me != null && me.accuracy < 200 && Grid.distance(me.lat, me.lon, cache.lat, cache.lon) <= s.senseM
+            if (!revealed && !s.radar && !near && !told) continue
             val x = sx(cache.lon)
             val y = sy(cache.lat)
             val color = s.rarityColors[cache.rarity.ordinal]
             val phase = ((t + cache.key.hashCode()) % 1600) / 1600.0
             val pulse = (0.5 + 0.5 * sin(phase * 2 * PI)).toFloat()
-            if (revealed || s.radar) {
+            if (revealed || s.radar || told) {
                 drawGem(c, x, y, color, Math.floorMod(t + cache.key.hashCode(), 3000L) / 3000f, cache.rarity)
                 hits += Pick.OfCache(cache, false) to floatArrayOf(x, y)
             } else {

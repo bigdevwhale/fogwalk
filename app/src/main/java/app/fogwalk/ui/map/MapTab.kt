@@ -83,6 +83,17 @@ import app.fogwalk.domain.Caches
 import app.fogwalk.domain.Levels
 import app.fogwalk.domain.Rarity
 import app.fogwalk.domain.Sectors
+import app.fogwalk.domain.Gear
+import app.fogwalk.domain.Races
+import app.fogwalk.domain.Treasures
+import app.fogwalk.data.Waypoint
+import app.fogwalk.ui.locale
+import androidx.compose.runtime.produceState
+import androidx.compose.material.icons.rounded.Map
+import androidx.compose.material.icons.rounded.RecordVoiceOver
+import androidx.compose.material.icons.rounded.Timer
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import app.fogwalk.explore.ExploreService
 import app.fogwalk.explore.GameEvent
 import app.fogwalk.geo.Grid
@@ -189,6 +200,20 @@ fun MapTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
         }
     }
 
+    // A race's route, loaded once per raced walk.
+    val dao = container.db.dao()
+    val raceRoute by produceState<List<Waypoint>?>(null, s.race?.walk) {
+        value = s.race?.walk?.let { w -> withContext(Dispatchers.IO) { dao.waypoints(w) } }
+    }
+    val raceView = remember(raceRoute, s.race) {
+        val r = s.race
+        val rt = raceRoute
+        if (r == null || rt == null || rt.size < 2) null else {
+            val pts = rt.map { it.lat to it.lon }
+            RaceView(pts, LongArray(rt.size) { rt[it].at }, Races.along(pts), r.started, r.reached)
+        }
+    }
+
     // The scene the overlay draws; markers pulse at about 25 frames a second while the map is open.
     val rarityColors = Rarity.entries.map { rarityColor(it).first.toArgb() }.toIntArray()
     val accent = U.c.accent.toArgb()
@@ -200,6 +225,7 @@ fun MapTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
         week = data.week, opened = data.opened, radar = s.radarUntil > data.now,
         style = s.fog, density = s.fogDensity, rarityColors = rarityColors, accent = accent, gold = gold,
         picked = (pick as? Pick.OfLand)?.sector,
+        senseM = Gear.senseM(s.gear), rumor = data.rumor?.key, treasure = s.treasure, race = raceView,
     )
     LaunchedEffect(Unit) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
@@ -244,6 +270,8 @@ fun MapTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
     val sectorText = stringResource(R.string.toast_sector)
     val beaconText = stringResource(R.string.beacon_reached)
     val milestoneText = stringResource(R.string.toast_milestone)
+    val raceText = stringResource(R.string.race_started)
+    val sageC = U.c.sage
     val flame = U.c.flame
     val accentC = U.c.accent
     val goldC = U.c.gold
@@ -255,6 +283,8 @@ fun MapTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
                 is GameEvent.Beacon -> Toast(System.nanoTime(), Icons.Rounded.Flare, beaconText, flame)
                 is GameEvent.Opened -> null
                 is GameEvent.Near -> null
+                is GameEvent.RaceStarted -> Toast(System.nanoTime(), Icons.Rounded.Timer, raceText, sageC)
+                is GameEvent.RaceDone -> null
             }
             if (s.haptics && (e is GameEvent.Opened || e is GameEvent.Beacon)) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             if (t != null) {
@@ -316,7 +346,11 @@ fun MapTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
                 stringResource(R.string.osm_credit), style = UType.Small.copy(fontSize = 10.sp, color = U.c.muted),
                 modifier = Modifier.padding(start = 4.dp, bottom = 4.dp).clip(CircleShape).background(U.c.surface.copy(alpha = 0.7f)).padding(horizontal = 6.dp, vertical = 1.dp),
             )
-            BottomPanel(data, permitted, imperial, onAllow = {
+            BottomPanel(data, permitted, imperial, raceView, onFocus = { lat, lon ->
+                follow = false
+                if (mapView.zoomLevelDouble < 15) mapView.controller.setZoom(15.5)
+                mapView.controller.animateTo(GeoPoint(lat, lon))
+            }, onAllow = {
                 askLocation.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
             })
         }
@@ -404,12 +438,14 @@ private fun PickCard(p: Pick, data: GameData, imperial: Boolean, onClose: () -> 
         is Pick.OfCache -> p.cache.lat to p.cache.lon
         Pick.OfBeacon -> data.settings.beacon.lat to data.settings.beacon.lon
         is Pick.OfLand -> null
+        Pick.OfTreasure -> data.settings.treasure?.let { it.cLat to it.cLon }
     }
     val meters = if (fix != null && target != null) Grid.distance(fix.lat, fix.lon, target.first, target.second) else null
     val (color, soft) = when (p) {
         is Pick.OfCache -> if (p.sensed) U.c.muted to U.c.surface2 else rarityColor(p.cache.rarity)
         Pick.OfBeacon -> U.c.gold to U.c.goldSoft
         is Pick.OfLand -> U.c.accent to U.c.accentSoft
+        Pick.OfTreasure -> U.c.gold to U.c.goldSoft
     }
     Row(
         Modifier.fillMaxWidth().padding(bottom = 8.dp).shadow(8.dp, U.RMd).clip(U.RMd).background(U.c.surface).border(1.dp, U.c.gilt, U.RMd).padding(14.dp),
@@ -420,6 +456,7 @@ private fun PickCard(p: Pick, data: GameData, imperial: Boolean, onClose: () -> 
                 is Pick.OfCache -> Icons.Rounded.Inventory2
                 Pick.OfBeacon -> Icons.Rounded.Flare
                 is Pick.OfLand -> Icons.Rounded.TravelExplore
+                Pick.OfTreasure -> Icons.Rounded.Map
             }
             Icon(icon, null, Modifier.size(22.dp), tint = color)
         }
@@ -430,6 +467,7 @@ private fun PickCard(p: Pick, data: GameData, imperial: Boolean, onClose: () -> 
                     is Pick.OfCache -> if (p.sensed) stringResource(R.string.cache_unknown) else stringResource(R.string.cache_of, c.rarity(p.cache.rarity))
                     Pick.OfBeacon -> stringResource(R.string.beacon_of_day)
                     is Pick.OfLand -> c.sectorName(p.sector)
+                    Pick.OfTreasure -> stringResource(R.string.treasure_one)
                 },
                 style = UType.Strong,
             )
@@ -437,6 +475,7 @@ private fun PickCard(p: Pick, data: GameData, imperial: Boolean, onClose: () -> 
             val hint = when (p) {
                 is Pick.OfCache -> stringResource(R.string.cache_hint, Caches.OPEN_M.toInt())
                 Pick.OfBeacon -> if (data.todayRow.beacon) stringResource(R.string.beacon_done) else stringResource(R.string.beacon_hint)
+                Pick.OfTreasure -> stringResource(R.string.treasure_hint)
                 is Pick.OfLand -> {
                     val share = data.share(p.sector)
                     val next = Sectors.milestones.firstOrNull { share < it.first }
@@ -454,7 +493,7 @@ private fun PickCard(p: Pick, data: GameData, imperial: Boolean, onClose: () -> 
 }
 
 @Composable
-private fun BottomPanel(data: GameData, permitted: Boolean, imperial: Boolean, onAllow: () -> Unit) {
+private fun BottomPanel(data: GameData, permitted: Boolean, imperial: Boolean, race: RaceView?, onFocus: (Double, Double) -> Unit, onAllow: () -> Unit) {
     val context = LocalContext.current
     val container = context.container
     val live by container.explorer.live.collectAsStateWithLifecycle()
@@ -471,6 +510,7 @@ private fun BottomPanel(data: GameData, permitted: Boolean, imperial: Boolean, o
             return@Column
         }
         val fix = live.fix?.takeIf { it.time > 0 }
+        Ventures(data, fix, imperial, race, onFocus)
         val b = s.beacon.takeIf { it.day == data.today }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(38.dp).clip(CircleShape).background(if (data.todayRow.beacon) U.c.accentSoft else U.c.goldSoft), contentAlignment = Alignment.Center) {
@@ -527,6 +567,81 @@ private fun BottomPanel(data: GameData, permitted: Boolean, imperial: Boolean, o
             )
             Spacer(Modifier.height(6.dp))
             Text(stringResource(R.string.start_walk_hint), style = UType.Small, modifier = Modifier.align(Alignment.CenterHorizontally))
+        }
+    }
+}
+
+/** Rows for what the walker is after besides the shrine: a treasure, a rumoured chest, a race. */
+@Composable
+private fun Ventures(data: GameData, fix: app.fogwalk.explore.Fix?, imperial: Boolean, race: RaceView?, onFocus: (Double, Double) -> Unit) {
+    val context = LocalContext.current
+    val c = content()
+    val now = rememberNow(1000)
+    data.settings.treasure?.let { t ->
+        val toCentre = fix?.let { Grid.distance(it.lat, it.lon, t.cLat, t.cLon) }
+        val text = when {
+            fix == null || toCentre == null -> stringResource(R.string.treasure_hint)
+            toCentre > t.radius -> stringResource(R.string.treasure_to_circle, distance(toCentre - t.radius, imperial))
+            else -> stringResource(
+                when (Treasures.warmth(Grid.distance(fix.lat, fix.lon, t.lat, t.lon))) {
+                    0 -> R.string.treasure_hot
+                    1 -> R.string.treasure_warm
+                    2 -> R.string.treasure_cool
+                    else -> R.string.treasure_cold
+                }
+            )
+        }
+        VentureRow(
+            Icons.Rounded.Map, U.c.gold, U.c.goldSoft, stringResource(R.string.treasure_one), text,
+            bearing = if (fix != null && toCentre != null && toCentre > t.radius) Grid.bearing(fix.lat, fix.lon, t.cLat, t.cLon) else null,
+        ) { onFocus(t.cLat, t.cLon) }
+    }
+    data.rumor?.let { r ->
+        val m = fix?.let { Grid.distance(it.lat, it.lon, r.lat, r.lon) }
+        VentureRow(
+            Icons.Rounded.RecordVoiceOver, U.c.flame, U.c.flameSoft, stringResource(R.string.rumor),
+            stringResource(R.string.rumor_line, c.rarity(r.rarity), m?.let { distance(it, imperial) } ?: "…"),
+            bearing = fix?.let { Grid.bearing(it.lat, it.lon, r.lat, r.lon) },
+        ) { onFocus(r.lat, r.lon) }
+    }
+    if (race != null) {
+        val start = race.route.first()
+        val text = if (race.started == 0L) {
+            stringResource(R.string.race_to_start, fix?.let { distance(Grid.distance(it.lat, it.lon, start.first, start.second), imperial) } ?: "…")
+        } else {
+            val gap = race.shadowM(now) - race.along[race.reached]
+            when {
+                gap > 10 -> stringResource(R.string.race_behind, distance(gap, imperial))
+                gap < -10 -> stringResource(R.string.race_ahead, distance(-gap, imperial))
+                else -> stringResource(R.string.race_even)
+            }
+        }
+        VentureRow(
+            Icons.Rounded.Timer, U.c.sage, U.c.sageSoft, stringResource(R.string.race_title), text,
+            bearing = if (race.started == 0L && fix != null) Grid.bearing(fix.lat, fix.lon, start.first, start.second) else null,
+            onClose = { context.container.explorer.cancelRace() },
+        ) { onFocus(start.first, start.second) }
+    }
+}
+
+@Composable
+private fun VentureRow(
+    icon: ImageVector, color: Color, soft: Color, title: String, text: String,
+    bearing: Double? = null, onClose: (() -> Unit)? = null, onClick: () -> Unit,
+) {
+    Row(Modifier.fillMaxWidth().clip(U.RSm).clickable(onClick = onClick).padding(bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(38.dp).clip(CircleShape).background(soft), contentAlignment = Alignment.Center) {
+            Icon(icon, null, Modifier.size(20.dp), tint = color)
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, style = UType.Strong.copy(fontSize = 15.sp))
+            Text(text, style = UType.Muted, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
+        if (bearing != null) Icon(Icons.Rounded.Navigation, null, Modifier.size(26.dp).rotate(bearing.toFloat()), tint = color)
+        if (onClose != null) {
+            Spacer(Modifier.width(6.dp))
+            Icon(Icons.Rounded.Close, stringResource(R.string.race_cancel), Modifier.size(22.dp).clip(CircleShape).clickable(onClick = onClose), tint = U.c.faint)
         }
     }
 }

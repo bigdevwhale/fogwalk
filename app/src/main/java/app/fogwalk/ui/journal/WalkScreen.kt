@@ -37,7 +37,13 @@ import app.fogwalk.R
 import app.fogwalk.data.Units
 import app.fogwalk.data.Waypoint
 import app.fogwalk.ui.GameData
+import app.fogwalk.container
+import app.fogwalk.domain.Races
+import app.fogwalk.ui.components.PrimaryButton
 import app.fogwalk.ui.components.TopBar
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Timer
 import app.fogwalk.ui.components.UCard
 import app.fogwalk.ui.distance
 import app.fogwalk.ui.locale
@@ -58,12 +64,13 @@ import java.time.format.FormatStyle
 
 /** One journey: its route on the old map and its numbers. */
 @Composable
-fun WalkScreen(id: Long, data: GameData, onBack: () -> Unit) {
+fun WalkScreen(id: Long, data: GameData, onBack: () -> Unit, onRace: (Long) -> Unit) {
     val w = data.walks.firstOrNull { it.id == id }
     val imperial = data.settings.units == Units.IMPERIAL
     val l = locale()
     val day = remember(l) { DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(l) }
     val time = remember(l) { DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(l) }
+    val context = LocalContext.current
     Column(Modifier.fillMaxSize().background(U.c.bg).statusBarsPadding()) {
         val title = w?.let { day.format(Instant.ofEpochMilli(it.start).atZone(data.zone)).replaceFirstChar { c -> c.titlecase(l) } }
         TopBar(title ?: stringResource(R.string.walks_title), onBack)
@@ -97,6 +104,25 @@ fun WalkScreen(id: Long, data: GameData, onBack: () -> Unit) {
                     Figure("+" + "%,d".format(w.cells), stringResource(R.string.walk_cells), Modifier.weight(1f))
                     Figure(w.caches.toString(), stringResource(R.string.walk_chests), Modifier.weight(1f))
                     Spacer(Modifier.weight(1f))
+                }
+            }
+            if (route != null && route.size >= 2) {
+                Spacer(Modifier.height(12.dp))
+                val racing = data.settings.race?.walk == id
+                when {
+                    racing -> PrimaryButton(
+                        stringResource(R.string.race_cancel), { context.container.explorer.cancelRace() }, Modifier.fillMaxWidth(),
+                        color = U.c.ink, icon = Icons.Rounded.Close,
+                    )
+                    w.meters < Races.MIN_ROUTE_M -> Text(
+                        stringResource(R.string.race_short, distance(Races.MIN_ROUTE_M, imperial)), style = UType.Muted,
+                        modifier = Modifier.padding(horizontal = 4.dp),
+                    )
+                    else -> {
+                        PrimaryButton(stringResource(R.string.race_challenge), { onRace(id) }, Modifier.fillMaxWidth(), color = U.c.sage, icon = Icons.Rounded.Timer)
+                        Spacer(Modifier.height(6.dp))
+                        Text(stringResource(R.string.race_challenge_text), style = UType.Small, modifier = Modifier.padding(horizontal = 4.dp))
+                    }
                 }
             }
         }

@@ -12,6 +12,15 @@ import app.fogwalk.domain.Beacons
 import app.fogwalk.domain.Cache
 import app.fogwalk.domain.Caches
 import app.fogwalk.domain.FogStore
+import app.fogwalk.domain.Gear
+import app.fogwalk.domain.Oath
+import app.fogwalk.domain.Oaths
+import app.fogwalk.domain.Race
+import app.fogwalk.domain.Races
+import app.fogwalk.domain.Rumors
+import app.fogwalk.domain.TreasureMap
+import app.fogwalk.domain.Treasures
+import app.fogwalk.domain.pickRelic
 import app.fogwalk.domain.Levels
 import app.fogwalk.domain.Rarity
 import app.fogwalk.domain.Relics
@@ -69,7 +78,13 @@ sealed interface GameEvent {
     data class Milestone(val sector: Long, val share: Double, val coins: Int) : GameEvent
     data object Beacon : GameEvent
     data class Near(val cache: Cache, val meters: Int) : GameEvent
+    data object RaceStarted : GameEvent
+    /** [margin] ms the walker beat the shadow by; negative when the shadow won. */
+    data class RaceDone(val won: Boolean, val margin: Long) : GameEvent
 }
+
+/** How a purchase went. */
+enum class Bought { OK, NO_GOLD, NO_FIX, NOTHING, BUSY }
 
 /**
  * Turns positions into explored ground. Fixes are processed one at a time on a single worker:
@@ -163,7 +178,7 @@ class Explorer(
         val day = local.toLocalDate().toEpochDay()
         upkeep(day)
         val s = settings.now()
-        val radius = REVEAL_M * if (s.lanternUntil > f.time) Shop.LANTERN_FACTOR else 1.0
+        val radius = Gear.revealM(s.gear) * if (s.lanternUntil > f.time) Shop.LANTERN_FACTOR else 1.0
 
         // The way from the last committed point, filled in so a walk leaves a continuous corridor.
         val points = ArrayList<Pair<Double, Double>>()
@@ -205,7 +220,7 @@ class Explorer(
         }
         var foundHere = 0
         var rareHere = 0
-        val reach = Caches.OPEN_M + min(f.accuracy.toDouble(), 20.0)
+        val reach = Gear.openM(s.gear) + min(f.accuracy.toDouble(), 20.0)
         for (c in Caches.near(step.lat, step.lon, NEAR_M + moved, week)) {
             if (c.key in opened) continue
             // Anywhere along the step counts, so a chest isn't missed between two fixes.
@@ -230,6 +245,9 @@ class Explorer(
                 _events.tryEmit(GameEvent.Near(c, m.toInt()))
             }
         }
+
+        s.treasure?.let { t -> digFor(t, points, f) }
+        s.race?.let { r -> runRace(r, points, f.time) }
 
         // The beacon: placed at the first good fix of the day, reached by coming within REACH_M.
         var beacon = false
@@ -302,6 +320,146 @@ class Explorer(
         }
     }
 
+    /** Digs up the map's treasure once the walker passes over it. */
+    private suspend fun digFor(t: TreasureMap, points: List<Pair<Double, Double>>, f: Fix) {
+        val m = points.minOf { (la, lo) -> Grid.distance(la, lo, t.lat, t.lon) }
+        if (m > Treasures.FIND_M + min(f.accuracy.toDouble(), 15.0)) return
+        val tier = Treasures.tiers[t.tier]
+        val (relic, dup) = pickRelic(tier.rarity, ownedRelics, t.bought)
+        val find = Find(
+            key = t.key, at = f.time, rarity = tier.rarity.ordinal, relic = relic.id, duplicate = dup,
+            coins = tier.coins + if (dup) Relics.dupeCoins(relic) else 0, xp = tier.xp, lat = t.lat, lon = t.lon,
+        )
+        if (db.dao().insertFind(find) != -1L) {
+            ownedRelics += relic.id
+            _events.tryEmit(GameEvent.Opened(find))
+            grantSets(f.time)
+        }
+        settings.update { it.copy(treasure = null) }
+    }
+
+    private var raceRoute: Pair<Long, List<Waypoint>>? = null
+
+    private suspend fun route(walk: Long): List<Waypoint> {
+        raceRoute?.takeIf { it.first == walk }?.let { return it.second }
+        return db.dao().waypoints(walk).also { raceRoute = walk to it }
+    }
+
+    /** Starts the race at the route's first point, follows the walker along it, and settles it at the last. */
+    private suspend fun runRace(r: Race, points: List<Pair<Double, Double>>, now: Long) {
+        val route = route(r.walk)
+        if (route.size < 2) {
+            settings.update { it.copy(race = null) }
+            return
+        }
+        val pts = route.map { it.lat to it.lon }
+        if (r.started == 0L) {
+            if (points.any { (la, lo) -> Grid.distance(la, lo, pts[0].first, pts[0].second) <= Races.NEAR_M }) {
+                settings.update { it.copy(race = r.copy(started = now, reached = 0)) }
+                _events.tryEmit(GameEvent.RaceStarted)
+            }
+            return
+        }
+        val duration = route.last().at - route.first().at
+        val reached = Races.advance(pts, r.reached, points)
+        val elapsed = now - r.started
+        when {
+            reached == pts.lastIndex -> {
+                val won = elapsed < duration
+                db.dao().grant(Entry(Races.ref(r.walk, r.started, won), now, 0, if (won) Races.WIN_XP else Races.LOSE_XP))
+                settings.update { it.copy(race = null) }
+                _events.tryEmit(GameEvent.RaceDone(won, duration - elapsed))
+            }
+            elapsed > Races.timeout(duration) -> {
+                db.dao().grant(Entry(Races.ref(r.walk, r.started, false), now, 0, Races.LOSE_XP))
+                settings.update { it.copy(race = null) }
+                _events.tryEmit(GameEvent.RaceDone(false, duration - elapsed))
+            }
+            reached != r.reached -> settings.update { it.copy(race = r.copy(reached = reached)) }
+        }
+    }
+
+    /** Challenges the shadow of [walk]: the race begins at its first point. */
+    fun startRace(walk: Long) {
+        scope.launch(worker) { settings.update { it.copy(race = Race(walk, 0, 0)) } }
+    }
+
+    fun cancelRace() {
+        scope.launch(worker) { settings.update { it.copy(race = null) } }
+    }
+
+    private suspend fun coins(): Int {
+        val dao = db.dao()
+        return Wallet.coins(dao.finds(), dao.ledger())
+    }
+
+    /** Swears [o] with [stake] gold on it; the day's progress so far doesn't count. */
+    suspend fun swear(o: Oath, stake: Int): Bought = withContext(worker) {
+        val s = settings.now()
+        if (s.oath?.week == o.week) return@withContext Bought.BUSY
+        if (coins() < stake) return@withContext Bought.NO_GOLD
+        val dao = db.dao()
+        val base = dao.day(o.day)?.let { Oaths.metric(o.goal, it) } ?: 0.0
+        dao.grant(Entry(Oaths.stakeRef(o.week), System.currentTimeMillis(), -stake, 0))
+        settings.update { it.copy(oath = o.copy(stake = stake, base = base)) }
+        Bought.OK
+    }
+
+    /** A kept oath returns its stake with a relic and experience, shown as a find. */
+    suspend fun keepOath(): Boolean = withContext(worker) {
+        val o = settings.now().oath ?: return@withContext false
+        val dao = db.dao()
+        if (!Oaths.kept(o, dao.days())) return@withContext false
+        val (relic, dup) = pickRelic(Oaths.rarity(o.stake, o.level), ownedRelics, o.week * 31 + o.stake)
+        val at = _live.value.fix
+        val find = Find(
+            key = "o:${o.week}", at = System.currentTimeMillis(), rarity = relic.rarity.ordinal, relic = relic.id, duplicate = dup,
+            coins = o.stake + if (dup) Relics.dupeCoins(relic) else 0, xp = Oaths.xp(o.stake, o.level),
+            lat = at?.lat ?: 0.0, lon = at?.lon ?: 0.0,
+        )
+        if (dao.insertFind(find) == -1L) return@withContext false
+        ownedRelics += relic.id
+        grantSets(find.at)
+        true
+    }
+
+    /** Buys a treasure map of [tier], its treasure hidden where the mist is thickest around the walker. */
+    suspend fun buyTreasure(tier: Int): Bought = withContext(worker) {
+        if (settings.now().treasure != null) return@withContext Bought.BUSY
+        val fix = _live.value.fix?.takeIf { it.time > 0 } ?: return@withContext Bought.NO_FIX
+        val t = Treasures.tiers[tier]
+        val now = System.currentTimeMillis()
+        val map = Treasures.place(now, tier, fix.lat, fix.lon) { a, b -> fog.exploredAround(a, b, 120.0) }
+        if (!buy("treasure:$tier", t.price)) return@withContext Bought.NO_GOLD
+        settings.update { it.copy(treasure = map) }
+        Bought.OK
+    }
+
+    fun dropTreasure() {
+        scope.launch(worker) { settings.update { it.copy(treasure = null) } }
+    }
+
+    /** The tavern's rumour: free when there is nothing worth telling. */
+    suspend fun hearRumor(): Bought = withContext(worker) {
+        val fix = _live.value.fix?.takeIf { it.time > 0 } ?: return@withContext Bought.NO_FIX
+        val week = Caches.week(today())
+        if (settings.now().rumor?.week == week) return@withContext Bought.BUSY
+        val opened = db.dao().findKeys("c:$week:").toSet()
+        val rumor = Rumors.hear(fix.lat, fix.lon, week, opened) ?: return@withContext Bought.NOTHING
+        if (!buy("rumor:$week", Rumors.PRICE)) return@withContext Bought.NO_GOLD
+        settings.update { it.copy(rumor = rumor) }
+        Bought.OK
+    }
+
+    /** The next step of a piece of gear. */
+    suspend fun buyGear(id: String): Bought = withContext(worker) {
+        val level = settings.now().gear[id] ?: 0
+        val price = Gear.price(level) ?: return@withContext Bought.BUSY
+        if (!buy("gear:$id:${level + 1}", price)) return@withContext Bought.NO_GOLD
+        settings.update { it.copy(gear = it.gear + (id to level + 1)) }
+        Bought.OK
+    }
+
     /** A completed relic set pays out once. */
     private suspend fun grantSets(at: Long) {
         for (set in Relics.completeSets(ownedRelics)) {
@@ -328,8 +486,7 @@ class Explorer(
     /** Opens what can be bought: a fog style, a boost or a shield. False when sparks run short. */
     suspend fun buy(item: String, price: Int): Boolean = withContext(worker) {
         val dao = db.dao()
-        val coins = Wallet.coins(dao.finds(), dao.ledger())
-        if (coins < price) return@withContext false
+        if (coins() < price) return@withContext false
         val now = System.currentTimeMillis()
         dao.grant(Entry("buy:$item:$now", now, -price, 0))
         true

@@ -11,6 +11,9 @@ import app.fogwalk.domain.Badges
 import app.fogwalk.domain.Caches
 import app.fogwalk.domain.Facts
 import app.fogwalk.domain.Levels
+import app.fogwalk.domain.Oath
+import app.fogwalk.domain.Oaths
+import app.fogwalk.domain.Rumor
 import app.fogwalk.domain.Quest
 import app.fogwalk.domain.Quests
 import app.fogwalk.domain.Rarity
@@ -47,6 +50,20 @@ class GameData(
     val relics: Set<String> = finds.mapNotNullTo(HashSet()) { it.relic.ifEmpty { null } }
     val claimed: Set<String> = ledger.mapTo(HashSet()) { it.ref }
     val opened: Set<String> = finds.filter { it.key.startsWith("c:$week:") }.mapTo(HashSet()) { it.key }
+    /** Chests proper: finds from treasure maps and oaths aside. */
+    private val chests = finds.filter { it.key.startsWith("c:") }
+    private val findKeys: Set<String> = finds.mapTo(HashSet()) { it.key }
+
+    /** This week's oath, or last week's while a kept one waits to be claimed. */
+    val oath: Oath? = settings.oath?.takeIf { o ->
+        "o:${o.week}" !in findKeys && (o.week == week || (o.week == week - 1 && Oaths.kept(o, days)))
+    }
+    val oathProgress: Double = oath?.let { Oaths.progress(it, days) } ?: 0.0
+    val oathKept: Boolean = oath != null && oathProgress >= oath.target
+    /** Whether this week's oath is already settled (claimed), so no new one may be sworn. */
+    val oathDone: Boolean = "o:$week" in findKeys || settings.oath?.week == week
+    val oathOffers: List<Oath> = if (oathDone) emptyList() else Oaths.offers(today, days)
+    val rumor: Rumor? = settings.rumor?.takeIf { it.week == week && it.key !in opened }
 
     /** Experience before [day] began, so quest targets don't shift as the day goes on. */
     private fun levelBefore(day: Long): Int {
@@ -76,10 +93,10 @@ class GameData(
         areaKm2 = areaM2 / 1_000_000,
         km = days.sumOf { it.meters } / 1000,
         cells = cells,
-        caches = finds.size,
-        rare = finds.count { it.rarity >= Rarity.RARE.ordinal },
-        epic = finds.count { it.rarity >= Rarity.EPIC.ordinal },
-        legendary = finds.count { it.rarity == Rarity.LEGENDARY.ordinal },
+        caches = chests.size,
+        rare = chests.count { it.rarity >= Rarity.RARE.ordinal },
+        epic = chests.count { it.rarity >= Rarity.EPIC.ordinal },
+        legendary = chests.count { it.rarity == Rarity.LEGENDARY.ordinal },
         relics = relics.size,
         sets = Relics.completeSets(relics).size,
         sectors = sectors.first.size,
@@ -98,6 +115,10 @@ class GameData(
         walks = walks.count { it.meters >= 300 },
         gold = finds.sumOf { it.coins } + ledger.sumOf { it.coins.coerceAtLeast(0) },
         styles = settings.owned.size,
+        oaths = finds.count { it.key.startsWith("o:") },
+        treasures = finds.count { it.key.startsWith("t:") },
+        races = ledger.count { it.ref.startsWith("race:") && it.ref.endsWith(":w") },
+        gear = settings.gear.values.sum(),
     )
     val badges: List<Badge> = Badges.unlocked(facts)
 }

@@ -59,6 +59,16 @@ data class Settings(
     val walking: Boolean = false,
     val seenBadges: Set<String> = emptySet(),
     val levelSeen: Int = 1,
+    /** This week's oath, if one was sworn. */
+    val oath: app.fogwalk.domain.Oath? = null,
+    /** The treasure map being followed. */
+    val treasure: app.fogwalk.domain.TreasureMap? = null,
+    /** A race against a past journey's shadow. */
+    val race: app.fogwalk.domain.Race? = null,
+    /** Gear levels by piece id. */
+    val gear: Map<String, Int> = emptyMap(),
+    /** The tavern's rumour of the week. */
+    val rumor: app.fogwalk.domain.Rumor? = null,
 )
 
 class SettingsStore(context: Context) {
@@ -89,6 +99,11 @@ class SettingsStore(context: Context) {
         walking = this[WALKING] ?: false,
         seenBadges = this[SEEN_BADGES] ?: emptySet(),
         levelSeen = this[LEVEL_SEEN] ?: 1,
+        oath = this[OATH]?.let { app.fogwalk.domain.Oath.decode(it) },
+        treasure = this[TREASURE]?.let { app.fogwalk.domain.TreasureMap.decode(it) },
+        race = this[RACE]?.let { app.fogwalk.domain.Race.decode(it) },
+        gear = (this[GEAR] ?: emptySet()).mapNotNull { e -> e.split(":").takeIf { it.size == 2 }?.let { (k, v) -> v.toIntOrNull()?.let { k to it } } }.toMap(),
+        rumor = this[RUMOR]?.let { app.fogwalk.domain.Rumor.decode(it) },
     )
 
     suspend fun now(): Settings = settings.first()
@@ -120,6 +135,11 @@ class SettingsStore(context: Context) {
             it[WALKING] = s.walking
             it[SEEN_BADGES] = s.seenBadges
             it[LEVEL_SEEN] = s.levelSeen
+            it[OATH] = s.oath?.encode().orEmpty()
+            it[TREASURE] = s.treasure?.encode().orEmpty()
+            it[RACE] = s.race?.encode().orEmpty()
+            it[GEAR] = s.gear.map { (k, v) -> "$k:$v" }.toSet()
+            it[RUMOR] = s.rumor?.encode().orEmpty()
         }
     }
 
@@ -148,5 +168,10 @@ class SettingsStore(context: Context) {
         val WALKING = booleanPreferencesKey("walking")
         val SEEN_BADGES = stringSetPreferencesKey("seen_badges")
         val LEVEL_SEEN = intPreferencesKey("level_seen")
+        val OATH = stringPreferencesKey("oath")
+        val TREASURE = stringPreferencesKey("treasure")
+        val RACE = stringPreferencesKey("race")
+        val GEAR = stringSetPreferencesKey("gear")
+        val RUMOR = stringPreferencesKey("rumor")
     }
 }
