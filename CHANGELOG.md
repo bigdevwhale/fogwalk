@@ -2,6 +2,11 @@
 
 All notable changes to Fogwalk. Versions follow [semantic versioning](https://semver.org/).
 
+## [1.1.1] - 2026-10-15
+
+### Fixed
+- The shrine of the day appears again as soon as the app knows roughly where you are, indoors too. Since 1.0.1 it waited for a precise satellite fix, so on days begun at home it could stay asleep.
+
 ## [1.1.0] - 2026-10-15
 
 Gold has somewhere to go, and there is more to do on a walk.

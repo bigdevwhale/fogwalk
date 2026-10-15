@@ -165,6 +165,8 @@ class Explorer(
         if (!f.simulated && System.currentTimeMillis() < simulatingUntil) return
         val prev = _live.value.fix
         if (prev != null && prev.time > 0 && f.time <= prev.time && !f.simulated) return
+        // The shrine needs only a rough idea of where the day begins; a cell tower's guess indoors will do.
+        if (f.accuracy <= BEACON_ACCURACY) ensureBeacon(f)
         val step = track.add(f)
         if (step == null) {
             // Not walkable; still worth a dot on the map while satellites are silent.
@@ -249,18 +251,12 @@ class Explorer(
         s.treasure?.let { t -> digFor(t, points, f) }
         s.race?.let { r -> runRace(r, points, f.time) }
 
-        // The beacon: placed at the first good fix of the day, reached by coming within REACH_M.
+        // The beacon: placed at the day's first fix (see [ensureBeacon]), reached by coming within REACH_M.
         var beacon = false
-        var b = s.beacon
-        if (b.day != day) {
-            val level = Levels.level(Wallet.xp(fog.size, dao.finds(), dao.ledger()))
-            val (lat, lon) = Beacons.place(day, 0, step.lat, step.lon, level) { la, lo -> fog.exploredAround(la, lo, 120.0) }
-            settings.update { it.copy(beacon = app.fogwalk.data.BeaconSpot(day, lat, lon)) }
-            b = app.fogwalk.data.BeaconSpot(day, lat, lon)
-        }
+        val b = settings.now().beacon
         val today = dao.day(day) ?: Day(day)
         val toBeacon = points.minOf { (la, lo) -> Grid.distance(la, lo, b.lat, b.lon) }
-        if (!today.beacon && toBeacon <= Beacons.REACH_M + min(f.accuracy.toDouble(), 20.0)) {
+        if (b.day == day && !today.beacon && toBeacon <= Beacons.REACH_M + min(f.accuracy.toDouble(), 20.0)) {
             beacon = true
             dao.grant(Entry("q:$day:2", f.time, Beacons.COINS, Beacons.XP))
             _events.tryEmit(GameEvent.Beacon)
@@ -318,6 +314,16 @@ class Explorer(
             lastSaved = f.time
             settings.update { it.copy(lastLat = step.lat, lastLon = step.lon) }
         }
+    }
+
+    /** Places the day's shrine around [f] unless today's is already there. */
+    private suspend fun ensureBeacon(f: Fix) {
+        val day = Instant.ofEpochMilli(f.time).atZone(zone()).toLocalDate().toEpochDay()
+        if (settings.now().beacon.day == day) return
+        val dao = db.dao()
+        val level = Levels.level(Wallet.xp(fog.size, dao.finds(), dao.ledger()))
+        val (lat, lon) = Beacons.place(day, 0, f.lat, f.lon, level) { la, lo -> fog.exploredAround(la, lo, 120.0) }
+        settings.update { it.copy(beacon = app.fogwalk.data.BeaconSpot(day, lat, lon)) }
     }
 
     /** Digs up the map's treasure once the walker passes over it. */
@@ -499,6 +505,8 @@ class Explorer(
         const val MAX_SPEED = 8.5
         const val FILL_STEP = 8.0
         const val WALK_GAP_MS = 20 * 60_000L
+        /** Worst accuracy, m, that may still place the day's shrine. */
+        const val BEACON_ACCURACY = 300f
         const val NEAR_M = 150.0
     }
 }
