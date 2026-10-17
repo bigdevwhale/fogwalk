@@ -473,7 +473,7 @@ private fun PickCard(p: Pick, data: GameData, imperial: Boolean, onClose: () -> 
             )
             Spacer(Modifier.height(2.dp))
             val hint = when (p) {
-                is Pick.OfCache -> stringResource(R.string.cache_hint, Caches.OPEN_M.toInt())
+                is Pick.OfCache -> stringResource(R.string.cache_hint, Gear.openM(data.settings.gear).toInt())
                 Pick.OfBeacon -> if (data.todayRow.beacon) stringResource(R.string.beacon_done) else stringResource(R.string.beacon_hint)
                 Pick.OfTreasure -> stringResource(R.string.treasure_hint)
                 is Pick.OfLand -> {

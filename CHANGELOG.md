@@ -2,6 +2,11 @@
 
 All notable changes to Fogwalk. Versions follow [semantic versioning](https://semver.org/).
 
+## [1.1.2] - 2026-10-17
+
+### Fixed
+- A chest's card on the map now says how close you need to come with your seven-league boots on, not the bare 30 m.
+
 ## [1.1.1] - 2026-10-15
 
 ### Fixed
