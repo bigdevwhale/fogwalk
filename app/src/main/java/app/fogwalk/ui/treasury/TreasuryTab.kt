@@ -6,6 +6,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -38,9 +40,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,10 +57,10 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.fogwalk.R
@@ -68,22 +71,16 @@ import app.fogwalk.domain.Gear
 import app.fogwalk.domain.Rumors
 import app.fogwalk.domain.Treasures
 import app.fogwalk.explore.Bought
-import app.fogwalk.domain.Relic
-import app.fogwalk.domain.Relics
 import app.fogwalk.domain.Shop
 import app.fogwalk.ui.GameData
 import app.fogwalk.ui.Go
 import app.fogwalk.ui.MapFocus
 import app.fogwalk.ui.components.ConfirmDialog
-import app.fogwalk.ui.components.Segmented
 import app.fogwalk.ui.components.SectionTitle
 import app.fogwalk.ui.components.UCard
 import app.fogwalk.ui.content
 import app.fogwalk.ui.map.FogStyles
 import app.fogwalk.ui.map.CoinIcon
-import app.fogwalk.ui.rarityColor
-import app.fogwalk.ui.relicIcon
-import app.fogwalk.ui.setIcon
 import app.fogwalk.ui.theme.U
 import app.fogwalk.ui.theme.UType
 import kotlinx.coroutines.Dispatchers
@@ -91,103 +88,62 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private enum class Part { RELICS, SHOP }
+/** The merchant's wares by kind, each with a word on how long a purchase lasts. */
+private enum class Ware(val title: Int, val chip: Int, val note: Int) {
+    STYLES(R.string.fog_styles, R.string.shop_to_styles, R.string.shop_styles_note),
+    BOOSTS(R.string.boosts, R.string.shop_to_boosts, R.string.shop_boosts_note),
+    TREASURE(R.string.treasure_title, R.string.shop_to_treasure, R.string.shop_treasure_note),
+    GEAR(R.string.gear_title, R.string.shop_to_gear, R.string.shop_gear_note),
+    TAVERN(R.string.tavern_title, R.string.shop_to_tavern, R.string.shop_tavern_note),
+}
 
 @Composable
 fun TreasuryTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
-    var part by rememberSaveable { mutableStateOf(Part.RELICS) }
-    Column(
-        Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp).padding(bottom = 24.dp),
-    ) {
-        Spacer(Modifier.height(18.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.tab_treasury), style = UType.Title, modifier = Modifier.weight(1f))
-            Row(Modifier.clip(CircleShape).background(U.c.goldSoft).padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                CoinIcon(Modifier.size(16.dp))
-                Spacer(Modifier.width(6.dp))
-                Text("%,d".format(data.coins), style = UType.Strong.copy(color = U.c.gold))
-            }
-        }
-        Spacer(Modifier.height(4.dp))
-        Text(stringResource(R.string.treasury_sub, data.relics.size, Relics.all.size), style = UType.Sub)
-        Spacer(Modifier.height(16.dp))
-        Segmented(
-            Part.entries, part,
-            label = { stringResource(if (it == Part.RELICS) R.string.relics else R.string.shop) },
-            onSelect = { part = it },
-        )
-        when (part) {
-            Part.RELICS -> RelicsPart(data)
-            Part.SHOP -> ShopPart(data)
-        }
-    }
-}
-
-@Composable
-private fun RelicsPart(data: GameData) {
-    val c = content()
-    var shown by remember { mutableStateOf<Relic?>(null) }
-    Relics.sets.forEach { set ->
-        val relics = Relics.inSet(set)
-        val have = relics.count { it.id in data.relics }
-        val (color, soft) = rarityColor(Relics.setRarity(set))
-        Spacer(Modifier.height(14.dp))
-        UCard {
+    val scroll = rememberScrollState()
+    val scope = rememberCoroutineScope()
+    val tops = remember { mutableStateMapOf<Ware, Int>() }
+    Column(Modifier.fillMaxSize().statusBarsPadding()) {
+        Column(Modifier.padding(horizontal = 18.dp)) {
+            Spacer(Modifier.height(18.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(40.dp).clip(CircleShape).background(soft), contentAlignment = Alignment.Center) {
-                    Icon(setIcon(set), null, Modifier.size(20.dp), tint = color)
+                Text(stringResource(R.string.tab_treasury), style = UType.Title, modifier = Modifier.weight(1f))
+                Row(Modifier.clip(CircleShape).background(U.c.goldSoft).padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    CoinIcon(Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("%,d".format(data.coins), style = UType.Strong.copy(color = U.c.gold))
                 }
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(c.setName(set), style = UType.Strong)
-                    Text(
-                        if (have == relics.size) stringResource(R.string.set_title, c.setTitle(set))
-                        else stringResource(R.string.set_reward, Relics.setReward(set).first),
-                        style = UType.Muted,
-                    )
-                }
-                Text("$have/${relics.size}", style = UType.Strong.copy(color = if (have == relics.size) color else U.c.muted))
             }
-            Spacer(Modifier.height(12.dp))
-            relics.chunked(3).forEach { row ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    row.forEach { r ->
-                        val owned = r.id in data.relics
-                        Column(
-                            Modifier.weight(1f).clip(U.RSm).background(if (owned) soft else U.c.surface2)
-                                .clickable(enabled = owned) { shown = r }.padding(vertical = 10.dp, horizontal = 4.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            if (owned) Icon(relicIcon(r.id), null, Modifier.size(26.dp), tint = color)
-                            else Text("?", style = UType.Strong.copy(fontSize = 20.sp, color = U.c.faint))
-                            Spacer(Modifier.height(6.dp))
-                            Text(
-                                if (owned) c.relicName(r.id) else stringResource(R.string.relic_unknown),
-                                style = UType.Small.copy(color = if (owned) U.c.ink else U.c.faint, textAlign = TextAlign.Center),
-                                maxLines = 2, overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    }
-                }
-                Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(4.dp))
+            Text(stringResource(R.string.treasury_sub), style = UType.Sub)
+        }
+        Spacer(Modifier.height(12.dp))
+        // Quick ways to each kind of ware, so the gear is not a long scroll away.
+        Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Ware.entries.forEach { w ->
+                Text(
+                    stringResource(w.chip), style = UType.Strong.copy(fontSize = 15.sp, color = U.c.ink),
+                    modifier = Modifier.clip(CircleShape).background(U.c.surface).border(1.dp, U.c.gilt.copy(alpha = 0.7f), CircleShape)
+                        .clickable { scope.launch { scroll.animateScrollTo(tops[w] ?: 0) } }.padding(horizontal = 14.dp, vertical = 8.dp),
+                )
             }
         }
+        Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(horizontal = 18.dp).padding(bottom = 24.dp)) {
+            ShopPart(data) { w -> Modifier.onGloballyPositioned { tops[w] = it.positionInParent().y.toInt() } }
+        }
     }
-    shown?.let { r ->
-        val (color, soft) = rarityColor(r.rarity)
-        val count = data.finds.count { it.relic == r.id }
-        app.fogwalk.ui.components.CelebrateDialog(
-            icon = relicIcon(r.id), color = color, soft = soft,
-            eyebrow = c.rarity(r.rarity) + " · " + c.setName(r.set),
-            title = c.relicName(r.id),
-            text = c.relicLore(r.id) + "\n\n" + stringResource(R.string.relic_found_times, count),
-            confetti = false,
-        ) { shown = null }
+}
+
+/** A kind of ware: its name and what buying it means. */
+@Composable
+private fun WareTitle(w: Ware, modifier: Modifier) {
+    Column(modifier) {
+        SectionTitle(stringResource(w.title))
+        Text(stringResource(w.note), style = UType.Muted, modifier = Modifier.padding(start = 4.dp, end = 4.dp, bottom = 12.dp).offset(y = (-4).dp))
     }
 }
 
 @Composable
-private fun ShopPart(data: GameData) {
+private fun ShopPart(data: GameData, mark: (Ware) -> Modifier) {
     val context = LocalContext.current
     val container = context.container
     val c = content()
@@ -202,7 +158,7 @@ private fun ShopPart(data: GameData) {
         }
     }
 
-    SectionTitle(stringResource(R.string.fog_styles))
+    WareTitle(Ware.STYLES, mark(Ware.STYLES))
     Shop.styles.chunked(2).forEach { row ->
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             row.forEach { st ->
@@ -222,7 +178,7 @@ private fun ShopPart(data: GameData) {
                     StylePreview(st.id)
                     Spacer(Modifier.height(8.dp))
                     Text(c.styleName(st.id), style = UType.Strong.copy(fontSize = 14.sp))
-                    Text(c.styleText(st.id), style = UType.Small, maxLines = 2, minLines = 2)
+                    Text(c.styleText(st.id), style = UType.Small.copy(fontSize = 13.sp), maxLines = 2, minLines = 2)
                     Spacer(Modifier.height(6.dp))
                     when {
                         active -> Text(stringResource(R.string.style_active), style = UType.Small.copy(color = U.c.accent))
@@ -235,7 +191,7 @@ private fun ShopPart(data: GameData) {
         Spacer(Modifier.height(10.dp))
     }
 
-    SectionTitle(stringResource(R.string.boosts))
+    WareTitle(Ware.BOOSTS, mark(Ware.BOOSTS))
     val now = System.currentTimeMillis()
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         val boost = Gear.boostMs(s.gear)
@@ -271,13 +227,13 @@ private fun ShopPart(data: GameData) {
         }
     }
 
-    SectionTitle(stringResource(R.string.treasure_title))
+    WareTitle(Ware.TREASURE, mark(Ware.TREASURE))
     TreasureMaps(data) { name, price, action -> confirm = Triple(name, price, action) }
 
-    SectionTitle(stringResource(R.string.gear_title))
+    WareTitle(Ware.GEAR, mark(Ware.GEAR))
     GearRows(data) { name, price, action -> confirm = Triple(name, price, action) }
 
-    SectionTitle(stringResource(R.string.tavern_title))
+    WareTitle(Ware.TAVERN, mark(Ware.TAVERN))
     val heard = data.settings.rumor?.week == data.week
     BoostRow(
         Icons.Rounded.RecordVoiceOver, U.c.flame, U.c.flameSoft, stringResource(R.string.rumor),
@@ -306,6 +262,7 @@ private suspend fun report(context: android.content.Context, b: Bought) {
         Bought.NO_GOLD -> R.string.not_enough
         Bought.NO_FIX -> R.string.need_fix
         Bought.NOTHING -> R.string.rumor_nothing
+        Bought.FAR -> R.string.hook_far
     }
     withContext(Dispatchers.Main) { Toast.makeText(context, text, Toast.LENGTH_SHORT).show() }
 }
@@ -367,7 +324,7 @@ private fun GearRows(data: GameData, ask: (String, Int, () -> Unit) -> Unit) {
                     "cloak" -> stringResource(R.string.gear_cloak_text, Gear.revealM(g).toInt())
                     "senses" -> stringResource(R.string.gear_senses_text, Gear.senseM(g).toInt())
                     "satchel" -> stringResource(R.string.gear_satchel_text, (Gear.boostMs(g) / 60_000).toInt())
-                    else -> stringResource(R.string.gear_boots_text, Gear.openM(g).toInt())
+                    else -> stringResource(R.string.gear_boots_text, Gear.openM(g).toInt(), Gear.shrineM(g).toInt())
                 }
             }
             val title = stringResource(name) + " · " + stringResource(R.string.gear_level, level, Gear.MAX)
@@ -411,8 +368,8 @@ private fun BoostRow(icon: ImageVector, color: Color, soft: Color, title: String
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text(title, style = UType.Strong.copy(fontSize = 15.sp, color = if (enabled) U.c.ink else U.c.faint))
-                Text(text, style = UType.Muted)
+                Text(title, style = UType.Strong.copy(fontSize = 16.sp, color = if (enabled) U.c.ink else U.c.faint))
+                Text(text, style = UType.Muted.copy(fontSize = 15.sp, lineHeight = 20.sp))
             }
             Spacer(Modifier.width(8.dp))
             if (enabled) Price(price, coins >= price) else Icon(Icons.Rounded.Check, null, Modifier.size(18.dp), tint = U.c.faint)

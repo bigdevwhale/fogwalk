@@ -76,6 +76,8 @@ class Scene(
     val rumor: String?,
     val treasure: TreasureMap?,
     val race: RaceView?,
+    /** How near the walker must come to the tapped chest or shrine: lat, lon and metres. */
+    val reach: Triple<Double, Double, Double>? = null,
 )
 
 /**
@@ -164,6 +166,7 @@ class WorldOverlay(
         drawTreasure(c, s)
         drawRace(c, s, t)
         drawTrail(c, s)
+        drawReach(c, s)
         drawCaches(c, s, mx0, mx1, my0, my1, t)
         drawBeacon(c, s, t)
         drawWalker(c, s)
@@ -405,6 +408,25 @@ class WorldOverlay(
         }
     }
 
+    /** A dashed ring around the tapped chest or shrine: step inside it and it is yours. */
+    private fun drawReach(c: Canvas, s: Scene) {
+        val (lat, lon, m) = s.reach ?: return
+        val x = sx(lon)
+        val y = sy(lat)
+        val d = density
+        val r = m.toFloat() * metersPx(lat)
+        if (r < 6 * d) return
+        fill.shader = null
+        fill.color = withAlpha(s.accent, 26)
+        c.drawCircle(x, y, r, fill)
+        stroke.pathEffect = android.graphics.DashPathEffect(floatArrayOf(8 * d, 6 * d), 0f)
+        stroke.strokeWidth = 2.2f * d
+        stroke.color = s.accent
+        stroke.alpha = 220
+        c.drawCircle(x, y, r, stroke)
+        stroke.pathEffect = null
+    }
+
     private fun drawTrail(c: Canvas, s: Scene) {
         if (s.trail.size < 2) return
         path.reset()
@@ -437,9 +459,13 @@ class WorldOverlay(
             val color = s.rarityColors[cache.rarity.ordinal]
             val phase = ((t + cache.key.hashCode()) % 1600) / 1600.0
             val pulse = (0.5 + 0.5 * sin(phase * 2 * PI)).toFloat()
-            if (revealed || s.radar || told) {
+            if (revealed || told) {
                 drawGem(c, x, y, color, Math.floorMod(t + cache.key.hashCode(), 3000L) / 3000f, cache.rarity)
                 hits += Pick.OfCache(cache, false) to floatArrayOf(x, y)
+            } else if (s.radar) {
+                // The stone shows where a chest lies in the mist, not what it holds.
+                drawGem(c, x, y, UNKNOWN, Math.floorMod(t + cache.key.hashCode(), 3000L) / 3000f, Rarity.COMMON)
+                hits += Pick.OfCache(cache, true) to floatArrayOf(x, y)
             } else {
                 // Felt, not seen: a shimmer with a question mark.
                 val r = (14 + 6 * pulse) * density
@@ -622,6 +648,11 @@ class WorldOverlay(
         fogBitmap?.recycle()
         fogBitmap = null
         super.onDetach(mapView)
+    }
+
+    private companion object {
+        /** A chest of unknown worth: bands of weathered iron. */
+        const val UNKNOWN = 0xFF8E8A84.toInt()
     }
 
     private fun withAlpha(color: Int, a: Int) = (color and 0x00FFFFFF) or (a.coerceIn(0, 255) shl 24)

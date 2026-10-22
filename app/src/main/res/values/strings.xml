@@ -4,7 +4,7 @@
 
     <string name="tab_map">Map</string>
     <string name="tab_quests">Quests</string>
-    <string name="tab_treasury">Hoard</string>
+    <string name="tab_treasury">Merchant</string>
     <string name="tab_journal">Chronicle</string>
 
     <string name="back">Back</string>
@@ -54,7 +54,7 @@
     <string name="beacon_away">%1$s away, deep in the mist</string>
     <string name="beacon_waiting">Awakens with your first steps today</string>
     <string name="beacon_done">Reached today. Another awakens tomorrow</string>
-    <string name="beacon_hint">Reach it for 60 gold and 120 XP</string>
+    <string name="beacon_hint">Come within %1$d m for 60 gold and 120 XP</string>
     <string name="beacon_reached">The shrine is yours!</string>
     <string name="beacon_reached_text">+60 gold and 120 XP. A new shrine awakens tomorrow.</string>
     <string name="cache_of">%1$s chest</string>
@@ -81,7 +81,7 @@
     <string name="gear_satchel">Alchemist\'s satchel</string>
     <string name="gear_satchel_text">Torch and seeing stone last %1$d min</string>
     <string name="gear_boots">Seven-league boots</string>
-    <string name="gear_boots_text">Chests open from %1$d m</string>
+    <string name="gear_boots_text">Chests open from %1$d m, the shrine from %2$d m</string>
     <string name="gear_level">level %1$d of %2$d</string>
     <string name="gear_next">next level: %1$s</string>
     <string name="gear_max">mastered</string>
@@ -173,7 +173,7 @@
     <string name="caches_refill">Chests refill across the whole realm every Monday, even on roads you already know.</string>
 
     <!-- Treasury -->
-    <string name="treasury_sub">%1$d of %2$d relics in your hoard</string>
+    <string name="treasury_sub">Gold from the road, spent on the road</string>
     <string name="relics">Relics</string>
     <string name="shop">Merchant</string>
     <string name="relic_unknown">Not found</string>
@@ -187,7 +187,7 @@
     <string name="lantern">Torch</string>
     <string name="lantern_text">Burns a wider path for %1$d min</string>
     <string name="radar">Seeing stone</string>
-    <string name="radar_text">Shows every chest through the mist for %1$d min</string>
+    <string name="radar_text">Shows where every chest lies for %1$d min. Through the mist you see a chest, not its worth</string>
     <string name="shield">Ward of the streak</string>
     <string name="shield_text">Guards the streak on a missed day. You have %1$d of %2$d</string>
     <string name="reroll">Scroll of wandering</string>
@@ -196,6 +196,24 @@
     <string name="buy_title">Buy %1$s?</string>
     <string name="buy_text">It costs %1$d gold. You have %2$d.</string>
     <string name="not_enough">Not enough gold yet</string>
+    <string name="shop_styles_note">Looks only. Bought for good, switch between them any time</string>
+    <string name="shop_boosts_note">Used up: each works for a while or once, then is gone</string>
+    <string name="shop_treasure_note">One map at a time. The treasure is found by hot and cold</string>
+    <string name="shop_gear_note">Kept for good: every level makes each walk a little better</string>
+    <string name="shop_tavern_note">Once a week</string>
+    <string name="shop_to_styles">Mists</string>
+    <string name="shop_to_boosts">Charms</string>
+    <string name="shop_to_treasure">Maps</string>
+    <string name="shop_to_gear">Gear</string>
+    <string name="shop_to_tavern">Tavern</string>
+    <string name="hook_title">Throw the grappling hook?</string>
+    <string name="hook_throw">Pull in with the hook</string>
+    <string name="hook_text">The hook pulls the chest in from where you stand, one throw a day. It costs %1$d gold, the more the farther. You have %2$d.</string>
+    <string name="hook_used">Today\'s throw of the hook is spent. Tomorrow it flies again</string>
+    <string name="hook_far">Too far for the hook. Come a little closer</string>
+    <string name="relics_count">Relics · %1$d of %2$d</string>
+    <string name="relics_sets">%1$d of %2$d sets complete</string>
+    <string name="relics_open">Open the hoard of relics</string>
 
     <!-- Journal -->
     <string name="explored">Charted</string>

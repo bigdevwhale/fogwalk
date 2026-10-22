@@ -243,7 +243,7 @@ object Races {
 object Gear {
     class Piece(val id: String, val step: Double)
 
-    /** Cloak: wider reveal (m); senses: chests felt farther (m); satchel: longer torch and stone (min); boots: chests open from farther (m). */
+    /** Cloak: wider reveal (m); senses: chests felt farther (m); satchel: longer torch and stone (min); boots: chests and the shrine reached from farther (m). */
     val pieces = listOf(Piece("cloak", 4.0), Piece("senses", 100.0), Piece("satchel", 20.0), Piece("boots", 4.0))
     val prices = intArrayOf(300, 600, 1200, 2500, 5000)
     const val MAX = 5
@@ -254,9 +254,23 @@ object Gear {
     fun senseM(gear: Map<String, Int>) = Caches.SENSE_M + bonus(gear, "senses")
     fun boostMs(gear: Map<String, Int>) = Shop.BOOST_MS + (bonus(gear, "satchel") * 60_000).toLong()
     fun openM(gear: Map<String, Int>) = Caches.OPEN_M + bonus(gear, "boots")
+    fun shrineM(gear: Map<String, Int>) = Beacons.REACH_M + bonus(gear, "boots")
 
     fun bonus(gear: Map<String, Int>, id: String): Double =
         (gear[id] ?: 0).coerceIn(0, MAX) * pieces.first { it.id == id }.step
+}
+
+/**
+ * The grappling hook: once a day a chest behind a fence or across a pond is pulled in from up to
+ * [RANGE_M] past the boots' reach. The farther the throw, the dearer, so walking stays the cheap way.
+ */
+object Hook {
+    const val RANGE_M = 120.0
+
+    /** Gold for a throw [beyondM] metres past the reach: 20 and a coin for every two metres, in steps of five. */
+    fun price(beyondM: Double): Int = 20 + (beyondM.coerceIn(0.0, RANGE_M) / 10).roundToInt() * 5
+
+    fun ref(day: Long) = "hook:$day"
 }
 
 /** What the tavern keeper told: the best chest of the week within reach. */

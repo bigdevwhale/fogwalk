@@ -139,6 +139,9 @@ fun JournalTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
         SectionTitle(stringResource(R.string.badges_count, data.badges.size, Badges.all.size))
         DeedsSummary(data, go)
 
+        SectionTitle(stringResource(R.string.relics_count, data.relics.size, app.fogwalk.domain.Relics.all.size))
+        RelicsSummary(data) { go.relics() }
+
         val walks = remember(data.walks) { journeys(data.walks) }
         if (walks.isNotEmpty()) {
             SectionTitle(stringResource(R.string.recent_walks))

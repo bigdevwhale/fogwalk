@@ -84,6 +84,11 @@ import app.fogwalk.domain.Levels
 import app.fogwalk.domain.Rarity
 import app.fogwalk.domain.Sectors
 import app.fogwalk.domain.Gear
+import app.fogwalk.domain.Hook
+import app.fogwalk.explore.Bought
+import app.fogwalk.ui.Tab
+import app.fogwalk.ui.components.ConfirmDialog
+import kotlinx.coroutines.launch
 import app.fogwalk.domain.Races
 import app.fogwalk.domain.Treasures
 import app.fogwalk.data.Waypoint
@@ -145,6 +150,10 @@ fun MapTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
     var follow by remember { mutableStateOf(true) }
     var pick by remember { mutableStateOf<Pick?>(null) }
     val toasts = remember { mutableStateListOf<Toast>() }
+    // A chest opened, by walking up or by the hook, lets go of its card.
+    LaunchedEffect(data.opened) {
+        if ((pick as? Pick.OfCache)?.cache?.key in data.opened) pick = null
+    }
 
     val overlay = remember {
         WorldOverlay(
@@ -171,7 +180,9 @@ fun MapTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
                 controller.setZoom(17.0)
                 controller.setCenter(GeoPoint(start.lat, start.lon))
             } else controller.setZoom(3.0)
+            val zoom = OneFingerZoom(this)
             setOnTouchListener { _, e ->
+                if (zoom.onTouch(e)) return@setOnTouchListener true
                 if (e.action == MotionEvent.ACTION_MOVE && e.pointerCount >= 1) follow = false
                 false
             }
@@ -226,6 +237,11 @@ fun MapTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
         style = s.fog, density = s.fogDensity, rarityColors = rarityColors, accent = accent, gold = gold,
         picked = (pick as? Pick.OfLand)?.sector,
         senseM = Gear.senseM(s.gear), rumor = data.rumor?.key, treasure = s.treasure, race = raceView,
+        reach = when (val p = pick) {
+            is Pick.OfCache -> Triple(p.cache.lat, p.cache.lon, Gear.openM(s.gear))
+            Pick.OfBeacon -> beacon?.takeIf { !data.todayRow.beacon }?.let { Triple(it.lat, it.lon, Gear.shrineM(s.gear)) }
+            else -> null
+        },
     )
     LaunchedEffect(Unit) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
@@ -303,7 +319,7 @@ fun MapTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
         AndroidView({ mapView }, Modifier.fillMaxSize())
 
         Column(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 12.dp, vertical = 8.dp)) {
-            TopHud(data)
+            TopHud(data) { go.tab(Tab.TREASURY) }
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Pill(Icons.AutoMirrored.Rounded.DirectionsWalk, stringResource(R.string.today_line, pluralStringResource(R.plurals.cells, data.todayRow.cells, data.todayRow.cells), distance(data.todayRow.meters, imperial)), U.c.accent)
@@ -358,7 +374,7 @@ fun MapTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
 }
 
 @Composable
-private fun TopHud(data: GameData) {
+private fun TopHud(data: GameData, onCoins: () -> Unit) {
     val c = content()
     val into = data.xp - Levels.start(data.level)
     val need = Levels.need(data.level)
@@ -382,15 +398,16 @@ private fun TopHud(data: GameData) {
         Spacer(Modifier.width(8.dp))
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Pill(Icons.Rounded.LocalFireDepartment, data.streak.current.toString(), if (data.streak.todayDone) U.c.flame else U.c.faint)
-            Pill(Icons.Rounded.Inventory2, "%,d".format(data.coins), U.c.gold, spark = true)
+            Pill(Icons.Rounded.Inventory2, "%,d".format(data.coins), U.c.gold, spark = true, onClick = onCoins)
         }
     }
 }
 
 @Composable
-fun Pill(icon: ImageVector, text: String, color: Color, spark: Boolean = false) {
+fun Pill(icon: ImageVector, text: String, color: Color, spark: Boolean = false, onClick: (() -> Unit)? = null) {
     Row(
-        Modifier.shadow(4.dp, CircleShape).clip(CircleShape).background(U.c.surface).border(1.dp, U.c.gilt.copy(alpha = 0.7f), CircleShape).padding(horizontal = 10.dp, vertical = 5.dp),
+        Modifier.shadow(4.dp, CircleShape).clip(CircleShape).background(U.c.surface).border(1.dp, U.c.gilt.copy(alpha = 0.7f), CircleShape)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier).padding(horizontal = 10.dp, vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (spark) CoinIcon(Modifier.size(15.dp)) else Icon(icon, null, Modifier.size(16.dp), tint = color)
@@ -474,7 +491,7 @@ private fun PickCard(p: Pick, data: GameData, imperial: Boolean, onClose: () -> 
             Spacer(Modifier.height(2.dp))
             val hint = when (p) {
                 is Pick.OfCache -> stringResource(R.string.cache_hint, Gear.openM(data.settings.gear).toInt())
-                Pick.OfBeacon -> if (data.todayRow.beacon) stringResource(R.string.beacon_done) else stringResource(R.string.beacon_hint)
+                Pick.OfBeacon -> if (data.todayRow.beacon) stringResource(R.string.beacon_done) else stringResource(R.string.beacon_hint, Gear.shrineM(data.settings.gear).toInt())
                 Pick.OfTreasure -> stringResource(R.string.treasure_hint)
                 is Pick.OfLand -> {
                     val share = data.share(p.sector)
@@ -487,8 +504,57 @@ private fun PickCard(p: Pick, data: GameData, imperial: Boolean, onClose: () -> 
                 }
             }
             Text((meters?.let { distance(it, imperial) + " · " } ?: "") + hint, style = UType.Muted)
+            if (p is Pick.OfCache && meters != null) HookLine(p.cache, meters, data)
         }
         Icon(Icons.Rounded.Close, stringResource(R.string.close), Modifier.size(22.dp).clip(CircleShape).clickable(onClick = onClose), tint = U.c.faint)
+    }
+}
+
+/** The grappling hook, offered for a chest out of reach but within the throw. */
+@Composable
+private fun HookLine(cache: app.fogwalk.domain.Cache, meters: Double, data: GameData) {
+    val context = LocalContext.current
+    val container = context.container
+    val beyond = meters - Gear.openM(data.settings.gear)
+    if (beyond <= 0 || beyond > Hook.RANGE_M) return
+    val used = data.ledger.any { it.ref.startsWith("buy:${Hook.ref(data.today)}:") }
+    val price = Hook.price(beyond)
+    var asking by remember { mutableStateOf(false) }
+    Spacer(Modifier.height(8.dp))
+    if (used) {
+        Text(stringResource(R.string.hook_used), style = UType.Small)
+        return
+    }
+    Row(
+        Modifier.clip(CircleShape).background(U.c.goldSoft).clickable { asking = true }.padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(stringResource(R.string.hook_throw), style = UType.Strong.copy(fontSize = 14.sp))
+        Spacer(Modifier.width(8.dp))
+        CoinIcon(Modifier.size(13.dp), if (data.coins >= price) U.c.gold else U.c.faint)
+        Spacer(Modifier.width(4.dp))
+        Text("$price", style = UType.Strong.copy(fontSize = 14.sp, color = if (data.coins >= price) U.c.gold else U.c.faint))
+    }
+    if (asking) {
+        val short = stringResource(R.string.not_enough)
+        val far = stringResource(R.string.hook_far)
+        ConfirmDialog(
+            title = stringResource(R.string.hook_title),
+            text = stringResource(R.string.hook_text, price, data.coins),
+            confirm = stringResource(R.string.hook_throw),
+            onConfirm = {
+                asking = false
+                container.scope.launch {
+                    val text = when (container.explorer.hook(cache)) {
+                        Bought.NO_GOLD -> short
+                        Bought.FAR -> far
+                        else -> null
+                    }
+                    if (text != null) withContext(Dispatchers.Main) { android.widget.Toast.makeText(context, text, android.widget.Toast.LENGTH_SHORT).show() }
+                }
+            },
+            onDismiss = { asking = false },
+        )
     }
 }
 

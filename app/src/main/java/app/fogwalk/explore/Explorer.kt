@@ -13,6 +13,7 @@ import app.fogwalk.domain.Cache
 import app.fogwalk.domain.Caches
 import app.fogwalk.domain.FogStore
 import app.fogwalk.domain.Gear
+import app.fogwalk.domain.Hook
 import app.fogwalk.domain.Oath
 import app.fogwalk.domain.Oaths
 import app.fogwalk.domain.Race
@@ -84,7 +85,7 @@ sealed interface GameEvent {
 }
 
 /** How a purchase went. */
-enum class Bought { OK, NO_GOLD, NO_FIX, NOTHING, BUSY }
+enum class Bought { OK, NO_GOLD, NO_FIX, NOTHING, BUSY, FAR }
 
 /**
  * Turns positions into explored ground. Fixes are processed one at a time on a single worker:
@@ -228,19 +229,9 @@ class Explorer(
             // Anywhere along the step counts, so a chest isn't missed between two fixes.
             val m = points.minOf { (la, lo) -> Grid.distance(la, lo, c.lat, c.lon) }
             if (m <= reach) {
-                val loot = Caches.open(c, ownedRelics)
-                val find = Find(
-                    key = c.key, at = f.time, rarity = c.rarity.ordinal,
-                    relic = loot.relic?.id.orEmpty(), duplicate = loot.duplicate,
-                    coins = loot.coins, xp = loot.xp, lat = c.lat, lon = c.lon,
-                )
-                if (dao.insertFind(find) != -1L) {
-                    opened += c.key
-                    loot.relic?.let { ownedRelics += it.id }
+                if (open(c, f.time)) {
                     foundHere++
                     if (c.rarity >= Rarity.RARE) rareHere++
-                    _events.tryEmit(GameEvent.Opened(find))
-                    grantSets(f.time)
                 }
             } else if (c.key !in nearNotified) {
                 nearNotified += c.key
@@ -251,12 +242,12 @@ class Explorer(
         s.treasure?.let { t -> digFor(t, points, f) }
         s.race?.let { r -> runRace(r, points, f.time) }
 
-        // The beacon: placed at the day's first fix (see [ensureBeacon]), reached by coming within REACH_M.
+        // The beacon: placed at the day's first fix (see [ensureBeacon]), reached by coming within REACH_M, farther in better boots.
         var beacon = false
         val b = settings.now().beacon
         val today = dao.day(day) ?: Day(day)
         val toBeacon = points.minOf { (la, lo) -> Grid.distance(la, lo, b.lat, b.lon) }
-        if (b.day == day && !today.beacon && toBeacon <= Beacons.REACH_M + min(f.accuracy.toDouble(), 20.0)) {
+        if (b.day == day && !today.beacon && toBeacon <= Gear.shrineM(s.gear) + min(f.accuracy.toDouble(), 20.0)) {
             beacon = true
             dao.grant(Entry("q:$day:2", f.time, Beacons.COINS, Beacons.XP))
             _events.tryEmit(GameEvent.Beacon)
@@ -314,6 +305,40 @@ class Explorer(
             lastSaved = f.time
             settings.update { it.copy(lastLat = step.lat, lastLon = step.lon) }
         }
+    }
+
+    /** Opens [c] for its loot; false when it was already open. */
+    private suspend fun open(c: Cache, at: Long): Boolean {
+        val loot = Caches.open(c, ownedRelics)
+        val find = Find(
+            key = c.key, at = at, rarity = c.rarity.ordinal,
+            relic = loot.relic?.id.orEmpty(), duplicate = loot.duplicate,
+            coins = loot.coins, xp = loot.xp, lat = c.lat, lon = c.lon,
+        )
+        if (db.dao().insertFind(find) == -1L) return false
+        if (c.key.startsWith("c:$openedWeek:")) opened += c.key
+        loot.relic?.let { ownedRelics += it.id }
+        _events.tryEmit(GameEvent.Opened(find))
+        grantSets(at)
+        return true
+    }
+
+    /** Pulls in [c] with the day's grappling hook, if it is within the throw. */
+    suspend fun hook(c: Cache): Bought = withContext(worker) {
+        val fix = _live.value.fix?.takeIf { it.time > 0 } ?: return@withContext Bought.NO_FIX
+        val dao = db.dao()
+        val now = System.currentTimeMillis()
+        val day = today()
+        if (dao.ledger().any { it.ref.startsWith("buy:${Hook.ref(day)}:") }) return@withContext Bought.BUSY
+        if (dao.findKeys(c.key).contains(c.key)) return@withContext Bought.BUSY
+        val beyond = Grid.distance(fix.lat, fix.lon, c.lat, c.lon) - Gear.openM(settings.now().gear)
+        if (beyond > Hook.RANGE_M) return@withContext Bought.FAR
+        if (!buy(Hook.ref(day), Hook.price(beyond))) return@withContext Bought.NO_GOLD
+        if (open(c, now)) {
+            val row = dao.day(day) ?: Day(day)
+            dao.upsertDay(row.copy(caches = row.caches + 1, rare = row.rare + if (c.rarity >= Rarity.RARE) 1 else 0))
+        }
+        Bought.OK
     }
 
     /** Places the day's shrine around [f] unless today's is already there. */

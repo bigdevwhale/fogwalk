@@ -147,6 +147,7 @@ private fun pace(ms: Long, meters: Double, imperial: Boolean): String {
 }
 
 /** An osmdroid map in the atlas colours, fitted to the route. */
+@android.annotation.SuppressLint("ClickableViewAccessibility")
 @Composable
 private fun RouteMap(route: List<Waypoint>) {
     val context = LocalContext.current
@@ -169,6 +170,8 @@ private fun RouteMap(route: List<Waypoint>) {
             overlayManager.tilesOverlay.setColorFilter(if (dark) nightTiles() else softTiles())
             overlayManager.tilesOverlay.loadingBackgroundColor = if (dark) 0xFF1E1810.toInt() else 0xFFE8DCBE.toInt()
             overlays.add(RouteOverlay(route.map { GeoPoint(it.lat, it.lon) }, density, ink, start, end, paper))
+            val zoom = app.fogwalk.ui.map.OneFingerZoom(this)
+            setOnTouchListener { _, e -> zoom.onTouch(e) }
         }
     }
     LaunchedEffect(route) {

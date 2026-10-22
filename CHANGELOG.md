@@ -2,6 +2,22 @@
 
 All notable changes to Fogwalk. Versions follow [semantic versioning](https://semver.org/).
 
+## [1.2.0] - 2026-10-22
+
+### Added
+- **The grappling hook.** A chest behind a fence or across a pond can be pulled in from up to 120 m past your reach: tap it and throw, for 20 gold and a coin for every two metres. One throw a day.
+- Tapping a chest or the shrine draws a dashed ring around it: step inside and it is yours.
+- Zoom with one thumb: tap, then tap again and hold, and slide down to come closer or up to step back.
+- Tapping your gold on the map opens the merchant.
+
+### Changed
+- The merchant has a tab of its own, with quick links to each kind of ware, a line on how long each kind lasts, and larger type. Relics moved to the Chronicle.
+- Seven-league boots now reach the shrine from farther too: 40 m bare, up to 60 m.
+- The seeing stone shows where chests lie, but through the mist not what they are worth.
+
+### Fixed
+- Back from the quests, the merchant or the chronicle returns to the map instead of closing the app.
+
 ## [1.1.2] - 2026-10-17
 
 ### Fixed

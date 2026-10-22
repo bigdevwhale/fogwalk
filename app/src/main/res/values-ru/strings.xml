@@ -2,7 +2,7 @@
 <resources>
     <string name="tab_map">Карта</string>
     <string name="tab_quests">Квесты</string>
-    <string name="tab_treasury">Сокровищница</string>
+    <string name="tab_treasury">Лавка</string>
     <string name="tab_journal">Летопись</string>
 
     <string name="back">Назад</string>
@@ -60,7 +60,7 @@
     <string name="beacon_away">%1$s, в самом тумане</string>
     <string name="beacon_waiting">Пробудится с первыми шагами сегодня</string>
     <string name="beacon_done">Сегодня достигнуто. Завтра пробудится новое</string>
-    <string name="beacon_hint">Дойдите и получите 60 золота и 120 опыта</string>
+    <string name="beacon_hint">Подойдите на %1$d м и получите 60 золота и 120 опыта</string>
     <string name="beacon_reached">Святилище ваше!</string>
     <string name="beacon_reached_text">+60 золота и 120 опыта. Завтра пробудится новое святилище.</string>
     <string name="cache_of">%1$s сундук</string>
@@ -87,7 +87,7 @@
     <string name="gear_satchel">Котомка алхимика</string>
     <string name="gear_satchel_text">Факел и камень прозрения действуют %1$d мин</string>
     <string name="gear_boots">Сапоги-скороходы</string>
-    <string name="gear_boots_text">Сундуки открываются за %1$d м</string>
+    <string name="gear_boots_text">Сундуки открываются за %1$d м, святилище за %2$d м</string>
     <string name="gear_level">уровень %1$d из %2$d</string>
     <string name="gear_next">на следующем уровне: %1$s</string>
     <string name="gear_max">освоено полностью</string>
@@ -179,7 +179,7 @@
     <string name="caches_refill">Каждый понедельник сундуки появляются по всему королевству заново, даже на знакомых дорогах.</string>
 
     <!-- Treasury -->
-    <string name="treasury_sub">В сокровищнице %1$d из %2$d реликвий</string>
+    <string name="treasury_sub">Золото с дороги тратится на дорогу</string>
     <string name="relics">Реликвии</string>
     <string name="shop">Торговец</string>
     <string name="relic_unknown">Не найдено</string>
@@ -193,7 +193,7 @@
     <string name="lantern">Факел</string>
     <string name="lantern_text">%1$d мин прожигает более широкую тропу</string>
     <string name="radar">Камень прозрения</string>
-    <string name="radar_text">%1$d мин показывает все сундуки сквозь туман</string>
+    <string name="radar_text">%1$d мин показывает, где лежат все сундуки. Сквозь туман виден сундук, но не его ценность</string>
     <string name="shield">Оберег серии</string>
     <string name="shield_text">Хранит серию в пропущенный день. У вас %1$d из %2$d</string>
     <string name="reroll">Свиток странствий</string>
@@ -202,6 +202,24 @@
     <string name="buy_title">Купить «%1$s»?</string>
     <string name="buy_text">Стоит %1$d золота. У вас %2$d.</string>
     <string name="not_enough">Пока не хватает золота</string>
+    <string name="shop_styles_note">Только внешний вид. Покупаются навсегда, переключаться можно когда угодно</string>
+    <string name="shop_boosts_note">Расходуются: действуют какое-то время или один раз</string>
+    <string name="shop_treasure_note">Одна карта за раз. Клад ищется по подсказкам «горячо — холодно»</string>
+    <string name="shop_gear_note">Навсегда: каждый уровень немного улучшает каждую прогулку</string>
+    <string name="shop_tavern_note">Раз в неделю</string>
+    <string name="shop_to_styles">Туманы</string>
+    <string name="shop_to_boosts">Зелья</string>
+    <string name="shop_to_treasure">Карты</string>
+    <string name="shop_to_gear">Снаряжение</string>
+    <string name="shop_to_tavern">Таверна</string>
+    <string name="hook_title">Забросить крюк?</string>
+    <string name="hook_throw">Достать крюком</string>
+    <string name="hook_text">Крюк-кошка подтянет сундук туда, где вы стоите. Бросок один в день. Стоит %1$d золота, чем дальше, тем дороже. У вас %2$d.</string>
+    <string name="hook_used">Сегодняшний бросок крюка уже сделан. Завтра можно снова</string>
+    <string name="hook_far">Для крюка слишком далеко, подойдите ближе</string>
+    <string name="relics_count">Реликвии · %1$d из %2$d</string>
+    <string name="relics_sets">Собрано наборов: %1$d из %2$d</string>
+    <string name="relics_open">Открыть собрание реликвий</string>
 
     <!-- Journal -->
     <string name="explored">Нанесено на карту</string>

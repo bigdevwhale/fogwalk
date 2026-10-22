@@ -2,6 +2,7 @@ package app.fogwalk.ui
 
 import android.Manifest
 import android.os.Build
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.tween
@@ -26,7 +27,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
-import androidx.compose.material.icons.rounded.Inventory2
+import androidx.compose.material.icons.rounded.Storefront
 import androidx.compose.material.icons.rounded.Map
 import androidx.compose.material.icons.rounded.TaskAlt
 import androidx.compose.material.icons.rounded.Timer
@@ -82,6 +83,7 @@ enum class Tab { MAP, QUESTS, TREASURY, JOURNAL }
 class Go(private val nav: NavHostController, private val setTab: (Tab) -> Unit) {
     fun settings() = nav.navigate("settings")
     fun deeds() = nav.navigate("deeds")
+    fun relics() = nav.navigate("relics")
     fun walks() = nav.navigate("walks")
     fun walk(id: Long) = nav.navigate("walk/$id")
     fun tab(t: Tab) = setTab(t)
@@ -126,11 +128,11 @@ fun FogwalkRoot(openRoute: MutableStateFlow<String?>, settings: Settings) {
         nav.popBackStack("main", inclusive = false)
         tab = when (requested) {
             "quests" -> Tab.QUESTS
-            "hoard" -> Tab.TREASURY
-            "chronicle", "deeds", "walks" -> Tab.JOURNAL
+            "chronicle", "deeds", "walks", "hoard" -> Tab.JOURNAL
             else -> Tab.MAP
         }
         if (requested == "deeds") go.deeds()
+        if (requested == "hoard") go.relics()
         if (requested == "walks") go.walks()
         if (requested == "walk") data.walks.firstOrNull { it.meters > 500 }?.let { go.walk(it.id) }
         openRoute.value = null
@@ -158,6 +160,7 @@ fun FogwalkRoot(openRoute: MutableStateFlow<String?>, settings: Settings) {
         composable("main") { MainTabs(tab, { tab = it }, go, data, focus) }
         composable("settings") { SettingsScreen(settings, onBack = { go.back() }) }
         composable("deeds") { app.fogwalk.ui.journal.DeedsScreen(data, onBack = { go.back() }) }
+        composable("relics") { app.fogwalk.ui.journal.RelicsScreen(data, onBack = { go.back() }) }
         composable("walks") { app.fogwalk.ui.journal.WalksScreen(data, onBack = { go.back() }, onOpen = { go.walk(it) }) }
         composable("walk/{id}") { e ->
             val id = e.arguments?.getString("id")?.toLongOrNull() ?: -1L
@@ -239,6 +242,8 @@ private fun Celebrations(data: GameData) {
 
 @Composable
 private fun MainTabs(tab: Tab, onTab: (Tab) -> Unit, go: Go, data: GameData, focus: MutableStateFlow<MapFocus?>) {
+    // Back from any other tab returns to the map; from the map it leaves the app as before.
+    BackHandler(enabled = tab != Tab.MAP) { onTab(Tab.MAP) }
     Column(Modifier.fillMaxSize().background(U.c.bg)) {
         Box(Modifier.weight(1f)) {
             when (tab) {
@@ -255,7 +260,7 @@ private fun MainTabs(tab: Tab, onTab: (Tab) -> Unit, go: Go, data: GameData, foc
         ) {
             NavItem(Icons.Rounded.Map, stringResource(R.string.tab_map), tab == Tab.MAP) { onTab(Tab.MAP) }
             NavItem(Icons.Rounded.TaskAlt, stringResource(R.string.tab_quests), tab == Tab.QUESTS, dot = data.toClaim > 0) { onTab(Tab.QUESTS) }
-            NavItem(Icons.Rounded.Inventory2, stringResource(R.string.tab_treasury), tab == Tab.TREASURY) { onTab(Tab.TREASURY) }
+            NavItem(Icons.Rounded.Storefront, stringResource(R.string.tab_treasury), tab == Tab.TREASURY) { onTab(Tab.TREASURY) }
             NavItem(Icons.AutoMirrored.Rounded.MenuBook, stringResource(R.string.tab_journal), tab == Tab.JOURNAL) { onTab(Tab.JOURNAL) }
         }
     }
