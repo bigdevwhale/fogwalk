@@ -462,12 +462,12 @@ class WorldOverlay(
             if (revealed || told) {
                 drawGem(c, x, y, color, Math.floorMod(t + cache.key.hashCode(), 3000L) / 3000f, cache.rarity)
                 hits += Pick.OfCache(cache, false) to floatArrayOf(x, y)
-            } else if (s.radar) {
+            } else if (!near) {
                 // The stone shows where a chest lies in the mist, not what it holds.
                 drawGem(c, x, y, UNKNOWN, Math.floorMod(t + cache.key.hashCode(), 3000L) / 3000f, Rarity.COMMON)
                 hits += Pick.OfCache(cache, true) to floatArrayOf(x, y)
             } else {
-                // Felt, not seen: a shimmer with a question mark.
+                // Felt, not seen: a shimmer with a question mark, the stone or no stone.
                 val r = (14 + 6 * pulse) * density
                 glow.shader = RadialGradient(x, y, r * 1.6f, intArrayOf(withAlpha(color, 150), withAlpha(color, 0)), null, Shader.TileMode.CLAMP)
                 c.drawCircle(x, y, r * 1.6f, glow)

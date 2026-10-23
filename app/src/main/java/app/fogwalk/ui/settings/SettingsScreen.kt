@@ -53,6 +53,7 @@ import app.fogwalk.data.ThemeMode
 import app.fogwalk.data.Units
 import app.fogwalk.notify.Alarms
 import app.fogwalk.ui.Language
+import app.fogwalk.ui.timeFormat
 import app.fogwalk.ui.components.Chip
 import app.fogwalk.ui.components.ConfirmDialog
 import app.fogwalk.ui.components.SectionTitle
@@ -66,8 +67,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.LocalTime
-import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -82,8 +81,18 @@ fun SettingsScreen(settings: Settings, onBack: () -> Unit) {
     }
     var canNotify by remember { mutableStateOf(Alarms.canNotify(context)) }
     // Re-read on resume so the permission card disappears after granting it in system settings.
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { canNotify = Alarms.canNotify(context) }
+    var canCount by remember { mutableStateOf(container.steps.permitted()) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        canNotify = Alarms.canNotify(context)
+        canCount = container.steps.permitted()
+        container.steps.refresh()
+    }
     val askPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { canNotify = it }
+    val noSteps = stringResource(R.string.steps_denied)
+    val askSteps = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        canCount = granted
+        if (granted) update { it.copy(steps = true) } else Toast.makeText(context, noSteps, Toast.LENGTH_LONG).show()
+    }
     var pickTime by remember { mutableStateOf(false) }
     var density by remember { mutableFloatStateOf(settings.fogDensity) }
     var pendingImport by remember { mutableStateOf<Uri?>(null) }
@@ -122,7 +131,7 @@ fun SettingsScreen(settings: Settings, onBack: () -> Unit) {
                     Spacer(Modifier.height(6.dp))
                     val time = LocalTime.of(settings.remindAt / 60, settings.remindAt % 60)
                     Text(
-                        stringResource(R.string.set_remind_at, DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).format(time)),
+                        stringResource(R.string.set_remind_at, timeFormat().format(time)),
                         style = UType.Button.copy(color = U.c.accent),
                         modifier = Modifier.clickable { pickTime = true }.padding(vertical = 6.dp),
                     )
@@ -159,6 +168,13 @@ fun SettingsScreen(settings: Settings, onBack: () -> Unit) {
             SectionTitle(stringResource(R.string.set_feel))
             UCard {
                 SwitchRow(stringResource(R.string.set_haptics), stringResource(R.string.set_haptics_text), settings.haptics) { v -> update { it.copy(haptics = v) } }
+                if (container.steps.available) {
+                    Divider()
+                    SwitchRow(stringResource(R.string.set_steps), stringResource(R.string.set_steps_text), settings.steps && canCount) { v ->
+                        if (v && !canCount && Build.VERSION.SDK_INT >= 29) askSteps.launch(Manifest.permission.ACTIVITY_RECOGNITION)
+                        else update { it.copy(steps = v) }
+                    }
+                }
             }
 
             SectionTitle(stringResource(R.string.set_appearance))

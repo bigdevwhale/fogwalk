@@ -45,6 +45,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Timer
 import app.fogwalk.ui.components.UCard
+import app.fogwalk.ui.dateFormat
+import app.fogwalk.ui.timeFormat
 import app.fogwalk.ui.distance
 import app.fogwalk.ui.locale
 import app.fogwalk.ui.map.nightTiles
@@ -59,7 +61,6 @@ import org.osmdroid.views.CustomZoomButtonsController
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Overlay
 import java.time.Instant
-import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 
 /** One journey: its route on the old map and its numbers. */
@@ -68,8 +69,8 @@ fun WalkScreen(id: Long, data: GameData, onBack: () -> Unit, onRace: (Long) -> U
     val w = data.walks.firstOrNull { it.id == id }
     val imperial = data.settings.units == Units.IMPERIAL
     val l = locale()
-    val day = remember(l) { DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(l) }
-    val time = remember(l) { DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(l) }
+    val day = dateFormat(FormatStyle.FULL)
+    val time = timeFormat()
     val context = LocalContext.current
     Column(Modifier.fillMaxSize().background(U.c.bg).statusBarsPadding()) {
         val title = w?.let { day.format(Instant.ofEpochMilli(it.start).atZone(data.zone)).replaceFirstChar { c -> c.titlecase(l) } }
@@ -103,7 +104,8 @@ fun WalkScreen(id: Long, data: GameData, onBack: () -> Unit, onRace: (Long) -> U
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Figure("+" + "%,d".format(w.cells), stringResource(R.string.walk_cells), Modifier.weight(1f))
                     Figure(w.caches.toString(), stringResource(R.string.walk_chests), Modifier.weight(1f))
-                    Spacer(Modifier.weight(1f))
+                    if (w.steps > 0) Figure("%,d".format(w.steps), stringResource(R.string.walk_steps), Modifier.weight(1f))
+                    else Spacer(Modifier.weight(1f))
                 }
             }
             if (route != null && route.size >= 2) {

@@ -112,7 +112,7 @@ object Alarms {
             R.string.notif_walk_text,
             context.resources.getQuantityString(R.plurals.cells, w.cells, w.cells),
             formatDistance(context, w.meters),
-        )
+        ) + if (w.steps > 0) " · " + context.resources.getQuantityString(R.plurals.steps, w.steps, w.steps) else ""
         return NotificationCompat.Builder(context, CHANNEL_WALK)
             .setSmallIcon(R.drawable.ic_notification)
             .setColor(ContextCompat.getColor(context, R.color.accent))

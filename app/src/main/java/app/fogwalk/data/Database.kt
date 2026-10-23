@@ -2,6 +2,7 @@ package app.fogwalk.data
 
 import android.content.Context
 import androidx.room.AutoMigration
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Entity
@@ -34,6 +35,8 @@ data class Day(
     val night: Int = 0,
     /** Cells revealed between 04:00 and 07:00. */
     val dawn: Int = 0,
+    /** Steps from the pedometer, when it is on. */
+    @ColumnInfo(defaultValue = "0") val steps: Int = 0,
 )
 
 /** A stretch of walking without a long pause. */
@@ -45,6 +48,8 @@ data class Walk(
     val meters: Double = 0.0,
     val cells: Int = 0,
     val caches: Int = 0,
+    /** Steps from the pedometer, when it is on. */
+    @ColumnInfo(defaultValue = "0") val steps: Int = 0,
     /** Where it began, for the journal line. */
     val lat: Double = 0.0,
     val lon: Double = 0.0,
@@ -175,10 +180,10 @@ interface FogDao {
 
 @Database(
     entities = [Cell::class, Day::class, Walk::class, Find::class, Entry::class, Waypoint::class],
-    version = 2,
+    version = 3,
     exportSchema = true,
-    // 2: walk routes.
-    autoMigrations = [AutoMigration(from = 1, to = 2)],
+    // 2: walk routes. 3: steps.
+    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3)],
 )
 abstract class FogDatabase : RoomDatabase() {
     abstract fun dao(): FogDao

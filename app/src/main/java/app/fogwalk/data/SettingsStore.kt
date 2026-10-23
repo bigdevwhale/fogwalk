@@ -52,6 +52,8 @@ data class Settings(
     /** Notifications during a walk when a cache is close. */
     val nearbyAlerts: Boolean = true,
     val haptics: Boolean = true,
+    /** Count steps with the phone's pedometer. */
+    val steps: Boolean = false,
     /** Where the map last saw the walker, to open there next time. */
     val lastLat: Double = 0.0,
     val lastLon: Double = 0.0,
@@ -94,6 +96,7 @@ class SettingsStore(context: Context) {
         remindAt = this[REMIND_AT] ?: (18 * 60 + 30),
         nearbyAlerts = this[NEARBY] ?: true,
         haptics = this[HAPTICS] ?: true,
+        steps = this[STEPS] ?: false,
         lastLat = this[LAST_LAT] ?: 0.0,
         lastLon = this[LAST_LON] ?: 0.0,
         walking = this[WALKING] ?: false,
@@ -130,6 +133,7 @@ class SettingsStore(context: Context) {
             it[REMIND_AT] = s.remindAt
             it[NEARBY] = s.nearbyAlerts
             it[HAPTICS] = s.haptics
+            it[STEPS] = s.steps
             it[LAST_LAT] = s.lastLat
             it[LAST_LON] = s.lastLon
             it[WALKING] = s.walking
@@ -163,6 +167,7 @@ class SettingsStore(context: Context) {
         val REMIND_AT = intPreferencesKey("remind_at")
         val NEARBY = booleanPreferencesKey("nearby_alerts")
         val HAPTICS = booleanPreferencesKey("haptics")
+        val STEPS = booleanPreferencesKey("steps")
         val LAST_LAT = doublePreferencesKey("last_lat")
         val LAST_LON = doublePreferencesKey("last_lon")
         val WALKING = booleanPreferencesKey("walking")

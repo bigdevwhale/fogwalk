@@ -32,6 +32,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material.icons.automirrored.rounded.DirectionsWalk
 import androidx.compose.material.icons.rounded.Flare
 import androidx.compose.material.icons.rounded.Inventory2
 import androidx.compose.material.icons.rounded.LocalFireDepartment
@@ -85,13 +86,20 @@ import kotlin.math.sin
 fun OnboardingScreen(onDone: () -> Unit) {
     val context = LocalContext.current
     val container = context.container
-    val pager = rememberPagerState { 3 }
+    // The last page asks about the pedometer, on phones that have one.
+    val pedometer = container.steps.available
+    val pages = if (pedometer) 4 else 3
+    val pager = rememberPagerState { pages }
     val scope = rememberCoroutineScope()
-    fun finish() {
-        container.scope.launch { container.settings.update { it.copy(onboarded = true) } }
+    fun finish(steps: Boolean = false) {
+        container.scope.launch { container.settings.update { it.copy(onboarded = true, steps = steps) } }
         onDone()
     }
-    val askLocation = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { finish() }
+    fun afterLocation() {
+        if (pedometer) scope.launch { pager.animateScrollToPage(3) } else finish()
+    }
+    val askLocation = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { afterLocation() }
+    val askSteps = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { finish(steps = it) }
 
     Column(
         Modifier.fillMaxSize()
@@ -116,18 +124,30 @@ fun OnboardingScreen(onDone: () -> Unit) {
                         Feature(Icons.Rounded.AutoAwesome, U.c.violet, U.c.violetSoft, stringResource(R.string.ob2_relics), stringResource(R.string.ob2_relics_text))
                         Feature(Icons.Rounded.LocalFireDepartment, U.c.flame, U.c.flameSoft, stringResource(R.string.ob2_streak), stringResource(R.string.ob2_streak_text))
                     }
-                    else -> {
+                    2 -> {
                         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { CompassRose(Modifier.size(220.dp)) }
                         Spacer(Modifier.height(26.dp))
                         Text(stringResource(R.string.ob3_title), style = UType.Display)
                         Spacer(Modifier.height(10.dp))
                         Text(stringResource(R.string.ob3_text), style = UType.Sub)
                     }
+                    else -> {
+                        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            Box(
+                                Modifier.size(160.dp).clip(CircleShape).background(U.c.sageSoft).border(2.dp, U.c.gilt, CircleShape),
+                                contentAlignment = Alignment.Center,
+                            ) { Icon(Icons.AutoMirrored.Rounded.DirectionsWalk, null, Modifier.size(84.dp), tint = U.c.sage) }
+                        }
+                        Spacer(Modifier.height(26.dp))
+                        Text(stringResource(R.string.ob4_title), style = UType.Display)
+                        Spacer(Modifier.height(10.dp))
+                        Text(stringResource(R.string.ob4_text), style = UType.Sub)
+                    }
                 }
             }
         }
         Row(Modifier.fillMaxWidth().padding(vertical = 14.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-            repeat(3) { i ->
+            repeat(pages) { i ->
                 val on = i == pager.currentPage
                 Box(
                     Modifier.padding(5.dp).size(if (on) 12.dp else 8.dp).rotate(45f)
@@ -137,12 +157,19 @@ fun OnboardingScreen(onDone: () -> Unit) {
         }
         if (pager.currentPage < 2) {
             PrimaryButton(stringResource(R.string.next), { scope.launch { pager.animateScrollToPage(pager.currentPage + 1) } }, Modifier.fillMaxWidth(), icon = Icons.AutoMirrored.Rounded.ArrowForward)
-        } else {
+        } else if (pager.currentPage == 2) {
             PrimaryButton(stringResource(R.string.allow_location), {
                 askLocation.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
             }, Modifier.fillMaxWidth(), icon = Icons.Rounded.MyLocation)
-            TextButton(onClick = { finish() }, Modifier.align(Alignment.CenterHorizontally)) {
+            TextButton(onClick = { afterLocation() }, Modifier.align(Alignment.CenterHorizontally)) {
                 Text(stringResource(R.string.later), color = U.c.muted, style = UType.Button)
+            }
+        } else {
+            PrimaryButton(stringResource(R.string.ob4_yes), {
+                if (container.steps.permitted()) finish(steps = true) else askSteps.launch(Manifest.permission.ACTIVITY_RECOGNITION)
+            }, Modifier.fillMaxWidth(), color = U.c.sage, icon = Icons.AutoMirrored.Rounded.DirectionsWalk)
+            TextButton(onClick = { finish() }, Modifier.align(Alignment.CenterHorizontally)) {
+                Text(stringResource(R.string.ob4_no), color = U.c.muted, style = UType.Button)
             }
         }
     }

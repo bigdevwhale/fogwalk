@@ -13,7 +13,7 @@ import androidx.core.content.ContextCompat
  * One GPS subscription shared by the map screen and the walk service. Plain LocationManager, so it
  * works on phones without Google services. Positions go straight to the [Explorer].
  */
-class LocationFeed(private val context: Context, private val explorer: Explorer) {
+class LocationFeed(private val context: Context, private val explorer: Explorer, private val onActive: (Boolean) -> Unit = {}) {
     private val lm = context.getSystemService(LocationManager::class.java)
     private var users = 0
     private val listener = LocationListener { deliver(it) }
@@ -25,13 +25,19 @@ class LocationFeed(private val context: Context, private val explorer: Explorer)
     /** Main thread only. */
     fun acquire() {
         users++
-        if (users == 1) start()
+        if (users == 1) {
+            start()
+            onActive(true)
+        }
     }
 
     fun release() {
         if (users == 0) return
         users--
-        if (users == 0) lm.removeUpdates(listener)
+        if (users == 0) {
+            lm.removeUpdates(listener)
+            onActive(false)
+        }
     }
 
     /** Called after the permission is granted while someone already holds the feed. */

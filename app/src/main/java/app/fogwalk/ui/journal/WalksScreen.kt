@@ -50,8 +50,10 @@ import app.fogwalk.geo.Grid
 import app.fogwalk.ui.GameData
 import app.fogwalk.ui.components.TopBar
 import app.fogwalk.ui.components.UCard
+import app.fogwalk.ui.dateFormat
 import app.fogwalk.ui.distance
 import app.fogwalk.ui.locale
+import app.fogwalk.ui.timeFormat
 import app.fogwalk.ui.theme.U
 import app.fogwalk.ui.theme.UType
 import kotlinx.coroutines.Dispatchers
@@ -115,15 +117,19 @@ private fun Total(value: String, label: String, modifier: Modifier) {
 /** A journey in a list: its route in miniature, when it was and what it brought. */
 @Composable
 fun WalkRow(w: Walk, data: GameData, imperial: Boolean) {
-    val l = locale()
-    val fmt = remember(l) { DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT).withLocale(l) }
+    val date = dateFormat(FormatStyle.MEDIUM)
+    val time = timeFormat()
     Row(verticalAlignment = Alignment.CenterVertically) {
         RouteSketch(w.id, Modifier.size(52.dp))
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(fmt.format(Instant.ofEpochMilli(w.start).atZone(data.zone)), style = UType.Body.copy(fontSize = 14.sp), maxLines = 1)
+            val at = Instant.ofEpochMilli(w.start).atZone(data.zone)
+            Text(date.format(at) + ", " + time.format(at), style = UType.Body.copy(fontSize = 14.sp), maxLines = 1)
             Text(
-                listOf(distance(w.meters, imperial), duration(w.end - w.start)).joinToString(" · ") +
+                listOfNotNull(
+                    distance(w.meters, imperial), duration(w.end - w.start),
+                    if (w.steps > 0) pluralStringResource(R.plurals.steps, w.steps, w.steps) else null,
+                ).joinToString(" · ") +
                     if (w.caches > 0) " · " + pluralStringResource(R.plurals.caches, w.caches, w.caches) else "",
                 style = UType.Muted, maxLines = 1, overflow = TextOverflow.Ellipsis,
             )

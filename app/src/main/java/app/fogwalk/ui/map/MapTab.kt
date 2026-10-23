@@ -322,7 +322,13 @@ fun MapTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
             TopHud(data) { go.tab(Tab.TREASURY) }
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Pill(Icons.AutoMirrored.Rounded.DirectionsWalk, stringResource(R.string.today_line, pluralStringResource(R.plurals.cells, data.todayRow.cells, data.todayRow.cells), distance(data.todayRow.meters, imperial)), U.c.accent)
+                val stepsToday = data.todayRow.steps
+                Pill(
+                    Icons.AutoMirrored.Rounded.DirectionsWalk,
+                    stringResource(R.string.today_line, pluralStringResource(R.plurals.cells, data.todayRow.cells, data.todayRow.cells), distance(data.todayRow.meters, imperial)) +
+                        if (s.steps && stepsToday > 0) " · " + pluralStringResource(R.plurals.steps, stepsToday, stepsToday) else "",
+                    U.c.accent,
+                )
                 if (s.lanternUntil > data.now) Pill(Icons.Rounded.Lightbulb, stringResource(R.string.min_left, ((s.lanternUntil - data.now) / 60_000 + 1).toInt()), U.c.gold)
                 if (s.radarUntil > data.now) Pill(Icons.Rounded.Radar, stringResource(R.string.min_left, ((s.radarUntil - data.now) / 60_000 + 1).toInt()), U.c.violet)
             }
@@ -620,7 +626,10 @@ private fun BottomPanel(data: GameData, permitted: Boolean, imperial: Boolean, r
                     Spacer(Modifier.height(3.dp))
                     Text(
                         if (w == null) stringResource(R.string.walking_wait)
-                        else listOf(clock(now - w.start), distance(w.meters, imperial), "+" + w.cells).joinToString("  ·  "),
+                        else listOfNotNull(
+                            clock(now - w.start), distance(w.meters, imperial), "+" + w.cells,
+                            if (s.steps && w.steps > 0) pluralStringResource(R.plurals.steps, w.steps, w.steps) else null,
+                        ).joinToString("  ·  "),
                         style = UType.Strong,
                     )
                 }

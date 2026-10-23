@@ -2,6 +2,19 @@
 
 All notable changes to Fogwalk. Versions follow [semantic versioning](https://semver.org/).
 
+## [1.3.0] - 2026-10-23
+
+### Added
+- **A pedometer**, if you want one: the first launch asks, and a switch in the settings turns it on or off at any time. Steps counted by the phone's own sensor show on the map, in the walk's notification and in the history of journeys. Backups carry them.
+
+### Changed
+- A kept oath stays on its card after it is claimed, with what was vowed and what it brought.
+- A weekly quest that is done no longer counts the days left.
+
+### Fixed
+- Chests within your senses shimmer in their rarity again while the seeing stone is lit; since 1.2.0 the stone hid them as unknown.
+- Times in the history of journeys could come out garbled ("12 ├minute: 2┤") under some regional settings.
+
 ## [1.2.0] - 2026-10-22
 
 ### Added

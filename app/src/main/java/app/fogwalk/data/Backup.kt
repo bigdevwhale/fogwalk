@@ -16,7 +16,7 @@ object Backup {
         o.put("days", JSONArray().apply {
             dao.days().forEach { d ->
                 put(JSONObject().put("day", d.day).put("cells", d.cells).put("meters", d.meters).put("caches", d.caches)
-                    .put("rare", d.rare).put("beacon", d.beacon).put("night", d.night).put("dawn", d.dawn))
+                    .put("rare", d.rare).put("beacon", d.beacon).put("night", d.night).put("dawn", d.dawn).put("steps", d.steps))
             }
         })
         o.put("finds", JSONArray().apply {
@@ -34,7 +34,7 @@ object Backup {
                 val route = JSONArray()
                 dao.waypoints(w.id).forEach { p -> route.put(round(p.lat)).put(round(p.lon)) }
                 put(JSONObject().put("start", w.start).put("end", w.end).put("meters", w.meters).put("cells", w.cells)
-                    .put("caches", w.caches).put("lat", w.lat).put("lon", w.lon).put("route", route))
+                    .put("caches", w.caches).put("steps", w.steps).put("lat", w.lat).put("lon", w.lon).put("route", route))
             }
         })
         return o.toString()
@@ -57,12 +57,13 @@ object Backup {
                 val mine = dao.day(d.getLong("day"))
                 val theirs = Day(
                     d.getLong("day"), d.getInt("cells"), d.getDouble("meters"), d.getInt("caches"),
-                    d.getInt("rare"), d.getBoolean("beacon"), d.getInt("night"), d.getInt("dawn"),
+                    d.getInt("rare"), d.getBoolean("beacon"), d.getInt("night"), d.getInt("dawn"), d.optInt("steps"),
                 )
                 dao.upsertDay(
                     if (mine == null) theirs else Day(
                         theirs.day, maxOf(mine.cells, theirs.cells), maxOf(mine.meters, theirs.meters), maxOf(mine.caches, theirs.caches),
                         maxOf(mine.rare, theirs.rare), mine.beacon || theirs.beacon, maxOf(mine.night, theirs.night), maxOf(mine.dawn, theirs.dawn),
+                        maxOf(mine.steps, theirs.steps),
                     )
                 )
             }
@@ -91,7 +92,7 @@ object Backup {
                 val id = dao.insertWalk(
                     Walk(
                         start = start, end = end, meters = w.getDouble("meters"), cells = w.getInt("cells"),
-                        caches = w.getInt("caches"), lat = w.getDouble("lat"), lon = w.getDouble("lon"),
+                        caches = w.getInt("caches"), steps = w.optInt("steps"), lat = w.getDouble("lat"), lon = w.getDouble("lon"),
                     )
                 )
                 val route = w.optJSONArray("route") ?: continue

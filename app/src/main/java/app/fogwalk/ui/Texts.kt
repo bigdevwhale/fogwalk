@@ -62,10 +62,30 @@ import app.fogwalk.domain.Badge
 import app.fogwalk.domain.Rarity
 import app.fogwalk.ui.theme.U
 import kotlinx.coroutines.runBlocking
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import java.util.Locale
 
 @Composable
 fun locale(): Locale = LocalConfiguration.current.locales[0]
+
+/**
+ * Hours and minutes the way the phone tells them, 24-hour or not. The pattern is spelled out: under some regional
+ * preferences the localized short time comes out of ICU mangled, as "12 ├minute: 2┤".
+ */
+@Composable
+fun timeFormat(): DateTimeFormatter {
+    val l = locale()
+    val h24 = android.text.format.DateFormat.is24HourFormat(LocalContext.current)
+    return remember(l, h24) { DateTimeFormatter.ofPattern(if (h24) "H:mm" else "h:mm a", l) }
+}
+
+/** A date in the given style, read without the locale's extensions, which can upset ICU's patterns. */
+@Composable
+fun dateFormat(style: FormatStyle): DateTimeFormatter {
+    val l = locale()
+    return remember(l, style) { DateTimeFormatter.ofLocalizedDate(style).withLocale(Locale.Builder().setLocale(l).clearExtensions().build()) }
+}
 
 /** Texts in the current app language; switches along with it. */
 @Composable

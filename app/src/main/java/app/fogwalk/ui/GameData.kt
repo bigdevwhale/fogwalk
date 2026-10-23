@@ -63,6 +63,8 @@ class GameData(
     /** Whether this week's oath is already settled (claimed), so no new one may be sworn. */
     val oathDone: Boolean = "o:$week" in findKeys || settings.oath?.week == week
     val oathOffers: List<Oath> = if (oathDone) emptyList() else Oaths.offers(today, days)
+    /** This week's oath once kept and claimed, with the find it brought. */
+    val keptOath: Pair<Oath, Find>? = settings.oath?.takeIf { it.week == week }?.let { o -> finds.firstOrNull { it.key == "o:${o.week}" }?.let { o to it } }
     val rumor: Rumor? = settings.rumor?.takeIf { it.week == week && it.key !in opened }
 
     /** Experience before [day] began, so quest targets don't shift as the day goes on. */

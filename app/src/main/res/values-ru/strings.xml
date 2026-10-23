@@ -26,6 +26,12 @@
     <string name="minutes_short">%1$d мин</string>
     <string name="min_left">%1$d мин</string>
 
+    <plurals name="steps">
+        <item quantity="one">%1$d шаг</item>
+        <item quantity="few">%1$d шага</item>
+        <item quantity="many">%1$d шагов</item>
+        <item quantity="other">%1$d шага</item>
+    </plurals>
     <plurals name="cells">
         <item quantity="one">%1$d клетка</item>
         <item quantity="few">%1$d клетки</item>
@@ -78,6 +84,8 @@
     <string name="oath_swear_text">%1$s. %2$d золота уйдёт в ставку сейчас; если к ночи воскресенья клятва не будет сдержана, оно сгорит.</string>
     <string name="oath_staked">Ставка %1$d золота · %2$s</string>
     <string name="oath_claim">Получить</string>
+    <string name="oath_got">Сдержана: %1$d золота назад, %2$s и %3$d опыта</string>
+    <string name="oath_next">Новую клятву можно дать в понедельник.</string>
     <string name="oath_settled">Клятва этой недели исполнена. Новую можно дать в понедельник.</string>
     <string name="gear_title">Снаряжение странника</string>
     <string name="gear_cloak">Туманный плащ</string>
@@ -138,6 +146,7 @@
     <string name="walk_pace">темп</string>
     <string name="walk_cells">новых клеток</string>
     <string name="walk_chests">сундуков</string>
+    <string name="walk_steps">шагов</string>
     <string name="hours_minutes">%1$d ч %2$d мин</string>
     <string name="pace_km">%1$s /км</string>
     <string name="pace_mi">%1$s /миля</string>
@@ -265,6 +274,10 @@
     <string name="ob2_streak_text">Новые квесты каждый рассвет, великий квест на неделю и серия, что растёт с каждым днём в пути.</string>
     <string name="ob3_title">Откуда начнётся ваш путь?</string>
     <string name="ob3_text">Fogwalk нужна геолокация, чтобы рассеивать туман. Ничего не покидает телефон: ни аккаунта, ни сервера, ни рекламы.</string>
+    <string name="ob4_title">Считать шаги?</string>
+    <string name="ob4_text">Fogwalk может считать шаги на прогулках датчиком телефона: они появятся на карте и в истории странствий. Это всегда можно изменить в настройках.</string>
+    <string name="ob4_yes">Считать шаги</string>
+    <string name="ob4_no">Не нужно</string>
 
     <!-- Settings -->
     <string name="settings">Настройки</string>
@@ -287,6 +300,9 @@
     <string name="set_feel">Ощущения</string>
     <string name="set_haptics">Вибрация</string>
     <string name="set_haptics_text">Отклик, когда открываете сундук или доходите до святилища</string>
+    <string name="set_steps">Шагомер</string>
+    <string name="set_steps_text">Считать шаги на прогулках датчиком шагов телефона</string>
+    <string name="steps_denied">Без доступа к физической активности шаги не посчитать</string>
     <string name="set_appearance">Оформление</string>
     <string name="theme_system">Как в системе</string>
     <string name="theme_light">Светлая</string>

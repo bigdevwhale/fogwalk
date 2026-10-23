@@ -28,6 +28,10 @@
     <string name="minutes_short">%1$d min</string>
     <string name="min_left">%1$d min</string>
 
+    <plurals name="steps">
+        <item quantity="one">%1$d step</item>
+        <item quantity="other">%1$d steps</item>
+    </plurals>
     <plurals name="cells">
         <item quantity="one">%1$d cell</item>
         <item quantity="other">%1$d cells</item>
@@ -72,6 +76,8 @@
     <string name="oath_swear_text">%1$s. %2$d gold goes on the stake now; if the oath is broken by Sunday night, it is lost.</string>
     <string name="oath_staked">%1$d gold at stake · %2$s</string>
     <string name="oath_claim">Claim</string>
+    <string name="oath_got">Kept: %1$d gold back, %2$s and %3$d XP</string>
+    <string name="oath_next">A new oath can be sworn on Monday.</string>
     <string name="oath_settled">This week\'s oath is settled. A new one can be sworn on Monday.</string>
     <string name="gear_title">The wanderer\'s gear</string>
     <string name="gear_cloak">Mistcloak</string>
@@ -132,6 +138,7 @@
     <string name="walk_pace">pace</string>
     <string name="walk_cells">new cells</string>
     <string name="walk_chests">chests</string>
+    <string name="walk_steps">steps</string>
     <string name="hours_minutes">%1$d h %2$d min</string>
     <string name="pace_km">%1$s /km</string>
     <string name="pace_mi">%1$s /mi</string>
@@ -259,6 +266,10 @@
     <string name="ob2_streak_text">New quests every dawn, a great quest every week, and a streak that grows with every day on the road.</string>
     <string name="ob3_title">Where does your journey begin?</string>
     <string name="ob3_text">Fogwalk needs your location to part the mist. Nothing leaves this phone: no account, no server, no ads.</string>
+    <string name="ob4_title">Count your steps?</string>
+    <string name="ob4_text">Fogwalk can count your steps on walks with the phone\'s own sensor: they show on the map and in the history of journeys. You can change this in the settings at any time.</string>
+    <string name="ob4_yes">Count my steps</string>
+    <string name="ob4_no">No, thanks</string>
 
     <!-- Settings -->
     <string name="settings">Settings</string>
@@ -281,6 +292,9 @@
     <string name="set_feel">Feel</string>
     <string name="set_haptics">Vibration</string>
     <string name="set_haptics_text">A tap when you open a chest or reach the shrine</string>
+    <string name="set_steps">Pedometer</string>
+    <string name="set_steps_text">Count your steps on walks with the phone\'s step sensor</string>
+    <string name="steps_denied">Without access to physical activity the steps can\'t be counted</string>
     <string name="set_appearance">Appearance</string>
     <string name="theme_system">System</string>
     <string name="theme_light">Light</string>

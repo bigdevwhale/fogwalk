@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Handshake
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -34,9 +35,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.fogwalk.R
 import app.fogwalk.container
+import app.fogwalk.data.Find
 import app.fogwalk.domain.Oath
 import app.fogwalk.domain.OathGoal
 import app.fogwalk.domain.Oaths
+import app.fogwalk.domain.Rarity
 import app.fogwalk.explore.Bought
 import app.fogwalk.ui.GameData
 import app.fogwalk.ui.components.Bar
@@ -58,6 +61,7 @@ fun OathCard(data: GameData, imperial: Boolean) {
     val o = data.oath
     when {
         o != null -> Sworn(o, data, imperial)
+        data.keptOath != null -> Kept(data.keptOath.first, data.keptOath.second)
         data.oathOffers.isNotEmpty() -> Offers(data)
         else -> UCard { Text(stringResource(R.string.oath_settled), style = UType.Muted) }
     }
@@ -109,6 +113,33 @@ private fun Sworn(o: Oath, data: GameData, imperial: Boolean) {
         )
         Spacer(Modifier.height(8.dp))
         Text(stringResource(R.string.oath_reward, o.stake, c.relicOf(Oaths.rarity(o.stake, o.level)), Oaths.xp(o.stake, o.level)), style = UType.Muted)
+    }
+}
+
+/** A kept and claimed oath: what was vowed and what it brought, until Monday brings new ones. */
+@Composable
+private fun Kept(o: Oath, find: Find) {
+    val c = content()
+    UCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(44.dp).clip(CircleShape).background(U.c.roseSoft), contentAlignment = Alignment.Center) {
+                Icon(Icons.Rounded.Handshake, null, Modifier.size(22.dp), tint = U.c.rose)
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(c.oath(o), style = UType.Strong.copy(fontSize = 15.sp))
+                Text(stringResource(R.string.oath_staked, o.stake, levelName(o.level)), style = UType.Small)
+            }
+            Spacer(Modifier.width(8.dp))
+            Box(Modifier.size(36.dp).clip(CircleShape).background(U.c.roseSoft), contentAlignment = Alignment.Center) {
+                Icon(Icons.Rounded.Check, stringResource(R.string.oath_kept), Modifier.size(20.dp), tint = U.c.rose)
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        val relic = find.relic.takeIf { it.isNotEmpty() && !find.duplicate }?.let { c.relicName(it) } ?: c.relicOf(Rarity.entries[find.rarity])
+        Text(stringResource(R.string.oath_got, find.coins, relic, find.xp), style = UType.Muted)
+        Spacer(Modifier.height(4.dp))
+        Text(stringResource(R.string.oath_next), style = UType.Small)
     }
 }
 

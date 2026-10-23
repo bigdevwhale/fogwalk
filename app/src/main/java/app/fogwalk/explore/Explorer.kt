@@ -307,6 +307,22 @@ class Explorer(
         }
     }
 
+    /** Steps from the pedometer: they go to the day, and to the walk while one is under way. */
+    fun addSteps(n: Int, at: Long) {
+        scope.launch(worker) {
+            ready.await()
+            val dao = db.dao()
+            val day = Instant.ofEpochMilli(at).atZone(zone()).toLocalDate().toEpochDay()
+            val row = dao.day(day) ?: Day(day)
+            dao.upsertDay(row.copy(steps = row.steps + n))
+            val w = walk?.takeIf { at - it.end <= WALK_GAP_MS } ?: return@launch
+            val next = w.copy(steps = w.steps + n)
+            dao.upsertWalk(next)
+            walk = next
+            _live.update { it.copy(walk = next) }
+        }
+    }
+
     /** Opens [c] for its loot; false when it was already open. */
     private suspend fun open(c: Cache, at: Long): Boolean {
         val loot = Caches.open(c, ownedRelics)

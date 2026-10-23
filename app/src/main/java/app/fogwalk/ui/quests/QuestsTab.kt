@@ -187,7 +187,7 @@ private fun QuestCard(q: Quest, data: GameData, imperial: Boolean, weekly: Boole
                     Text("${q.coins}", style = UType.Small.copy(color = U.c.gold))
                     Spacer(Modifier.width(10.dp))
                     Text(stringResource(R.string.plus_xp, q.xp), style = UType.Small.copy(color = U.c.accent))
-                    if (weekly) {
+                    if (weekly && !done && !claimed) {
                         Spacer(Modifier.width(10.dp))
                         Text(stringResource(R.string.days_left, 7 - Math.floorMod(data.today + 3, 7L).toInt()), style = UType.Small)
                     }
