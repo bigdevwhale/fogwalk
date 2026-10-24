@@ -2,6 +2,14 @@
 
 All notable changes to Fogwalk. Versions follow [semantic versioning](https://semver.org/).
 
+## [1.3.1] - 2026-10-24
+
+### Added
+- Fogwalk comes to Google Play.
+
+### Fixed
+- Choosing a language in the settings works in the Google Play install too: Play kept only the phone's own language, so the switch found nothing to switch to.
+
 ## [1.3.0] - 2026-10-23
 
 ### Added
