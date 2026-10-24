@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   release:
-    name: Build signed release APK
+    name: Build signed release APK and AAB
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -46,13 +46,14 @@ jobs:
           echo "$SIGNING_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
           echo "SIGNING_KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
 
-      - name: Build release APK
-        run: ./gradlew testDebugUnitTest assembleRelease --stacktrace
+      - name: Build release APK and AAB
+        run: ./gradlew testDebugUnitTest assembleRelease bundleRelease --stacktrace
 
-      - name: Name the APK
+      - name: Name the APK and AAB
         run: |
           mkdir -p dist
           cp app/build/outputs/apk/release/app-release.apk "dist/Fogwalk.apk"
+          cp app/build/outputs/bundle/release/app-release.aab "dist/Fogwalk-v${{ steps.v.outputs.name }}.aab"
           if [ -z "$SIGNING_KEYSTORE_BASE64" ]; then
             echo "::warning::No signing secrets set — the APK is signed with the CI debug key."
           fi
@@ -69,4 +70,6 @@ jobs:
           tag_name: v${{ steps.v.outputs.name }}
           name: Fogwalk v${{ steps.v.outputs.name }}
           body_path: dist/notes.md
-          files: dist/*.apk
+          files: |
+            dist/*.apk
+            dist/*.aab
