@@ -329,4 +329,15 @@
     <string name="notif_opened_text">+%1$d gold. Open Fogwalk to see what was inside.</string>
     <string name="notif_streak_title">Your %1$d-day streak needs a journey</string>
     <string name="notif_beacon_title">The shrine has awakened</string>
+    <!-- Community: the StillCraft bot on Telegram -->
+    <string name="community_title">Community</string>
+    <string name="community_sub">The app is made together with the people who use it. It all goes through the StillCraft bot on Telegram.</string>
+    <string name="community_bug">Report a bug</string>
+    <string name="community_bug_sub">what broke and how to repeat it</string>
+    <string name="community_idea">Suggest an idea</string>
+    <string name="community_idea_sub">a feature, a place, a treasure</string>
+    <string name="community_follow">Follow updates</string>
+    <string name="community_follow_sub">the bot writes when a version is out</string>
+    <string name="community_chat">StillCraft chat</string>
+    <string name="community_chat_sub">all the apps and people</string>
 </resources>

@@ -337,4 +337,15 @@
     <string name="notif_opened_text">+%1$d золота. Откройте Fogwalk и посмотрите, что внутри.</string>
     <string name="notif_streak_title">Серии в %1$d дн. нужно странствие</string>
     <string name="notif_beacon_title">Святилище пробудилось</string>
+    <!-- Community: the StillCraft bot on Telegram -->
+    <string name="community_title">Сообщество</string>
+    <string name="community_sub">Приложение делается вместе с теми, кто им пользуется. Всё идёт через бота StillCraft в Telegram.</string>
+    <string name="community_bug">Сообщить о баге</string>
+    <string name="community_bug_sub">что сломалось и как повторить</string>
+    <string name="community_idea">Предложить идею</string>
+    <string name="community_idea_sub">функция, место, сокровище</string>
+    <string name="community_follow">Подписаться на обновления</string>
+    <string name="community_follow_sub">бот напишет, когда выйдет версия</string>
+    <string name="community_chat">Чат StillCraft</string>
+    <string name="community_chat_sub">все приложения и люди</string>
 </resources>

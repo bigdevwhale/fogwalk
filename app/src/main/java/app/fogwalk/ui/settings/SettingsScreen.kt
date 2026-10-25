@@ -55,6 +55,7 @@ import app.fogwalk.notify.Alarms
 import app.fogwalk.ui.Language
 import app.fogwalk.ui.timeFormat
 import app.fogwalk.ui.components.Chip
+import app.fogwalk.ui.components.CommunityLinks
 import app.fogwalk.ui.components.ConfirmDialog
 import app.fogwalk.ui.components.SectionTitle
 import app.fogwalk.ui.components.TimeDialog
@@ -205,6 +206,8 @@ fun SettingsScreen(settings: Settings, onBack: () -> Unit) {
                     }
                 }
             }
+
+            CommunityLinks()
 
             SectionTitle(stringResource(R.string.about))
             UCard {
