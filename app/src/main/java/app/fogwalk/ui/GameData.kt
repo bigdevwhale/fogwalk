@@ -6,6 +6,7 @@ import app.fogwalk.data.Entry
 import app.fogwalk.data.Find
 import app.fogwalk.data.Settings
 import app.fogwalk.data.Walk
+import app.fogwalk.domain.Arms
 import app.fogwalk.domain.Badge
 import app.fogwalk.domain.Badges
 import app.fogwalk.domain.Caches
@@ -18,6 +19,7 @@ import app.fogwalk.domain.Quest
 import app.fogwalk.domain.Quests
 import app.fogwalk.domain.Rarity
 import app.fogwalk.domain.Relics
+import app.fogwalk.domain.Seasons
 import app.fogwalk.domain.Sectors
 import app.fogwalk.domain.Streaks
 import app.fogwalk.domain.Wallet
@@ -48,6 +50,11 @@ class GameData(
     val level: Int = Levels.level(xp)
     val streak: Streaks.Streak = Streaks.of(days, settings.shielded, today)
     val relics: Set<String> = finds.mapNotNullTo(HashSet()) { it.relic.ifEmpty { null } }
+    /** How many times each relic has been found, for its stars. */
+    val copies: Map<String, Int> = Relics.copies(finds.map { it.relic })
+    val season: String = Seasons.of(today, settings.lastLat)
+    /** Charges of the arms raised over charted lands. */
+    val arms: Set<Int> = Arms.raised(sectors.first, sectors.second)
     val claimed: Set<String> = ledger.mapTo(HashSet()) { it.ref }
     val opened: Set<String> = finds.filter { it.key.startsWith("c:$week:") }.mapTo(HashSet()) { it.key }
     /** Chests proper: finds from treasure maps and oaths aside. */
@@ -121,6 +128,10 @@ class GameData(
         treasures = finds.count { it.key.startsWith("t:") },
         races = ledger.count { it.ref.startsWith("race:") && it.ref.endsWith(":w") },
         gear = settings.gear.values.sum(),
+        stars = copies.values.sumOf { Relics.stars(it) },
+        radiant = copies.values.count { Relics.stars(it) == Relics.MAX_STARS },
+        seasonSets = Relics.completeSets(relics).count { Relics.isSeasonal(it) },
+        arms = arms.size,
     )
     val badges: List<Badge> = Badges.unlocked(facts)
 }

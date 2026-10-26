@@ -9,11 +9,11 @@ import kotlin.math.sqrt
 import kotlin.random.Random
 
 /**
- * A relic of [rarity] for a reward, a missing one when there is any; the same [seed] gives the same pick.
- * Duplicate is true when the whole tier is already collected.
+ * A relic of [rarity] from what [season] offers for a reward, a missing one when there is any; the same
+ * [seed] gives the same pick. Duplicate is true when the whole tier is already collected.
  */
-fun pickRelic(rarity: Rarity, owned: Set<String>, seed: Long): Pair<Relic, Boolean> {
-    val pool = Relics.all.filter { it.rarity == rarity }
+fun pickRelic(rarity: Rarity, owned: Set<String>, seed: Long, season: String): Pair<Relic, Boolean> {
+    val pool = Relics.pool(rarity, season)
     val missing = pool.filter { it.id !in owned }
     val rnd = Random(seed)
     return if (missing.isNotEmpty()) missing[rnd.nextInt(missing.size)] to false else pool[rnd.nextInt(pool.size)] to true

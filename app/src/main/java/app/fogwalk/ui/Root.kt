@@ -60,6 +60,7 @@ import app.fogwalk.R
 import app.fogwalk.container
 import app.fogwalk.data.Entry
 import app.fogwalk.data.Settings
+import app.fogwalk.domain.Arms
 import app.fogwalk.domain.Levels
 import app.fogwalk.domain.Relics
 import app.fogwalk.notify.Alarms
@@ -185,6 +186,8 @@ private fun Celebrations(data: GameData) {
     val fresh = data.badges.filter { it.id !in s.seenBadges }
     val newSet = Relics.completeSets(data.relics).firstOrNull { "set:$it" !in s.seenBadges }
     val race = data.ledger.lastOrNull { it.ref.startsWith("race:") && it.ref !in s.seenBadges }
+    val starUps = data.ledger.filter { it.ref.startsWith("star:") && it.ref !in s.seenBadges }
+    val banners = data.ledger.filter { it.ref.startsWith("arms:") && it.ref !in s.seenBadges }
     when {
         race != null -> {
             val won = race.ref.endsWith(":w")
@@ -202,7 +205,7 @@ private fun Celebrations(data: GameData) {
                 confetti = won,
             ) { container.scope.launch { container.settings.update { it.copy(seenBadges = it.seenBadges + race.ref) } } }
         }
-        chest != null -> ChestDialog(chest, data.relics) {
+        chest != null -> ChestDialog(chest, data.relics, data.finds.count { it.relic.isNotEmpty() && it.relic == chest.relic && it.at <= chest.at }) {
             container.scope.launch { container.db.dao().markSeen(chest.key) }
         }
         newSet != null -> {
@@ -213,6 +216,29 @@ private fun Celebrations(data: GameData) {
                 title = c.setName(newSet),
                 text = stringResource(R.string.set_complete_text, c.setTitle(newSet), coins),
             ) { container.scope.launch { container.settings.update { it.copy(seenBadges = it.seenBadges + "set:$newSet") } } }
+        }
+        starUps.isNotEmpty() -> {
+            // Stars found in a batch (or counted for the first time) show as one.
+            val e = starUps.maxBy { it.ref.substringAfterLast(':').toIntOrNull() ?: 0 }
+            val set = e.ref.split(":")[1]
+            val star = e.ref.substringAfterLast(':').toIntOrNull() ?: 1
+            CelebrateDialog(
+                icon = setIcon(set), color = U.c.gold, soft = U.c.goldSoft,
+                eyebrow = stringResource(R.string.set_star_up, star),
+                title = c.setName(set),
+                text = stringResource(R.string.set_star_up_text, c.setName(set), star, e.coins) +
+                    if (starUps.size > 1) "\n" + stringResource(R.string.badge_more, starUps.size - 1) else "",
+            ) { container.scope.launch { container.settings.update { it.copy(seenBadges = it.seenBadges + starUps.map { u -> u.ref }) } } }
+        }
+        banners.isNotEmpty() -> {
+            val arm = banners.last().ref.substringAfter(':').toIntOrNull() ?: 0
+            CelebrateDialog(
+                icon = armIcon(arm), color = U.c.accent, soft = U.c.accentSoft,
+                eyebrow = stringResource(R.string.arms_raised),
+                title = c.armName(arm),
+                text = stringResource(R.string.arms_raised_text, c.armName(arm), Arms.COINS) +
+                    if (banners.size > 1) "\n" + stringResource(R.string.badge_more, banners.size - 1) else "",
+            ) { container.scope.launch { container.settings.update { it.copy(seenBadges = it.seenBadges + banners.map { b -> b.ref }) } } }
         }
         fresh.isNotEmpty() -> {
             val b = fresh.last()

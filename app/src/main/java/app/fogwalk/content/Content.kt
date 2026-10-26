@@ -15,6 +15,10 @@ interface Content {
     fun setName(set: String): String
     /** Title earned by completing [set]. */
     fun setTitle(set: String): String
+    /** "Autumn", for the seasonal sets. */
+    fun seasonName(set: String): String
+    /** The charge on a land's arms, see [app.fogwalk.domain.Arms]. */
+    fun armName(arm: Int): String
     fun rank(index: Int): String
     fun sectorName(sector: Long): String
     fun badgeTitle(id: String): String

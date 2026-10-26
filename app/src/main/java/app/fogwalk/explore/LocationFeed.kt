@@ -16,7 +16,15 @@ import androidx.core.content.ContextCompat
 class LocationFeed(private val context: Context, private val explorer: Explorer, private val onActive: (Boolean) -> Unit = {}) {
     private val lm = context.getSystemService(LocationManager::class.java)
     private var users = 0
-    private val listener = LocationListener { deliver(it) }
+    // Every callback spelled out: before Android 11 the provider ones have no default body, and they are
+    // called once a provider switched off at subscription is turned on.
+    private val listener = object : LocationListener {
+        override fun onLocationChanged(location: Location) = deliver(location)
+        override fun onProviderEnabled(provider: String) {}
+        override fun onProviderDisabled(provider: String) {}
+        @Deprecated("Deprecated in Java")
+        override fun onStatusChanged(provider: String?, status: Int, extras: android.os.Bundle?) {}
+    }
 
     fun permitted(): Boolean =
         ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
@@ -56,7 +64,9 @@ class LocationFeed(private val context: Context, private val explorer: Explorer,
         }
         if (!permitted()) return
         try {
-            val providers = lm.getProviders(true)
+            // Providers switched off count too: subscribed now, they start reporting the moment location is turned
+            // on, without a restart of the app.
+            val providers = lm.getProviders(false)
             if (LocationManager.GPS_PROVIDER in providers) {
                 lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 0f, listener, Looper.getMainLooper())
             }
@@ -64,7 +74,7 @@ class LocationFeed(private val context: Context, private val explorer: Explorer,
             if (LocationManager.NETWORK_PROVIDER in providers) {
                 lm.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 5000L, 0f, listener, Looper.getMainLooper())
             }
-            providers.mapNotNull { lm.getLastKnownLocation(it) }
+            lm.getProviders(true).mapNotNull { lm.getLastKnownLocation(it) }
                 .filter { System.currentTimeMillis() - it.time < 10 * 60_000L }
                 .minByOrNull { it.accuracy }
                 ?.let { deliver(it) }

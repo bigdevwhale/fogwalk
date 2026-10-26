@@ -91,6 +91,28 @@ object Sectors {
     fun ref(sector: Long, share: Double) = "sec:$sector:${(share * 100).toInt()}"
 }
 
+/**
+ * The arms of the lands: every land bears one of [COUNT] charges, the same for everyone, and charting it
+ * raises its banner. The first banner of each charge pays; a full roll of arms takes lands far and wide.
+ */
+object Arms {
+    const val COUNT = 24
+    const val COINS = 100
+    const val XP = 200
+
+    fun of(sector: Long): Int {
+        var h = sector * 0x2545F4914F6CDD1DL
+        h = h xor (h ushr 31)
+        return ((h and Long.MAX_VALUE) % COUNT).toInt()
+    }
+
+    /** Charges whose banner flies over at least one charted land. */
+    fun raised(sectors: LongArray, cells: IntArray): Set<Int> =
+        sectors.indices.filter { cells[it].toDouble() / Grid.SECTOR_CELLS >= Sectors.CHARTED }.mapTo(HashSet()) { of(sectors[it]) }
+
+    fun ref(arm: Int) = "arms:$arm"
+}
+
 /** What sparks buy. Fog styles are kept forever; the rest are used up. */
 object Shop {
     data class Style(val id: String, val price: Int)

@@ -105,6 +105,12 @@ data class Facts(
     val treasures: Int,
     val races: Int,
     val gear: Int,
+    /** Stars across all relics. */
+    val stars: Int,
+    /** Relics at the top star. */
+    val radiant: Int,
+    val seasonSets: Int,
+    val arms: Int,
 )
 
 /** One deed: a [tier] of a [group], reached when the group's value hits [goal]. */
@@ -113,7 +119,7 @@ data class Badge(val id: String, val group: String, val tier: Int, val goal: Dou
     fun share(f: Facts) = (value(f) / goal).coerceIn(0.0, 1.0)
 }
 
-/** The book of deeds: a ladder of tiers per kind of feat, about a hundred and seventy-five in all. */
+/** The book of deeds: a ladder of tiers per kind of feat, about two hundred and ten in all. */
 object Badges {
     class Group(val id: String, val goals: List<Double>, val value: (Facts) -> Double)
 
@@ -128,10 +134,14 @@ object Badges {
         g("rare", 1, 10, 50, 100) { it.rare },
         g("epic", 1, 10, 25) { it.epic },
         g("legend", 1, 5, 10) { it.legendary },
-        g("relic", 3, 6, 12, 18, 24, 30, 36) { it.relics },
-        g("set", 1, 2, 3, 4, 5, 6) { it.sets },
+        g("relic", 3, 6, 12, 18, 24, 30, 36, 42, 48, 54, 60) { it.relics },
+        g("set", 1, 2, 3, 4, 5, 6, 7, 8, 9, 10) { it.sets },
+        g("season", 1, 2, 3, 4) { it.seasonSets },
+        g("stars", 5, 15, 30, 60, 100, 150, 200, 300) { it.stars },
+        g("radiant", 1, 3, 10, 25, 60) { it.radiant },
         g("sector", 1, 3, 5, 10, 20, 30, 50, 75, 100, 200) { it.sectors },
-        g("charted", 1, 3, 5, 10, 25) { it.charted },
+        g("charted", 1, 3, 5, 10, 25, 50, 100) { it.charted },
+        g("arms", 1, 3, 6, 12, 18, 24) { it.arms },
         g("half", 1, 3, 10) { it.half },
         g("streak", 3, 7, 14, 30, 60, 100, 200, 365) { it.bestStreak },
         g("beacon", 1, 5, 10, 25, 50, 100, 200) { it.beacons },

@@ -48,6 +48,39 @@ import androidx.compose.material.icons.rounded.Waves
 import androidx.compose.material.icons.rounded.WbTwilight
 import androidx.compose.material.icons.rounded.Whatshot
 import androidx.compose.material.icons.rounded.Workspaces
+import androidx.compose.material.icons.rounded.Agriculture
+import androidx.compose.material.icons.rounded.Alarm
+import androidx.compose.material.icons.rounded.Anchor
+import androidx.compose.material.icons.rounded.AutoFixHigh
+import androidx.compose.material.icons.rounded.BeachAccess
+import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.Brightness7
+import androidx.compose.material.icons.rounded.Campaign
+import androidx.compose.material.icons.rounded.Cloud
+import androidx.compose.material.icons.rounded.Cottage
+import androidx.compose.material.icons.rounded.Eco
+import androidx.compose.material.icons.rounded.Egg
+import androidx.compose.material.icons.rounded.EmojiNature
+import androidx.compose.material.icons.rounded.EmojiObjects
+import androidx.compose.material.icons.rounded.FilterVintage
+import androidx.compose.material.icons.rounded.Fireplace
+import androidx.compose.material.icons.rounded.Air
+import androidx.compose.material.icons.rounded.Forest
+import androidx.compose.material.icons.rounded.Grass
+import androidx.compose.material.icons.rounded.Highlight
+import androidx.compose.material.icons.rounded.LocalFlorist
+import androidx.compose.material.icons.rounded.Mood
+import androidx.compose.material.icons.rounded.Nature
+import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.NotificationsActive
+import androidx.compose.material.icons.rounded.Park
+import androidx.compose.material.icons.rounded.Pets
+import androidx.compose.material.icons.rounded.Sailing
+import androidx.compose.material.icons.rounded.Shield
+import androidx.compose.material.icons.rounded.Stars
+import androidx.compose.material.icons.rounded.Umbrella
+import androidx.compose.material.icons.rounded.WaterDrop
+import androidx.compose.material.icons.rounded.WorkspacePremium
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
@@ -168,6 +201,30 @@ fun relicIcon(id: String): ImageVector = when (id) {
     "sun_coin" -> Icons.Rounded.LightMode
     "moon_key" -> Icons.Rounded.Key
     "aurora_ribbon" -> Icons.Rounded.WbTwilight
+    "frost_bell" -> Icons.Rounded.NotificationsActive
+    "icicle_wand" -> Icons.Rounded.AutoFixHigh
+    "yule_candle" -> Icons.Rounded.Highlight
+    "sleigh_bell" -> Icons.Rounded.Notifications
+    "frost_rose" -> Icons.Rounded.FilterVintage
+    "winter_crown" -> Icons.Rounded.WorkspacePremium
+    "first_bud" -> Icons.Rounded.Grass
+    "nest_egg" -> Icons.Rounded.Egg
+    "rain_flute" -> Icons.Rounded.Umbrella
+    "thaw_stone" -> Icons.Rounded.WaterDrop
+    "cuckoo_clock" -> Icons.Rounded.Alarm
+    "dryad_seed" -> Icons.Rounded.Park
+    "sunhat" -> Icons.Rounded.BeachAccess
+    "firefly_jar" -> Icons.Rounded.EmojiObjects
+    "shell_horn" -> Icons.Rounded.Campaign
+    "honey_jar" -> Icons.Rounded.EmojiNature
+    "midsummer_fern" -> Icons.Rounded.Eco
+    "solstice_mirror" -> Icons.Rounded.Brightness7
+    "maple_leaf" -> Icons.Rounded.Spa
+    "acorn" -> Icons.Rounded.Nature
+    "harvest_sickle" -> Icons.Rounded.Agriculture
+    "lantern_gourd" -> Icons.Rounded.Mood
+    "crane_feather" -> Icons.Rounded.Air
+    "hearth_ember" -> Icons.Rounded.Fireplace
     else -> Icons.Rounded.Bedtime
 }
 
@@ -177,8 +234,22 @@ fun setIcon(set: String): ImageVector = when (set) {
     "curios" -> Icons.Rounded.Museum
     "stones" -> Icons.Rounded.Diamond
     "myths" -> Icons.Rounded.Whatshot
+    "winter" -> Icons.Rounded.AcUnit
+    "spring" -> Icons.Rounded.LocalFlorist
+    "summer" -> Icons.Rounded.WbSunny
+    "autumn" -> Icons.Rounded.Eco
     else -> Icons.Rounded.Star
 }
+
+/** The charge on a land's arms, in the order of [app.fogwalk.content.Content.armName]. */
+private val armIcons = listOf(
+    Icons.Rounded.Castle, Icons.Rounded.Anchor, Icons.Rounded.Park, Icons.Rounded.Sailing, Icons.Rounded.Key, Icons.Rounded.Star,
+    Icons.Rounded.Bedtime, Icons.Rounded.LightMode, Icons.Rounded.LocalFlorist, Icons.Rounded.Spa, Icons.Rounded.Whatshot, Icons.Rounded.Diamond,
+    Icons.Rounded.Pets, Icons.Rounded.Notifications, Icons.Rounded.WaterDrop, Icons.Rounded.Bolt, Icons.Rounded.Landscape, Icons.Rounded.Cottage,
+    Icons.Rounded.EmojiNature, Icons.Rounded.Forest, Icons.Rounded.Cloud, Icons.Rounded.AcUnit, Icons.Rounded.Waves, Icons.Rounded.Lightbulb,
+)
+
+fun armIcon(arm: Int): ImageVector = armIcons[arm.coerceIn(0, armIcons.size - 1)]
 
 fun badgeIcon(b: Badge): ImageVector = groupIcon(b.group)
 
@@ -192,6 +263,10 @@ fun groupIcon(group: String): ImageVector = when (group) {
     "legend" -> Icons.Rounded.Star
     "relic" -> Icons.Rounded.Museum
     "set" -> Icons.Rounded.Workspaces
+    "season" -> Icons.Rounded.Eco
+    "stars" -> Icons.Rounded.Stars
+    "radiant" -> Icons.Rounded.Brightness7
+    "arms" -> Icons.Rounded.Shield
     "sector" -> Icons.Rounded.Explore
     "charted" -> Icons.Rounded.Map
     "half" -> Icons.Rounded.Castle
@@ -225,6 +300,8 @@ fun groupColor(group: String): Pair<Color, Color> = when (group) {
     "streak", "level" -> U.c.flame to U.c.flameSoft
     "beacon", "dawn", "oath" -> U.c.rose to U.c.roseSoft
     "treasure", "gear" -> U.c.gold to U.c.goldSoft
-    "race" -> U.c.sage to U.c.sageSoft
+    "race", "season" -> U.c.sage to U.c.sageSoft
+    "stars", "radiant" -> U.c.gold to U.c.goldSoft
+    "arms" -> U.c.accent to U.c.accentSoft
     else -> U.c.sky to U.c.skySoft
 }

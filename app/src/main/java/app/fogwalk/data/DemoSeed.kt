@@ -100,7 +100,9 @@ object DemoSeed {
             it.copy(
                 onboarded = true, levelSeen = level, lastLat = here.first, lastLon = here.second,
                 owned = it.owned + "parchment", shields = 1,
-                seenBadges = app.fogwalk.domain.Badges.all.map { b -> b.id }.toSet() + app.fogwalk.domain.Relics.sets.map { s -> "set:$s" },
+                seenBadges = app.fogwalk.domain.Badges.all.map { b -> b.id }.toSet() + app.fogwalk.domain.Relics.sets.map { s -> "set:$s" } +
+                    app.fogwalk.domain.Relics.sets.flatMap { s -> (1..app.fogwalk.domain.Relics.MAX_STARS).map { n -> app.fogwalk.domain.Relics.starRef(s, n) } } +
+                    (0 until app.fogwalk.domain.Arms.COUNT).map { a -> app.fogwalk.domain.Arms.ref(a) },
             )
         }
     }

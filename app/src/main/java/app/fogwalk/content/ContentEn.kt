@@ -57,12 +57,40 @@ object ContentEn : Content {
         "moon_key" to ("Moon Key" to "Opens a door that only exists after midnight."),
         "aurora_ribbon" to ("Aurora Ribbon" to "Green and violet, it moves on its own."),
         "void_pearl" to ("Void Pearl" to "Holds the dark between the stars. The rarest thing a walker finds."),
+        "frost_bell" to ("Frost Bell" to "Rings only when it is cold enough to see your breath."),
+        "icicle_wand" to ("Icicle Wand" to "Never melts in the hand that found it."),
+        "yule_candle" to ("Yule Candle" to "Burns the whole long night and is whole again by morning."),
+        "sleigh_bell" to ("Sleigh Bell" to "Somewhere far off, a sleigh answers."),
+        "frost_rose" to ("Frost Rose" to "Blooms on window panes, but this one came loose."),
+        "winter_crown" to ("Crown of Midwinter" to "Worn by whoever walks the longest night to its end."),
+        "first_bud" to ("First Bud" to "The first green of the year, tucked into a pocket."),
+        "nest_egg" to ("Nest Egg" to "Speckled blue and still warm."),
+        "rain_flute" to ("Rain Flute" to "Play it and the puddles hum along."),
+        "thaw_stone" to ("Thaw Stone" to "Ice gives way wherever it is set down."),
+        "cuckoo_clock" to ("Cuckoo Clock" to "Calls the hour of the first warm day, and is never wrong."),
+        "dryad_seed" to ("Dryad's Seed" to "A whole wood sleeps in it, waiting for spring."),
+        "sunhat" to ("Straw Sunhat" to "Always a little shade, wherever the road runs."),
+        "firefly_jar" to ("Jar of Fireflies" to "Let them out at dusk; they always come back."),
+        "shell_horn" to ("Shell Horn" to "Blow it in the city and hear the sea."),
+        "honey_jar" to ("Wild Honey" to "Gathered from every flower on your summer walks."),
+        "midsummer_fern" to ("Midsummer Fern" to "Flowers once a year, on the shortest night."),
+        "solstice_mirror" to ("Solstice Mirror" to "Holds the light of the longest day and gives it back in winter."),
+        "maple_leaf" to ("Crimson Leaf" to "Pressed between the pages of an old atlas."),
+        "acorn" to ("Golden Acorn" to "An oak would grow from it, if gold could grow."),
+        "harvest_sickle" to ("Harvest Sickle" to "Cuts the mist like wheat."),
+        "lantern_gourd" to ("Lantern Gourd" to "A grin carved by no one, lit by nothing."),
+        "crane_feather" to ("Crane Feather" to "Dropped by the last flock heading south."),
+        "hearth_ember" to ("Hearth Ember" to "A coal from the first fire of autumn. It keeps every walker warm."),
     )
 
     override fun relicName(id: String) = relics[id]?.first ?: id
     override fun relicLore(id: String) = relics[id]?.second ?: ""
 
     override fun setName(set: String) = when (set) {
+        "winter" -> "Midwinter Hoard"
+        "spring" -> "Gifts of the Thaw"
+        "summer" -> "Midsummer Treasures"
+        "autumn" -> "Harvest Relics"
         "wayfarer" -> "Wayfarer's Pack"
         "maps" -> "Maps of Old"
         "curios" -> "Wizard's Curios"
@@ -72,6 +100,10 @@ object ContentEn : Content {
     }
 
     override fun setTitle(set: String) = when (set) {
+        "winter" -> "Frostwalker"
+        "spring" -> "Herald of Spring"
+        "summer" -> "Child of the Sun"
+        "autumn" -> "Harvest Keeper"
         "wayfarer" -> "Seasoned Wayfarer"
         "maps" -> "Keeper of Maps"
         "curios" -> "Apprentice of Wonders"
@@ -79,6 +111,20 @@ object ContentEn : Content {
         "myths" -> "Dragonfriend"
         else -> "Child of the Stars"
     }
+
+    override fun seasonName(set: String) = when (set) {
+        "winter" -> "Winter"
+        "spring" -> "Spring"
+        "summer" -> "Summer"
+        else -> "Autumn"
+    }
+
+    private val arms = listOf(
+        "Tower", "Anchor", "Oak", "Ship", "Key", "Star", "Crescent", "Sun", "Rose", "Leaf", "Flame", "Gem",
+        "Wolf", "Bell", "Spring", "Thunderbolt", "Mountain", "Hearth", "Bee", "Pinewood", "Cloud", "Snowflake", "Wave", "Lantern",
+    )
+
+    override fun armName(arm: Int) = arms[arm.coerceIn(0, arms.size - 1)]
 
     private val ranks = listOf("Wanderer", "Squire", "Ranger", "Pathfinder", "Cartographer", "Knight-Errant", "Lorekeeper", "Legend of the Realm")
     override fun rank(index: Int) = ranks[index.coerceIn(0, ranks.size - 1)]
@@ -108,10 +154,14 @@ object ContentEn : Content {
         "rare" to listOf("Glimmer of Blue", "Collector of Rarities", "Rare Breed", "Hundred Wonders"),
         "epic" to listOf("Touched by Magic", "Spellbound", "Arcane Hoard"),
         "legend" to listOf("Legendary Luck", "Fortune's Favourite", "Chosen by Fate"),
-        "relic" to listOf("Curiosity Shelf", "Cabinet of Wonders", "Museum Wing", "Hall of Relics", "Royal Collection", "Keeper of Treasures", "Every Last Relic"),
-        "set" to listOf("Complete Set", "Pair of Sets", "Three Sets Whole", "Four Sets Whole", "Five Sets Whole", "All Six Sets"),
+        "relic" to listOf("Curiosity Shelf", "Cabinet of Wonders", "Museum Wing", "Hall of Relics", "Royal Collection", "Keeper of Treasures", "Six Sets' Worth", "A Season's Worth", "Half the Year Kept", "Three Seasons Kept", "Every Last Relic"),
+        "set" to listOf("Complete Set", "Pair of Sets", "Three Sets Whole", "Four Sets Whole", "Five Sets Whole", "Six Sets Whole", "Seven Sets Whole", "Eight Sets Whole", "Nine Sets Whole", "All Ten Sets"),
+        "season" to listOf("A Season Gathered", "Two Seasons", "Three Seasons", "The Turning Year"),
+        "stars" to listOf("First Glimmer", "Starlit Shelf", "Constellation", "Night Sky", "Hundred Stars", "Milky Way", "Two Hundred Stars", "Firmament"),
+        "radiant" to listOf("Radiant Relic", "Three Radiant", "Ten Radiant", "Treasury of Light", "Every Relic Radiant"),
         "sector" to listOf("Beyond the Gate", "Three Lands", "Five Lands", "Ten Lands", "Twenty Lands", "Thirty Lands", "Fifty Lands", "Seventy-Five Lands", "Hundred Lands", "Two Hundred Lands"),
-        "charted" to listOf("Charted Land", "Three Charted", "Five Charted", "Ten Charted", "Twenty-Five Charted"),
+        "charted" to listOf("Charted Land", "Three Charted", "Five Charted", "Ten Charted", "Twenty-Five Charted", "Fifty Charted", "Hundred Charted"),
+        "arms" to listOf("First Banner", "Three Banners", "Six Banners", "Twelve Banners", "Eighteen Banners", "Herald of the Realm"),
         "half" to listOf("Lord of a Land", "Lord of Three", "Lord of Ten"),
         "streak" to listOf("Kindled", "A Week of Roads", "Fortnight Faithful", "Moon's Turn", "Two Moons", "Hundred Dawns", "Unbroken", "A Year and a Day"),
         "beacon" to listOf("First Shrine", "Pilgrim's Path", "Ten Shrines", "Shrine Seeker", "Keeper of Flames", "Hundred Altars", "High Priest of Paths"),
@@ -148,6 +198,10 @@ object ContentEn : Content {
         "legend" -> "Legendary chests"
         "relic" -> "Relics"
         "set" -> "Relic sets"
+        "season" -> "Seasonal sets"
+        "stars" -> "Relic stars"
+        "radiant" -> "Radiant relics"
+        "arms" -> "Arms of the lands"
         "sector" -> "Lands visited"
         "charted" -> "Lands charted"
         "half" -> "Lands ruled"
@@ -181,8 +235,12 @@ object ContentEn : Content {
             "rare" -> if (g == 1L) "Open a rare chest" else "Open $n rare chests or better"
             "epic" -> if (g == 1L) "Open an epic chest" else "Open $n epic chests or better"
             "legend" -> if (g == 1L) "Open a legendary chest" else "Open $n legendary chests"
-            "relic" -> if (g == 36L) "Collect every relic" else "Collect $n different relics"
+            "relic" -> if (g == app.fogwalk.domain.Relics.all.size.toLong()) "Collect every relic" else "Collect $n different relics"
             "set" -> if (g == 1L) "Complete a relic set" else "Complete $n relic sets"
+            "season" -> if (g == 1L) "Complete a seasonal set" else "Complete $n seasonal sets"
+            "stars" -> "Gather $n stars on your relics"
+            "radiant" -> if (g == 1L) "Raise a relic to five stars" else "Raise $n relics to five stars"
+            "arms" -> if (g == 1L) "Raise a land's banner" else "Raise banners of $n different arms"
             "sector" -> if (g == 1L) "Set foot in a land" else "Set foot in $n lands"
             "charted" -> if (g == 1L) "Chart a quarter of a land" else "Chart a quarter of $n lands"
             "half" -> if (g == 1L) "Chart half of a land" else "Chart half of $n lands"

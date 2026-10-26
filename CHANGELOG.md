@@ -8,6 +8,25 @@ then close it like any HTML comment. The release notes carry it, and the chat bo
 
 All notable changes to Fogwalk. Versions follow [semantic versioning](https://semver.org/).
 
+## [1.4.0] - 2026-10-26
+
+### Added
+- **Relic stars.** A relic found again now counts: the 2nd, 4th, 8th, 16th and 32nd copy raise it to ★1…★5, and a set whose every relic reaches a star pays again, more for each star. Copies found before this update count too. A copy still brings its gold.
+- **Seasonal sets.** Four new sets of six, from the Midwinter Hoard to the Harvest Relics, each turning up in chests, treasure maps and oaths only in its own season (turned around south of the equator). Sixty relics in all.
+- **Arms of the lands.** Every land bears one of 24 arms. Charting a quarter of a land raises its banner, and the first banner of each kind brings 100 gold. Lands charted before this update raise theirs at once. The chronicle shows the roll of arms, and the arms of each land in the list.
+- 33 new deeds, 209 in all: relic stars, five-star relics, seasonal sets, arms, and longer ladders for relics, sets and charted lands.
+
+### Fixed
+- Turning on location after Fogwalk is already open now works at once; before, the app had to be closed and started again to find you.
+
+<!-- tg
+Новое: звёзды реликвий — повторные находки поднимают реликвию до пяти звёзд, а наборы награждают за каждую звезду.
+Четыре сезонных набора: их реликвии попадаются только в свой сезон. Сейчас осень — «Реликвии урожая».
+Гербы земель: нанесите землю на карту, чтобы поднять её знамя, и соберите все 24 герба.
+И 33 новых деяния.
+Исправлено: если включить геолокацию уже после запуска, приложение сразу находит вас, без перезапуска.
+-->
+
 ## [1.3.2] - 2026-10-25
 
 ### Added

@@ -165,6 +165,24 @@
     <string name="plus_xp">+%1$d XP</string>
     <string name="relic_new">New relic</string>
     <string name="relic_duplicate">Already in your hoard, melted into gold</string>
+    <string name="relic_copy">Another copy · %1$d more for ★%2$d</string>
+    <string name="relic_star_up">Another copy · it rises to ★%1$d</string>
+    <string name="relic_copy_max">Another copy · already at ★5, melted into gold</string>
+    <string name="relic_stars_next">Copies to the next star: %1$d</string>
+    <string name="relic_stars_max">Five stars: it shines as bright as it ever will</string>
+    <string name="relic_stars_intro">Copies found again raise a relic\'s stars: the 2nd, 4th, 8th, 16th and 32nd copy. When every relic of a set reaches a star, the set pays again.</string>
+    <string name="set_stars_next">Every relic at ★%1$d: %2$d gold</string>
+    <string name="set_stars_max">Every relic at ★5</string>
+    <string name="season_now">In chests this season · until %1$s</string>
+    <string name="season_later">Turns up in chests from %1$s</string>
+    <string name="seasonal_sets">Seasonal sets</string>
+    <string name="seasonal_intro">These relics turn up only in their own season. Whatever stays hidden waits for the next year.</string>
+    <string name="set_star_up">The set rises to ★%1$d</string>
+    <string name="set_star_up_text">Every relic of «%1$s» is now at ★%2$d. %3$d gold.</string>
+    <string name="arms_title">Arms of the lands · %1$d of %2$d</string>
+    <string name="arms_intro">Every land bears arms, the same for every walker. Chart a quarter of a land to raise its banner; the first banner of each kind brings %1$d gold. Lands you have set foot in show their arms in the list above.</string>
+    <string name="arms_raised">Banner raised</string>
+    <string name="arms_raised_text">A charted land raises the banner of the %1$s. First of its kind: %2$d gold.</string>
     <string name="relic_set_progress">%1$s: %2$d of %3$d</string>
 
     <!-- Quests -->
@@ -261,7 +279,7 @@
     <string name="ob2_beacon">Shrine of the day</string>
     <string name="ob2_beacon_text">Each day a shrine awakens where the mist is thickest. Reach it for the day\'s richest reward.</string>
     <string name="ob2_relics">Relics and deeds</string>
-    <string name="ob2_relics_text">Thirty-six relics in six sets, from a brass compass to a dragon\'s scale, and over a hundred and fifty deeds to accomplish.</string>
+    <string name="ob2_relics_text">Sixty relics in ten sets, from a brass compass to a dragon\'s scale, four of them only in their season; relic stars, arms of the lands and over two hundred deeds.</string>
     <string name="ob2_streak">Quests and streaks</string>
     <string name="ob2_streak_text">New quests every dawn, a great quest every week, and a streak that grows with every day on the road.</string>
     <string name="ob3_title">Where does your journey begin?</string>

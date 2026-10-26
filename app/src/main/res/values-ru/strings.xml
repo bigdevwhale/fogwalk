@@ -173,6 +173,24 @@
     <string name="plus_xp">+%1$d опыта</string>
     <string name="relic_new">Новая реликвия</string>
     <string name="relic_duplicate">Уже есть в сокровищнице, переплавлена в золото</string>
+    <string name="relic_copy">Ещё одна копия · до ★%2$d осталось %1$d</string>
+    <string name="relic_star_up">Ещё одна копия · реликвия поднимается до ★%1$d</string>
+    <string name="relic_copy_max">Ещё одна копия · уже ★5, переплавлена в золото</string>
+    <string name="relic_stars_next">До следующей звезды копий: %1$d</string>
+    <string name="relic_stars_max">Пять звёзд: ярче она уже не засияет</string>
+    <string name="relic_stars_intro">Повторные находки поднимают звёзды реликвии: 2-я, 4-я, 8-я, 16-я и 32-я копия. Когда все реликвии набора доходят до звезды, набор награждает снова.</string>
+    <string name="set_stars_next">Все реликвии на ★%1$d: %2$d золота</string>
+    <string name="set_stars_max">Все реликвии на ★5</string>
+    <string name="season_now">Попадаются в сундуках в этот сезон · до %1$s</string>
+    <string name="season_later">Появятся в сундуках с %1$s</string>
+    <string name="seasonal_sets">Сезонные наборы</string>
+    <string name="seasonal_intro">Эти реликвии попадаются только в свой сезон. Что не найдено, ждёт следующего года.</string>
+    <string name="set_star_up">Набор поднимается до ★%1$d</string>
+    <string name="set_star_up_text">Все реликвии набора «%1$s» теперь на ★%2$d. %3$d золота.</string>
+    <string name="arms_title">Гербы земель · %1$d из %2$d</string>
+    <string name="arms_intro">У каждой земли свой герб, один для всех странников. Нанесите на карту четверть земли, чтобы поднять её знамя; первое знамя каждого герба приносит %1$d золота. Гербы земель, где вы уже побывали, видны в списке выше.</string>
+    <string name="arms_raised">Знамя поднято</string>
+    <string name="arms_raised_text">Нанесённая на карту земля поднимает знамя с гербом «%1$s». Первое такое: %2$d золота.</string>
     <string name="relic_set_progress">%1$s: %2$d из %3$d</string>
 
     <!-- Quests -->
@@ -269,7 +287,7 @@
     <string name="ob2_beacon">Святилище дня</string>
     <string name="ob2_beacon_text">Каждый день там, где туман гуще всего, пробуждается святилище. Дойдите до него за самой щедрой наградой дня.</string>
     <string name="ob2_relics">Реликвии и деяния</string>
-    <string name="ob2_relics_text">Тридцать шесть реликвий в шести наборах, от латунного компаса до чешуи дракона, и больше ста пятидесяти деяний.</string>
+    <string name="ob2_relics_text">Шестьдесят реликвий в десяти наборах, от латунного компаса до чешуи дракона, и четыре набора только в свой сезон; звёзды реликвий, гербы земель и больше двухсот деяний.</string>
     <string name="ob2_streak">Квесты и серии</string>
     <string name="ob2_streak_text">Новые квесты каждый рассвет, великий квест на неделю и серия, что растёт с каждым днём в пути.</string>
     <string name="ob3_title">Откуда начнётся ваш путь?</string>

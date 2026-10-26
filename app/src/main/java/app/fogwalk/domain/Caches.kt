@@ -87,14 +87,14 @@ object Caches {
     private fun seed(tx: Int, ty: Int, week: Long): Long =
         (tx.toLong() * 73_856_093L) xor (ty.toLong() * 19_349_663L) xor (week * 83_492_791L) xor 0x5DEECE66DL
 
-    /** What opening [cache] gives, with [owned] relic ids already collected. */
-    fun open(cache: Cache, owned: Set<String>): Loot {
+    /** What opening [cache] in [season] gives, with [owned] relic ids already collected. */
+    fun open(cache: Cache, owned: Set<String>, season: String): Loot {
         val rnd = Random(cache.key.hashCode().toLong() * 31 + 7)
         val coins = cache.rarity.coins + rnd.nextInt(cache.rarity.coins / 2 + 1)
         if (rnd.nextDouble() >= cache.rarity.relicChance) return Loot(coins, cache.rarity.xp, null, false)
         // Mostly a relic of the cache's own quality, sometimes one step lower.
         val tier = if (cache.rarity.ordinal > 0 && rnd.nextDouble() < 0.3) cache.rarity.ordinal - 1 else cache.rarity.ordinal
-        val pool = Relics.all.filter { it.rarity.ordinal == tier }
+        val pool = Relics.pool(Rarity.entries[tier], season)
         var relic = pool[rnd.nextInt(pool.size)]
         // One second chance at something new keeps the collection moving.
         if (relic.id in owned) relic = pool[rnd.nextInt(pool.size)]

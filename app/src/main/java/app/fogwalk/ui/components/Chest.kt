@@ -64,9 +64,12 @@ import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
-/** A cache being opened: the chest shakes, bursts open with light, and shows what it held. */
+/**
+ * A cache being opened: the chest shakes, bursts open with light, and shows what it held. [copies] is how
+ * many of its relic had been found with this one, for the stars.
+ */
 @Composable
-fun ChestDialog(find: Find, owned: Set<String>, onDismiss: () -> Unit) {
+fun ChestDialog(find: Find, owned: Set<String>, copies: Int, onDismiss: () -> Unit) {
     val rarity = Rarity.entries[find.rarity]
     val color = rarityColor(rarity).first
     val c = content()
@@ -125,17 +128,21 @@ fun ChestDialog(find: Find, owned: Set<String>, onDismiss: () -> Unit) {
                                 }
                                 Spacer(Modifier.width(14.dp))
                                 Column(Modifier.weight(1f)) {
-                                    Text(
-                                        (if (find.duplicate) stringResource(R.string.relic_duplicate) else stringResource(R.string.relic_new)).uppercase(),
-                                        style = UType.Eyebrow.copy(color = if (find.duplicate) U.c.faint else rc),
-                                    )
+                                    val star = Relics.stars(copies)
+                                    val label = when {
+                                        !find.duplicate -> stringResource(R.string.relic_new)
+                                        star > Relics.stars(copies - 1) -> stringResource(R.string.relic_star_up, star)
+                                        star >= Relics.MAX_STARS -> stringResource(R.string.relic_copy_max)
+                                        else -> stringResource(R.string.relic_copy, Relics.toNextStar(copies), star + 1)
+                                    }
+                                    Text(label.uppercase(), style = UType.Eyebrow.copy(color = if (find.duplicate && star == Relics.stars(copies - 1)) U.c.faint else rc))
                                     Text(c.relicName(relic.id), style = UType.Strong)
                                     Text(c.relicLore(relic.id), style = UType.Muted)
                                 }
                             }
                             Spacer(Modifier.height(6.dp))
                             Text(
-                                stringResource(R.string.relic_set_progress, c.setName(relic.set), Relics.inSet(relic.set).count { it.id in owned }, 6),
+                                stringResource(R.string.relic_set_progress, c.setName(relic.set), Relics.inSet(relic.set).count { it.id in owned }, Relics.inSet(relic.set).size),
                                 style = UType.Small, textAlign = TextAlign.Center,
                             )
                         }

@@ -3,12 +3,14 @@ package app.fogwalk
 import app.fogwalk.content.ContentEn
 import app.fogwalk.content.ContentRu
 import app.fogwalk.data.Day
+import app.fogwalk.domain.Arms
 import app.fogwalk.domain.Badges
 import app.fogwalk.domain.Caches
 import app.fogwalk.domain.FogStore
 import app.fogwalk.domain.Levels
 import app.fogwalk.domain.Quests
 import app.fogwalk.domain.Relics
+import app.fogwalk.domain.Seasons
 import app.fogwalk.domain.Streaks
 import app.fogwalk.domain.Oaths
 import app.fogwalk.domain.OathGoal
@@ -123,12 +125,12 @@ class FogwalkTest {
     fun questsAreFixedForTheDay() {
         assertEquals(Quests.daily(20_000, 5), Quests.daily(20_000, 5))
         assertEquals(3, Quests.daily(20_000, 5).size)
-        assertEquals(36, Relics.all.size)
+        assertEquals(60, Relics.all.size)
     }
 
     @Test
     fun everyDeedHasWordsInBothLanguages() {
-        assertTrue(Badges.all.size >= 150)
+        assertTrue(Badges.all.size >= 200)
         assertEquals(Badges.all.size, Badges.all.map { it.id }.toSet().size)
         for (c in listOf(ContentEn, ContentRu)) {
             Badges.all.forEach { b ->
@@ -137,6 +139,8 @@ class FogwalkTest {
             }
             Badges.groups.forEach { assertTrue(c.groupName(it.id).isNotBlank()) }
             Relics.all.forEach { assertNotEquals(it.id, c.relicName(it.id)) }
+            assertEquals(Relics.sets.size, Relics.sets.map { c.setName(it) }.toSet().size)
+            assertEquals(Arms.COUNT, (0 until Arms.COUNT).map { c.armName(it) }.toSet().size)
         }
         // Russian land names agree in gender: no masculine ending before a feminine noun.
         assertFalse((0L until 500L).map { ContentRu.sectorName(it * 7919) }.any { it.endsWith("ый Роща") || it.endsWith("ий Лощина") })
@@ -247,14 +251,64 @@ class FogwalkTest {
 
     @Test
     fun rewardRelicsPreferMissingOnes() {
-        val epic = Relics.all.filter { it.rarity == Rarity.EPIC }
+        val epic = Relics.pool(Rarity.EPIC, "autumn")
         val owned = epic.dropLast(1).map { it.id }.toSet()
         repeat(20) { seed ->
-            val (r, dup) = pickRelic(Rarity.EPIC, owned, seed.toLong())
+            val (r, dup) = pickRelic(Rarity.EPIC, owned, seed.toLong(), "autumn")
             assertEquals(epic.last().id, r.id)
             assertFalse(dup)
         }
-        assertTrue(pickRelic(Rarity.EPIC, epic.map { it.id }.toSet(), 1).second)
+        assertTrue(pickRelic(Rarity.EPIC, epic.map { it.id }.toSet(), 1, "autumn").second)
+    }
+
+    @Test
+    fun seasonalRelicsTurnUpOnlyInTheirSeason() {
+        // 2026-10-26 is autumn up north and spring down south.
+        val day = java.time.LocalDate.of(2026, 10, 26).toEpochDay()
+        assertEquals("autumn", Seasons.of(day, 55.7))
+        assertEquals("spring", Seasons.of(day, -33.9))
+        assertEquals(java.time.LocalDate.of(2026, 12, 1).toEpochDay(), Seasons.nextStart(day))
+        assertEquals(java.time.LocalDate.of(2027, 3, 1).toEpochDay(), Seasons.nextStart(java.time.LocalDate.of(2026, 12, 31).toEpochDay()))
+        assertEquals(day, Seasons.startOf("autumn", day))
+        assertEquals(java.time.LocalDate.of(2027, 6, 1).toEpochDay(), Seasons.startOf("summer", day))
+        val pool = Rarity.entries.flatMap { Relics.pool(it, "autumn") }
+        assertTrue(pool.none { Relics.isSeasonal(it.set) && it.set != "autumn" })
+        assertEquals(36 + 6, pool.size)
+        // Each seasonal set mixes qualities up to a legendary.
+        Relics.seasonal.forEach { s -> assertEquals(Rarity.LEGENDARY, Relics.inSet(s).maxOf { it.rarity }) }
+        // A chest opened in winter never gives an autumn relic.
+        repeat(300) { i ->
+            val cache = app.fogwalk.domain.Cache("c:1:$i:0:0", 55.7, 37.6, Rarity.LEGENDARY)
+            val r = Caches.open(cache, emptySet(), "winter").relic
+            assertTrue(r == null || r.set != "autumn")
+        }
+    }
+
+    @Test
+    fun copiesRaiseStarsAndSetsPayPerStar() {
+        assertEquals(0, Relics.stars(1))
+        assertEquals(1, Relics.stars(2))
+        assertEquals(2, Relics.stars(7))
+        assertEquals(5, Relics.stars(32))
+        assertEquals(5, Relics.stars(1000))
+        assertEquals(1, Relics.toNextStar(7))
+        assertEquals(0, Relics.toNextStar(40))
+        val copies = Relics.inSet("wayfarer").associate { it.id to 4 } + ("compass" to 9)
+        assertEquals(2, Relics.setStars("wayfarer", copies))
+        assertEquals(0, Relics.setStars("maps", copies))
+        assertTrue(Relics.starReward("stars", 5).first > Relics.starReward("stars", 1).first)
+        assertEquals(mapOf("a" to 2, "b" to 1), Relics.copies(listOf("a", "", "b", "a")))
+    }
+
+    @Test
+    fun everyLandBearsArmsAndTheyAreSpreadOut() {
+        val counts = IntArray(Arms.COUNT)
+        for (i in 0 until 24_000L) counts[Arms.of(i * 7919 + 12345)]++
+        // Roughly a thousand each.
+        assertTrue(counts.joinToString(), counts.all { it in 800..1200 })
+        assertEquals(Arms.of(424242), Arms.of(424242))
+        val charted = Arms.raised(longArrayOf(1, 2, 3), intArrayOf(Grid.SECTOR_CELLS, 0, Grid.SECTOR_CELLS / 4))
+        assertEquals(setOf(Arms.of(1), Arms.of(3)), charted)
     }
 
     @Test

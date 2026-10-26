@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.fogwalk.R
 import app.fogwalk.data.Units
+import app.fogwalk.domain.Arms
 import app.fogwalk.domain.Badge
 import app.fogwalk.domain.Badges
 import app.fogwalk.domain.Sectors
@@ -59,6 +60,7 @@ import app.fogwalk.ui.Go
 import app.fogwalk.ui.MapFocus
 import app.fogwalk.ui.Tab
 import app.fogwalk.ui.area
+import app.fogwalk.ui.armIcon
 import app.fogwalk.ui.badgeColor
 import app.fogwalk.ui.badgeIcon
 import app.fogwalk.ui.components.Bar
@@ -126,6 +128,9 @@ fun JournalTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
                     }.padding(vertical = 8.dp),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        val arm = Arms.of(key)
+                        Icon(armIcon(arm), c.armName(arm), Modifier.size(16.dp), tint = if (share >= Sectors.CHARTED) U.c.accent else U.c.faint)
+                        Spacer(Modifier.width(8.dp))
                         Text(c.sectorName(key), style = UType.Strong.copy(fontSize = 15.sp), modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(percent(share), style = UType.Strong.copy(fontSize = 14.sp, color = if (share >= Sectors.CHARTED) U.c.accent else U.c.muted))
                     }
@@ -141,6 +146,9 @@ fun JournalTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
 
         SectionTitle(stringResource(R.string.relics_count, data.relics.size, app.fogwalk.domain.Relics.all.size))
         RelicsSummary(data) { go.relics() }
+
+        SectionTitle(stringResource(R.string.arms_title, data.arms.size, Arms.COUNT))
+        ArmsCard(data)
 
         val walks = remember(data.walks) { journeys(data.walks) }
         if (walks.isNotEmpty()) {
@@ -228,6 +236,35 @@ private fun Heatmap(data: GameData) {
         stringResource(R.string.activity_note, data.days.count { it.cells > 0 }),
         style = UType.Small,
     )
+}
+
+/** Every charge of the arms, lit once a charted land raises its banner. */
+@Composable
+private fun ArmsCard(data: GameData) {
+    val c = content()
+    UCard {
+        (0 until Arms.COUNT).chunked(4).forEach { row ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                row.forEach { arm ->
+                    val raised = arm in data.arms
+                    Column(
+                        Modifier.weight(1f).clip(U.RSm).background(if (raised) U.c.accentSoft else U.c.surface2).padding(vertical = 8.dp, horizontal = 2.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Icon(armIcon(arm), null, Modifier.size(22.dp), tint = if (raised) U.c.accent else U.c.faint.copy(alpha = 0.5f))
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            c.armName(arm), style = UType.Small.copy(fontSize = 11.sp, color = if (raised) U.c.ink else U.c.faint, textAlign = TextAlign.Center),
+                            maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+        }
+        Spacer(Modifier.height(4.dp))
+        Text(stringResource(R.string.arms_intro, Arms.COINS), style = UType.Muted)
+    }
 }
 
 /** The deeds closest to done, and the way into the full book. */

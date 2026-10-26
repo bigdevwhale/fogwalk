@@ -8,6 +8,7 @@ import app.fogwalk.data.FogDatabase
 import app.fogwalk.data.SettingsStore
 import app.fogwalk.data.Walk
 import app.fogwalk.data.Waypoint
+import app.fogwalk.domain.Arms
 import app.fogwalk.domain.Beacons
 import app.fogwalk.domain.Cache
 import app.fogwalk.domain.Caches
@@ -25,6 +26,7 @@ import app.fogwalk.domain.pickRelic
 import app.fogwalk.domain.Levels
 import app.fogwalk.domain.Rarity
 import app.fogwalk.domain.Relics
+import app.fogwalk.domain.Seasons
 import app.fogwalk.domain.Sectors
 import app.fogwalk.domain.Shop
 import app.fogwalk.domain.Streaks
@@ -116,6 +118,8 @@ class Explorer(
     private var opened = HashSet<String>()
     private var openedWeek = Long.MIN_VALUE
     private val ownedRelics = HashSet<String>()
+    private val relicCopies = HashMap<String, Int>()
+    private val raisedArms = HashSet<Int>()
     private val grantedSectors = HashSet<String>()
     private val nearNotified = HashSet<String>()
     private var lastSaved = 0L
@@ -129,8 +133,17 @@ class Explorer(
             dao.cellIds().forEach { fog.add(it) }
             fog.changed()
             walk = dao.lastWalk()
-            dao.finds().forEach { if (it.relic.isNotEmpty()) ownedRelics += it.relic }
-            dao.ledger().forEach { if (it.ref.startsWith("sec:")) grantedSectors += it.ref }
+            dao.finds().forEach { if (it.relic.isNotEmpty()) found(it.relic) }
+            dao.ledger().forEach {
+                if (it.ref.startsWith("sec:")) grantedSectors += it.ref
+                if (it.ref.startsWith("arms:")) it.ref.substringAfter(':').toIntOrNull()?.let { a -> raisedArms += a }
+            }
+            // Lands charted before the arms were there raise their banners now.
+            val now = System.currentTimeMillis()
+            grantedSectors.filter { it.endsWith(":${(Sectors.CHARTED * 100).toInt()}") }
+                .forEach { ref -> ref.split(":")[1].toLongOrNull()?.let { raiseArms(it, now) } }
+            // So do the stars of copies found before stars were counted.
+            grantSets(now)
             val s = settings.now()
             if (s.lastLat != 0.0 || s.lastLon != 0.0) {
                 _live.update { it.copy(fix = Fix(s.lastLat, s.lastLon, 9999f, 0)) }
@@ -263,6 +276,7 @@ class Explorer(
                 grantedSectors += ref
                 if (dao.grant(Entry(ref, f.time, coins, xp)) != -1L) _events.tryEmit(GameEvent.Milestone(sector, at, coins))
             }
+            if (share >= Sectors.CHARTED) raiseArms(sector, f.time)
         }
         newSectors.forEach { _events.tryEmit(GameEvent.NewSector(it)) }
 
@@ -325,7 +339,8 @@ class Explorer(
 
     /** Opens [c] for its loot; false when it was already open. */
     private suspend fun open(c: Cache, at: Long): Boolean {
-        val loot = Caches.open(c, ownedRelics)
+        val day = Instant.ofEpochMilli(at).atZone(zone()).toLocalDate().toEpochDay()
+        val loot = Caches.open(c, ownedRelics, Seasons.of(day, c.lat))
         val find = Find(
             key = c.key, at = at, rarity = c.rarity.ordinal,
             relic = loot.relic?.id.orEmpty(), duplicate = loot.duplicate,
@@ -333,7 +348,7 @@ class Explorer(
         )
         if (db.dao().insertFind(find) == -1L) return false
         if (c.key.startsWith("c:$openedWeek:")) opened += c.key
-        loot.relic?.let { ownedRelics += it.id }
+        loot.relic?.let { found(it.id) }
         _events.tryEmit(GameEvent.Opened(find))
         grantSets(at)
         return true
@@ -372,13 +387,14 @@ class Explorer(
         val m = points.minOf { (la, lo) -> Grid.distance(la, lo, t.lat, t.lon) }
         if (m > Treasures.FIND_M + min(f.accuracy.toDouble(), 15.0)) return
         val tier = Treasures.tiers[t.tier]
-        val (relic, dup) = pickRelic(tier.rarity, ownedRelics, t.bought)
+        val day = Instant.ofEpochMilli(f.time).atZone(zone()).toLocalDate().toEpochDay()
+        val (relic, dup) = pickRelic(tier.rarity, ownedRelics, t.bought, Seasons.of(day, t.lat))
         val find = Find(
             key = t.key, at = f.time, rarity = tier.rarity.ordinal, relic = relic.id, duplicate = dup,
             coins = tier.coins + if (dup) Relics.dupeCoins(relic) else 0, xp = tier.xp, lat = t.lat, lon = t.lon,
         )
         if (db.dao().insertFind(find) != -1L) {
-            ownedRelics += relic.id
+            found(relic.id)
             _events.tryEmit(GameEvent.Opened(find))
             grantSets(f.time)
         }
@@ -457,15 +473,15 @@ class Explorer(
         val o = settings.now().oath ?: return@withContext false
         val dao = db.dao()
         if (!Oaths.kept(o, dao.days())) return@withContext false
-        val (relic, dup) = pickRelic(Oaths.rarity(o.stake, o.level), ownedRelics, o.week * 31 + o.stake)
         val at = _live.value.fix
+        val (relic, dup) = pickRelic(Oaths.rarity(o.stake, o.level), ownedRelics, o.week * 31 + o.stake, Seasons.of(today(), at?.lat ?: 0.0))
         val find = Find(
             key = "o:${o.week}", at = System.currentTimeMillis(), rarity = relic.rarity.ordinal, relic = relic.id, duplicate = dup,
             coins = o.stake + if (dup) Relics.dupeCoins(relic) else 0, xp = Oaths.xp(o.stake, o.level),
             lat = at?.lat ?: 0.0, lon = at?.lon ?: 0.0,
         )
         if (dao.insertFind(find) == -1L) return@withContext false
-        ownedRelics += relic.id
+        found(relic.id)
         grantSets(find.at)
         true
     }
@@ -507,12 +523,27 @@ class Explorer(
         Bought.OK
     }
 
-    /** A completed relic set pays out once. */
+    private fun found(relic: String) {
+        ownedRelics += relic
+        relicCopies[relic] = (relicCopies[relic] ?: 0) + 1
+    }
+
+    /** A completed relic set pays out once, and once more for each star its every relic reaches. */
     private suspend fun grantSets(at: Long) {
         for (set in Relics.completeSets(ownedRelics)) {
             val (coins, xp) = Relics.setReward(set)
             db.dao().grant(Entry("set:$set", at, coins, xp))
+            for (star in 1..Relics.setStars(set, relicCopies)) {
+                val (c, x) = Relics.starReward(set, star)
+                db.dao().grant(Entry(Relics.starRef(set, star), at, c, x))
+            }
         }
+    }
+
+    /** A land charted to a quarter raises its banner; the first banner of each charge pays. */
+    private suspend fun raiseArms(sector: Long, at: Long) {
+        val arm = Arms.of(sector)
+        if (raisedArms.add(arm)) db.dao().grant(Entry(Arms.ref(arm), at, Arms.COINS, Arms.XP))
     }
 
     /** Debug builds: walk to a point at a stroll, without leaving the chair. */
