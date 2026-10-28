@@ -28,6 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -161,19 +162,24 @@ private fun RelicTile(r: Relic, data: GameData, modifier: Modifier, onClick: () 
             .clickable(enabled = owned, onClick = onClick).padding(vertical = 10.dp, horizontal = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        if (owned) Icon(relicIcon(r.id), null, Modifier.size(26.dp), tint = color)
-        else Text("?", style = UType.Strong.copy(fontSize = 20.sp, color = U.c.faint))
+        // Every tile keeps room for an icon, two lines of name and the stars, so the grid stays even.
+        Box(Modifier.size(26.dp), contentAlignment = Alignment.Center) {
+            if (owned) Icon(relicIcon(r.id), null, Modifier.size(26.dp), tint = color)
+            else Text("?", style = UType.Strong.copy(fontSize = 20.sp, color = U.c.faint))
+        }
         Spacer(Modifier.height(6.dp))
         Text(
             if (owned) c.relicName(r.id) else stringResource(R.string.relic_unknown),
             style = UType.Small.copy(color = if (owned) U.c.ink else U.c.faint, textAlign = TextAlign.Center),
-            maxLines = 2, overflow = TextOverflow.Ellipsis,
+            minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis,
         )
-        if (owned) {
-            Spacer(Modifier.height(2.dp))
-            val n = Relics.stars(data.copies[r.id] ?: 0)
-            Text(stars(n), style = UType.Small.copy(fontSize = 11.sp, color = if (n > 0) U.c.gold else U.c.faint.copy(alpha = 0.6f)), maxLines = 1)
-        }
+        Spacer(Modifier.height(2.dp))
+        val n = Relics.stars(data.copies[r.id] ?: 0)
+        Text(
+            stars(n),
+            style = UType.Small.copy(fontSize = 11.sp, color = if (!owned) Color.Transparent else if (n > 0) U.c.gold else U.c.faint.copy(alpha = 0.6f)),
+            maxLines = 1,
+        )
     }
 }
 

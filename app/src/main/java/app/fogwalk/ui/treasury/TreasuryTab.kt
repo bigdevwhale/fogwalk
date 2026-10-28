@@ -65,7 +65,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.fogwalk.R
 import app.fogwalk.container
-import app.fogwalk.data.BeaconSpot
+import app.fogwalk.domain.ShrineDay
 import app.fogwalk.domain.Beacons
 import app.fogwalk.domain.Gear
 import app.fogwalk.domain.Rumors
@@ -215,13 +215,13 @@ private fun ShopPart(data: GameData, mark: (Ware) -> Modifier) {
                 buy("shield", Shop.SHIELD) { container.settings.update { it.copy(shields = (it.shields + 1).coerceAtMost(Shop.MAX_SHIELDS)) } }
             }
         }
-        val canReroll = s.beacon.day == data.today && !data.todayRow.beacon && s.rerollDay != data.today
+        val canReroll = s.shrines.day == data.today && !data.todayRow.beacon && s.rerollDay != data.today
         BoostRow(Icons.Rounded.Flare, U.c.flame, U.c.flameSoft, stringResource(R.string.reroll), stringResource(R.string.reroll_text), Shop.REROLL, data.coins, enabled = canReroll) {
             confirm = Triple(context.getString(R.string.reroll), Shop.REROLL) {
                 val fix = container.explorer.live.value.fix
                 if (fix != null) buy("reroll", Shop.REROLL) {
-                    val (lat, lon) = Beacons.place(data.today, 1, fix.lat, fix.lon, data.level) { a, b -> container.fog.exploredAround(a, b, 120.0) }
-                    container.settings.update { it.copy(beacon = BeaconSpot(data.today, lat, lon), rerollDay = data.today) }
+                    val shrines = Beacons.place(data.today, 1, fix.lat, fix.lon, data.level) { a, b -> container.fog.exploredAround(a, b, 120.0) }
+                    container.settings.update { it.copy(shrines = ShrineDay(data.today, shrines), rerollDay = data.today) }
                 }
             }
         }

@@ -67,6 +67,7 @@ import java.time.format.TextStyle
 
 @Composable
 fun QuestsTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
+    val context = LocalContext.current
     val imperial = data.settings.units == Units.IMPERIAL
     val now = LocalDateTime.now(data.zone)
     val left = java.time.Duration.between(now, now.toLocalDate().plusDays(1).atStartOfDay())
@@ -86,9 +87,13 @@ fun QuestsTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
         SectionTitle(stringResource(R.string.quests_today))
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             data.quests.forEach { q ->
-                QuestCard(q, data, imperial, onShow = if (q.goal == Goal.BEACON && data.settings.beacon.day == data.today) {
+                val shrine = data.settings.shrines.takeIf { it.day == data.today }?.let { sd ->
+                    val fix = context.container.explorer.live.value.fix
+                    sd.target(fix?.lat, fix?.lon)
+                }
+                QuestCard(q, data, imperial, onShow = if (q.goal == Goal.BEACON && shrine != null) {
                     {
-                        focus.value = MapFocus(data.settings.beacon.lat, data.settings.beacon.lon, 16.0)
+                        focus.value = MapFocus(shrine.lat, shrine.lon, 16.0)
                         go.tab(Tab.MAP)
                     }
                 } else null)

@@ -43,6 +43,11 @@ import app.fogwalk.ui.components.PrimaryButton
 import app.fogwalk.ui.components.TopBar
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.StarBorder
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import kotlinx.coroutines.launch
 import androidx.compose.material.icons.rounded.Timer
 import app.fogwalk.ui.components.UCard
 import app.fogwalk.ui.dateFormat
@@ -74,7 +79,19 @@ fun WalkScreen(id: Long, data: GameData, onBack: () -> Unit, onRace: (Long) -> U
     val context = LocalContext.current
     Column(Modifier.fillMaxSize().background(U.c.bg).statusBarsPadding()) {
         val title = w?.let { day.format(Instant.ofEpochMilli(it.start).atZone(data.zone)).replaceFirstChar { c -> c.titlecase(l) } }
-        TopBar(title ?: stringResource(R.string.walks_title), onBack)
+        val pinned = id in data.settings.pinned
+        TopBar(title ?: stringResource(R.string.walks_title), onBack) {
+            if (w != null) IconButton(onClick = {
+                val container = context.container
+                container.scope.launch { container.settings.update { it.copy(pinned = if (id in it.pinned) it.pinned - id else it.pinned + id) } }
+            }) {
+                Icon(
+                    if (pinned) Icons.Rounded.Star else Icons.Rounded.StarBorder,
+                    stringResource(if (pinned) R.string.walk_unpin else R.string.walk_pin),
+                    tint = if (pinned) U.c.gold else U.c.muted,
+                )
+            }
+        }
         if (w == null) return@Column
         val route = rememberRoute(id)
         Column(

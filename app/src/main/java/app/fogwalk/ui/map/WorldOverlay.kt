@@ -18,8 +18,11 @@ import android.view.MotionEvent
 import app.fogwalk.domain.Cache
 import app.fogwalk.domain.Caches
 import app.fogwalk.domain.FogStore
+import app.fogwalk.domain.Altars
 import app.fogwalk.domain.Races
 import app.fogwalk.domain.Rarity
+import app.fogwalk.domain.Shrine
+import app.fogwalk.domain.ShrineKind
 import app.fogwalk.domain.TreasureMap
 import app.fogwalk.explore.Fix
 import app.fogwalk.geo.Grid
@@ -37,7 +40,7 @@ import kotlin.math.sqrt
 /** Something on the map the walker can tap. */
 sealed interface Pick {
     data class OfCache(val cache: Cache, val sensed: Boolean) : Pick
-    data object OfBeacon : Pick
+    data class OfShrine(val kind: ShrineKind) : Pick
     data class OfLand(val sector: Long) : Pick
     data object OfTreasure : Pick
 }
@@ -58,8 +61,12 @@ class RaceView(
 class Scene(
     val fix: Fix?,
     val trail: List<Pair<Double, Double>>,
-    val beacon: Pair<Double, Double>?,
-    val beaconReached: Boolean,
+    val shrines: List<Shrine>,
+    /** The shrine reached today, or the one set out for. */
+    val shrineChosen: ShrineKind?,
+    val shrineReached: Boolean,
+    /** Altars set on the ground, in order. */
+    val ring: List<Pair<Double, Double>>,
     val week: Long,
     val opened: Set<String>,
     val radar: Boolean,
@@ -68,6 +75,8 @@ class Scene(
     val rarityColors: IntArray,
     val accent: Int,
     val gold: Int,
+    /** The shadow's colour: its route and the part of it walked again. */
+    val shadow: Int,
     /** The land tapped on the map, highlighted. */
     val picked: Long?,
     /** How far chests glimmer through the mist. */
@@ -164,11 +173,12 @@ class WorldOverlay(
         hits.clear()
         val t = System.currentTimeMillis()
         drawTreasure(c, s)
-        drawRace(c, s, t)
         drawTrail(c, s)
+        drawRace(c, s, t)
+        drawRing(c, s, t)
         drawReach(c, s)
         drawCaches(c, s, mx0, mx1, my0, my1, t)
-        drawBeacon(c, s, t)
+        drawShrines(c, s, t)
         drawWalker(c, s)
     }
 
@@ -367,10 +377,11 @@ class WorldOverlay(
         r.route.forEachIndexed { i, (lat, lon) -> if (i == 0) path.moveTo(sx(lon), sy(lat)) else path.lineTo(sx(lon), sy(lat)) }
         stroke.strokeCap = Paint.Cap.ROUND
         stroke.strokeJoin = Paint.Join.ROUND
-        stroke.pathEffect = android.graphics.DashPathEffect(floatArrayOf(2 * d, 7 * d), 0f)
-        stroke.strokeWidth = 4.5f * d
-        stroke.color = 0xFF5E5A66.toInt()
-        stroke.alpha = 200
+        // The shadow's way in its own colour, never the trail's green: dotted ahead, solid where walked again.
+        stroke.pathEffect = android.graphics.DashPathEffect(floatArrayOf(2 * d, 8 * d), 0f)
+        stroke.strokeWidth = 5f * d
+        stroke.color = s.shadow
+        stroke.alpha = 230
         c.drawPath(path, stroke)
         stroke.pathEffect = null
         if (r.started > 0 && r.reached > 0) {
@@ -379,8 +390,12 @@ class WorldOverlay(
                 val (lat, lon) = r.route[i]
                 if (i == 0) path.moveTo(sx(lon), sy(lat)) else path.lineTo(sx(lon), sy(lat))
             }
-            stroke.color = s.accent
-            stroke.alpha = 230
+            stroke.color = 0xFFFFFFFF.toInt()
+            stroke.alpha = 200
+            stroke.strokeWidth = 8.5f * d
+            c.drawPath(path, stroke)
+            stroke.color = s.shadow
+            stroke.alpha = 255
             stroke.strokeWidth = 5 * d
             c.drawPath(path, stroke)
         }
@@ -398,13 +413,67 @@ class WorldOverlay(
             val x = sx(lon)
             val y = sy(lat)
             // The shadow: the walker's token in smoke.
-            glow.shader = RadialGradient(x, y, 26 * d, intArrayOf(0x995E5A66.toInt(), 0x005E5A66), null, Shader.TileMode.CLAMP)
+            glow.shader = RadialGradient(x, y, 26 * d, intArrayOf(withAlpha(s.shadow, 153), withAlpha(s.shadow, 0)), null, Shader.TileMode.CLAMP)
             c.drawCircle(x, y, 26 * d, glow)
             glow.shader = null
             fill.color = 0xCC3C3946.toInt()
             c.drawCircle(x, y, 11 * d, fill)
             fill.color = 0x99D8D4E0.toInt()
             c.drawCircle(x, y, 6 * d, fill)
+        }
+    }
+
+    /**
+     * The altars set so far, joined in the order they stood up, and the side that would close the ring,
+     * in faint ink while it is too long or too few stand.
+     */
+    private fun drawRing(c: Canvas, s: Scene, t: Long) {
+        val ring = s.ring
+        if (ring.isEmpty()) return
+        val d = density
+        stroke.strokeCap = Paint.Cap.ROUND
+        stroke.strokeJoin = Paint.Join.ROUND
+        if (ring.size >= 2) {
+            path.reset()
+            ring.forEachIndexed { i, (lat, lon) -> if (i == 0) path.moveTo(sx(lon), sy(lat)) else path.lineTo(sx(lon), sy(lat)) }
+            stroke.pathEffect = null
+            stroke.strokeWidth = 3.5f * d
+            stroke.color = AZURE
+            stroke.alpha = 220
+            c.drawPath(path, stroke)
+        }
+        if (ring.size >= 2) {
+            val ok = Altars.canClose(ring)
+            stroke.pathEffect = android.graphics.DashPathEffect(floatArrayOf(7 * d, 7 * d), -(t / 40f) % (14 * d))
+            stroke.strokeWidth = 2.5f * d
+            stroke.color = if (ok) AZURE else 0xFF9C9488.toInt()
+            stroke.alpha = if (ok) 230 else 150
+            c.drawLine(sx(ring.last().second), sy(ring.last().first), sx(ring.first().second), sy(ring.first().first), stroke)
+            stroke.pathEffect = null
+        }
+        if (Altars.canClose(ring)) {
+            path.reset()
+            ring.forEachIndexed { i, (lat, lon) -> if (i == 0) path.moveTo(sx(lon), sy(lat)) else path.lineTo(sx(lon), sy(lat)) }
+            path.close()
+            fill.shader = null
+            fill.color = withAlpha(AZURE, 40)
+            c.drawPath(path, fill)
+        }
+        ring.forEach { (lat, lon) ->
+            val x = sx(lon)
+            val y = sy(lat)
+            // A small standing stone with a blue flame.
+            fill.shader = null
+            fill.color = 0x55000000
+            c.drawOval(RectF(x - 8 * d, y - 1 * d, x + 8 * d, y + 4 * d), fill)
+            fill.color = 0xFF6B6259.toInt()
+            c.drawRoundRect(RectF(x - 6 * d, y - 12 * d, x + 6 * d, y + 2 * d), 2 * d, 2 * d, fill)
+            val flick = (sin(t / 180.0 + lat * 1e4) * 1.5 * d).toFloat()
+            glow.shader = RadialGradient(x, y - 16 * d, 12 * d, intArrayOf(withAlpha(AZURE, 220), withAlpha(AZURE, 0)), null, Shader.TileMode.CLAMP)
+            c.drawCircle(x, y - 16 * d, 12 * d, glow)
+            glow.shader = null
+            fill.color = 0xFFDDEEFF.toInt()
+            c.drawCircle(x, y - 15 * d - flick, 3 * d, fill)
         }
     }
 
@@ -525,12 +594,24 @@ class WorldOverlay(
         }
     }
 
-    private fun drawBeacon(c: Canvas, s: Scene, t: Long) {
-        val b = s.beacon ?: return
-        val x = sx(b.second)
-        val y = sy(b.first)
+    /** The day's shrines; once one is reached or set out for, the others fade. */
+    private fun drawShrines(c: Canvas, s: Scene, t: Long) {
+        for (sh in s.shrines) {
+            val color = when {
+                s.shrineChosen == sh.kind && s.shrineReached -> s.accent
+                s.shrineChosen != null && s.shrineChosen != sh.kind -> 0xFF9C9488.toInt()
+                else -> shrineColor(sh.kind)
+            }
+            val faded = (s.shrineChosen != null && s.shrineChosen != sh.kind) || (s.shrineReached && s.shrineChosen == null)
+            drawShrine(c, sh, color, if (faded) 0.45f else 1f, t)
+        }
+    }
+
+    private fun drawShrine(c: Canvas, sh: Shrine, color: Int, opacity: Float, t: Long) {
+        val x = sx(sh.lon)
+        val y = sy(sh.lat)
         val d = density
-        val color = if (s.beaconReached) s.accent else 0xFF7FB8FF.toInt()
+        c.saveLayerAlpha(x - 70 * d, y - 100 * d, x + 70 * d, y + 40 * d, (opacity * 255).toInt())
         // Runic rings ripple out from the shrine.
         for (i in 0 until 3) {
             val p = (((t / 2400.0) + i / 3.0) % 1.0).toFloat()
@@ -578,7 +659,8 @@ class WorldOverlay(
         path.lineTo(x - 8 * d, y - 18 * d + bob)
         path.close()
         c.drawPath(path, stroke)
-        hits += Pick.OfBeacon to floatArrayOf(x, y - 16 * d)
+        c.restore()
+        hits += Pick.OfShrine(sh.kind) to floatArrayOf(x, y - 16 * d)
     }
 
     private fun drawWalker(c: Canvas, s: Scene) {
@@ -650,9 +732,16 @@ class WorldOverlay(
         super.onDetach(mapView)
     }
 
-    private companion object {
+    companion object {
         /** A chest of unknown worth: bands of weathered iron. */
         const val UNKNOWN = 0xFF8E8A84.toInt()
+        const val AZURE = 0xFF7FB8FF.toInt()
+
+        fun shrineColor(kind: ShrineKind): Int = when (kind) {
+            ShrineKind.GOLD -> 0xFFF0B83C.toInt()
+            ShrineKind.GROVE -> 0xFF6CC27A.toInt()
+            ShrineKind.AZURE -> AZURE
+        }
     }
 
     private fun withAlpha(color: Int, a: Int) = (color and 0x00FFFFFF) or (a.coerceIn(0, 255) shl 24)

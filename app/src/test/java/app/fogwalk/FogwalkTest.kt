@@ -3,7 +3,11 @@ package app.fogwalk
 import app.fogwalk.content.ContentEn
 import app.fogwalk.content.ContentRu
 import app.fogwalk.data.Day
+import app.fogwalk.domain.Altars
 import app.fogwalk.domain.Arms
+import app.fogwalk.domain.Beacons
+import app.fogwalk.domain.ShrineDay
+import app.fogwalk.domain.ShrineKind
 import app.fogwalk.domain.Badges
 import app.fogwalk.domain.Caches
 import app.fogwalk.domain.FogStore
@@ -341,5 +345,38 @@ class FogwalkTest {
         assertEquals(13, Races.advance(route, 0, walked))
         // Jumping straight to the finish from the start doesn't count.
         assertEquals(0, Races.advance(route, 0, listOf(route.last())))
+    }
+
+    @Test
+    fun threeShrinesStandApart() {
+        val (lat, lon) = 55.75 to 37.62
+        val shrines = Beacons.place(20_000, 0, lat, lon, 5) { _, _ -> 0 }
+        assertEquals(ShrineKind.entries.toSet(), shrines.map { it.kind }.toSet())
+        shrines.forEach { assertTrue(Grid.distance(lat, lon, it.lat, it.lon) in 590.0..1100.0) }
+        // Each in its own third of the compass, so they lie well apart.
+        for (i in shrines.indices) for (j in i + 1 until shrines.size) {
+            assertTrue(Grid.distance(shrines[i].lat, shrines[i].lon, shrines[j].lat, shrines[j].lon) > 300)
+        }
+        val day = ShrineDay(20_000, shrines, ShrineKind.GROVE)
+        assertEquals(day, ShrineDay.decode(day.encode()))
+        assertEquals(day.copy(chosen = null), ShrineDay.decode(day.copy(chosen = null).encode()))
+        assertEquals(ShrineKind.GROVE, day.target(lat, lon)?.kind)
+    }
+
+    @Test
+    fun altarRingLiftsTheMistInside() {
+        val (lat, lon) = 55.75 to 37.62
+        val ring = listOf(Grid.offset(lat, lon, 100.0, 0.0), Grid.offset(lat, lon, 100.0, 120.0), Grid.offset(lat, lon, 100.0, 240.0))
+        assertTrue(Altars.canClose(ring))
+        assertFalse(Altars.canClose(ring.take(2)))
+        val cells = HashSet<Long>()
+        Altars.inside(ring) { cells += it }
+        // A triangle in a 100 m circle covers about 13 000 m², some 28 cells of 22 m.
+        assertTrue(cells.size in 20..36)
+        assertTrue(Grid.cell(lat, lon) in cells)
+        assertFalse(Grid.cell(Grid.offset(lat, lon, 150.0, 0.0).first, lon) in cells)
+        assertEquals(ring, Altars.decode(Altars.encode(ring)))
+        val far = ring + Grid.offset(lat, lon, 900.0, 300.0)
+        assertFalse(Altars.canClose(far))
     }
 }

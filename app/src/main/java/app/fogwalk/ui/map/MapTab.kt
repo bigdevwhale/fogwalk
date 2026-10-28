@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.DirectionsWalk
+import androidx.compose.material.icons.rounded.ChangeHistory
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Flare
 import androidx.compose.material.icons.rounded.Inventory2
@@ -57,6 +58,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -79,7 +82,9 @@ import app.fogwalk.BuildConfig
 import app.fogwalk.R
 import app.fogwalk.container
 import app.fogwalk.data.Units
+import app.fogwalk.domain.Altars
 import app.fogwalk.domain.Caches
+import app.fogwalk.domain.Shrine
 import app.fogwalk.domain.Levels
 import app.fogwalk.domain.Rarity
 import app.fogwalk.domain.Sectors
@@ -112,6 +117,10 @@ import app.fogwalk.ui.components.rememberNow
 import app.fogwalk.ui.content
 import app.fogwalk.ui.distance
 import app.fogwalk.ui.rarityColor
+import app.fogwalk.ui.shrineColor
+import app.fogwalk.ui.shrineGives
+import app.fogwalk.ui.shrineName
+import app.fogwalk.ui.shrineReached
 import app.fogwalk.ui.theme.U
 import app.fogwalk.ui.theme.UType
 import kotlinx.coroutines.delay
@@ -229,17 +238,18 @@ fun MapTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
     val rarityColors = Rarity.entries.map { rarityColor(it).first.toArgb() }.toIntArray()
     val accent = U.c.accent.toArgb()
     val gold = U.c.gold.toArgb()
-    val beacon = s.beacon.takeIf { it.day == data.today }
+    val shadowInk = U.c.violet.toArgb()
+    val shrines = s.shrines.takeIf { it.day == data.today }
     overlay.scene = Scene(
         fix = live.fix, trail = live.trail,
-        beacon = beacon?.let { it.lat to it.lon }, beaconReached = data.todayRow.beacon,
+        shrines = shrines?.shrines.orEmpty(), shrineChosen = shrines?.chosen, shrineReached = data.todayRow.beacon, ring = s.ring,
         week = data.week, opened = data.opened, radar = s.radarUntil > data.now,
-        style = s.fog, density = s.fogDensity, rarityColors = rarityColors, accent = accent, gold = gold,
+        style = s.fog, density = s.fogDensity, rarityColors = rarityColors, accent = accent, gold = gold, shadow = shadowInk,
         picked = (pick as? Pick.OfLand)?.sector,
         senseM = Gear.senseM(s.gear), rumor = data.rumor?.key, treasure = s.treasure, race = raceView,
         reach = when (val p = pick) {
             is Pick.OfCache -> Triple(p.cache.lat, p.cache.lon, Gear.openM(s.gear))
-            Pick.OfBeacon -> beacon?.takeIf { !data.todayRow.beacon }?.let { Triple(it.lat, it.lon, Gear.shrineM(s.gear)) }
+            is Pick.OfShrine -> shrines?.of(p.kind)?.takeIf { !data.todayRow.beacon }?.let { Triple(it.lat, it.lon, Gear.shrineM(s.gear)) }
             else -> null
         },
     )
@@ -284,8 +294,8 @@ fun MapTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
 
     // Game events become toasts and a tap of haptics.
     val sectorText = stringResource(R.string.toast_sector)
-    val beaconText = stringResource(R.string.beacon_reached)
     val milestoneText = stringResource(R.string.toast_milestone)
+    val ringText = stringResource(R.string.ring_closed)
     val raceText = stringResource(R.string.race_started)
     val sageC = U.c.sage
     val flame = U.c.flame
@@ -296,7 +306,8 @@ fun MapTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
             val t = when (e) {
                 is GameEvent.NewSector -> Toast(System.nanoTime(), Icons.Rounded.TravelExplore, sectorText.format(c.sectorName(e.sector)), accentC)
                 is GameEvent.Milestone -> Toast(System.nanoTime(), Icons.Rounded.TravelExplore, milestoneText.format(c.sectorName(e.sector), (e.share * 100).toInt(), e.coins), goldC)
-                is GameEvent.Beacon -> Toast(System.nanoTime(), Icons.Rounded.Flare, beaconText, flame)
+                is GameEvent.Beacon -> Toast(System.nanoTime(), Icons.Rounded.Flare, shrineReached(context, e.kind, e.gift), flame)
+                is GameEvent.RingClosed -> Toast(System.nanoTime(), Icons.Rounded.ChangeHistory, ringText.format(e.cells), accentC)
                 is GameEvent.Opened -> null
                 is GameEvent.Near -> null
                 is GameEvent.RaceStarted -> Toast(System.nanoTime(), Icons.Rounded.Timer, raceText, sageC)
@@ -349,11 +360,6 @@ fun MapTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
 
         Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(12.dp)) {
             Column(Modifier.align(Alignment.End), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (beacon != null) RoundButton(Icons.Rounded.Flare, if (data.todayRow.beacon) U.c.accent else U.c.gold, stringResource(R.string.beacon)) {
-                    follow = false
-                    pick = Pick.OfBeacon
-                    mapView.controller.animateTo(GeoPoint(beacon.lat, beacon.lon))
-                }
                 RoundButton(if (follow) Icons.Rounded.MyLocation else Icons.Rounded.LocationSearching, U.c.accent, stringResource(R.string.my_location)) {
                     follow = true
                     live.fix?.let {
@@ -372,6 +378,11 @@ fun MapTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
                 follow = false
                 if (mapView.zoomLevelDouble < 15) mapView.controller.setZoom(15.5)
                 mapView.controller.animateTo(GeoPoint(lat, lon))
+            }, onShrine = { sh ->
+                follow = false
+                pick = Pick.OfShrine(sh.kind)
+                if (mapView.zoomLevelDouble < 15) mapView.controller.setZoom(15.5)
+                mapView.controller.animateTo(GeoPoint(sh.lat, sh.lon))
             }, onAllow = {
                 askLocation.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
             })
@@ -418,7 +429,7 @@ fun Pill(icon: ImageVector, text: String, color: Color, spark: Boolean = false, 
     ) {
         if (spark) CoinIcon(Modifier.size(15.dp)) else Icon(icon, null, Modifier.size(16.dp), tint = color)
         Spacer(Modifier.width(5.dp))
-        Text(text, style = UType.Strong.copy(fontSize = 13.sp))
+        Text(text, style = UType.Strong.copy(fontSize = 13.sp), maxLines = 1, softWrap = false)
     }
 }
 
@@ -456,17 +467,19 @@ private fun RoundButton(icon: ImageVector, tint: Color, label: String, onClick: 
 @Composable
 private fun PickCard(p: Pick, data: GameData, imperial: Boolean, onClose: () -> Unit) {
     val c = content()
-    val fix = LocalContext.current.container.explorer.live.collectAsStateWithLifecycle().value.fix?.takeIf { it.time > 0 }
+    val context = LocalContext.current
+    val fix = context.container.explorer.live.collectAsStateWithLifecycle().value.fix?.takeIf { it.time > 0 }
+    val shrines = data.settings.shrines.takeIf { it.day == data.today }
     val target = when (p) {
         is Pick.OfCache -> p.cache.lat to p.cache.lon
-        Pick.OfBeacon -> data.settings.beacon.lat to data.settings.beacon.lon
+        is Pick.OfShrine -> shrines?.of(p.kind)?.let { it.lat to it.lon }
         is Pick.OfLand -> null
         Pick.OfTreasure -> data.settings.treasure?.let { it.cLat to it.cLon }
     }
     val meters = if (fix != null && target != null) Grid.distance(fix.lat, fix.lon, target.first, target.second) else null
     val (color, soft) = when (p) {
         is Pick.OfCache -> if (p.sensed) U.c.muted to U.c.surface2 else rarityColor(p.cache.rarity)
-        Pick.OfBeacon -> U.c.gold to U.c.goldSoft
+        is Pick.OfShrine -> shrineColor(p.kind) to shrineColor(p.kind).copy(alpha = 0.18f)
         is Pick.OfLand -> U.c.accent to U.c.accentSoft
         Pick.OfTreasure -> U.c.gold to U.c.goldSoft
     }
@@ -477,7 +490,7 @@ private fun PickCard(p: Pick, data: GameData, imperial: Boolean, onClose: () -> 
         Box(Modifier.size(44.dp).clip(CircleShape).background(soft), contentAlignment = Alignment.Center) {
             val icon = when (p) {
                 is Pick.OfCache -> Icons.Rounded.Inventory2
-                Pick.OfBeacon -> Icons.Rounded.Flare
+                is Pick.OfShrine -> Icons.Rounded.Flare
                 is Pick.OfLand -> Icons.Rounded.TravelExplore
                 Pick.OfTreasure -> Icons.Rounded.Map
             }
@@ -488,7 +501,7 @@ private fun PickCard(p: Pick, data: GameData, imperial: Boolean, onClose: () -> 
             Text(
                 when (p) {
                     is Pick.OfCache -> if (p.sensed) stringResource(R.string.cache_unknown) else stringResource(R.string.cache_of, c.rarity(p.cache.rarity))
-                    Pick.OfBeacon -> stringResource(R.string.beacon_of_day)
+                    is Pick.OfShrine -> shrineName(context, p.kind)
                     is Pick.OfLand -> c.sectorName(p.sector)
                     Pick.OfTreasure -> stringResource(R.string.treasure_one)
                 },
@@ -497,7 +510,11 @@ private fun PickCard(p: Pick, data: GameData, imperial: Boolean, onClose: () -> 
             Spacer(Modifier.height(2.dp))
             val hint = when (p) {
                 is Pick.OfCache -> stringResource(R.string.cache_hint, Gear.openM(data.settings.gear).toInt())
-                Pick.OfBeacon -> if (data.todayRow.beacon) stringResource(R.string.beacon_done) else stringResource(R.string.beacon_hint, Gear.shrineM(data.settings.gear).toInt())
+                is Pick.OfShrine -> when {
+                    !data.todayRow.beacon -> stringResource(R.string.beacon_hint, Gear.shrineM(data.settings.gear).toInt(), shrineGives(context, p.kind))
+                    shrines?.chosen == p.kind -> stringResource(R.string.beacon_done)
+                    else -> stringResource(R.string.shrine_others)
+                }
                 Pick.OfTreasure -> stringResource(R.string.treasure_hint)
                 is Pick.OfLand -> {
                     val share = data.share(p.sector)
@@ -511,9 +528,27 @@ private fun PickCard(p: Pick, data: GameData, imperial: Boolean, onClose: () -> 
             }
             Text((meters?.let { distance(it, imperial) + " · " } ?: "") + hint, style = UType.Muted)
             if (p is Pick.OfCache && meters != null) HookLine(p.cache, meters, data)
+            if (p is Pick.OfShrine && shrines != null && !data.todayRow.beacon) {
+                val explorer = context.container.explorer
+                Spacer(Modifier.height(8.dp))
+                if (shrines.chosen == p.kind) {
+                    Text(stringResource(R.string.shrine_chosen), style = UType.Small)
+                    Spacer(Modifier.height(6.dp))
+                    Chip(stringResource(R.string.shrine_unchoose), U.c.surface2) { explorer.choose(null) }
+                } else Chip(stringResource(R.string.shrine_choose), shrineColor(p.kind).copy(alpha = 0.18f)) { explorer.choose(p.kind) }
+            }
         }
         Icon(Icons.Rounded.Close, stringResource(R.string.close), Modifier.size(22.dp).clip(CircleShape).clickable(onClick = onClose), tint = U.c.faint)
     }
+}
+
+/** A small rounded action inside a card. */
+@Composable
+private fun Chip(text: String, background: Color, onClick: () -> Unit) {
+    Text(
+        text, style = UType.Strong.copy(fontSize = 14.sp), maxLines = 1,
+        modifier = Modifier.clip(CircleShape).background(background).clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 6.dp),
+    )
 }
 
 /** The grappling hook, offered for a chest out of reach but within the throw. */
@@ -565,7 +600,10 @@ private fun HookLine(cache: app.fogwalk.domain.Cache, meters: Double, data: Game
 }
 
 @Composable
-private fun BottomPanel(data: GameData, permitted: Boolean, imperial: Boolean, race: RaceView?, onFocus: (Double, Double) -> Unit, onAllow: () -> Unit) {
+private fun BottomPanel(
+    data: GameData, permitted: Boolean, imperial: Boolean, race: RaceView?,
+    onFocus: (Double, Double) -> Unit, onShrine: (Shrine) -> Unit, onAllow: () -> Unit,
+) {
     val context = LocalContext.current
     val container = context.container
     val live by container.explorer.live.collectAsStateWithLifecycle()
@@ -583,31 +621,26 @@ private fun BottomPanel(data: GameData, permitted: Boolean, imperial: Boolean, r
         }
         val fix = live.fix?.takeIf { it.time > 0 }
         Ventures(data, fix, imperial, race, onFocus)
-        val b = s.beacon.takeIf { it.day == data.today }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(38.dp).clip(CircleShape).background(if (data.todayRow.beacon) U.c.accentSoft else U.c.goldSoft), contentAlignment = Alignment.Center) {
-                Icon(Icons.Rounded.Flare, null, Modifier.size(20.dp), tint = if (data.todayRow.beacon) U.c.accent else U.c.gold)
-            }
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.beacon_of_day), style = UType.Strong.copy(fontSize = 15.sp))
-                Text(
-                    when {
-                        data.todayRow.beacon -> stringResource(R.string.beacon_done)
-                        b == null || fix == null -> stringResource(R.string.beacon_waiting)
-                        else -> stringResource(R.string.beacon_away, distance(Grid.distance(fix.lat, fix.lon, b.lat, b.lon), imperial))
-                    },
-                    style = UType.Muted,
+        // The shrines: the one set out for, or else the nearest; tapping shows it on the map.
+        val sd = s.shrines.takeIf { it.day == data.today }
+        val reached = data.todayRow.beacon
+        val b = sd?.target(fix?.lat, fix?.lon)
+        val context = LocalContext.current
+        val color = if (reached || b == null) U.c.accent else shrineColor(b.kind)
+        VentureRow(
+            Icons.Rounded.Flare, color, if (reached || b == null) U.c.accentSoft else color.copy(alpha = 0.18f), stringResource(R.string.shrines_of_day),
+            when {
+                reached && sd?.chosen != null -> stringResource(R.string.shrine_done, shrineName(context, sd.chosen))
+                reached -> stringResource(R.string.beacon_done)
+                b == null || fix == null -> stringResource(R.string.beacon_waiting)
+                else -> stringResource(
+                    if (sd.chosen != null) R.string.shrine_heading else R.string.shrine_nearest,
+                    shrineName(context, b.kind), distance(Grid.distance(fix.lat, fix.lon, b.lat, b.lon), imperial),
                 )
-            }
-            if (b != null && fix != null && !data.todayRow.beacon) {
-                Icon(
-                    Icons.Rounded.Navigation, null,
-                    Modifier.size(28.dp).rotate(Grid.bearing(fix.lat, fix.lon, b.lat, b.lon).toFloat()),
-                    tint = U.c.gold,
-                )
-            }
-        }
+            },
+            bearing = if (b != null && fix != null && !reached) Grid.bearing(fix.lat, fix.lon, b.lat, b.lon) else null,
+            onClick = b?.let { { onShrine(it) } },
+        )
         if (live.tooFast) {
             Spacer(Modifier.height(10.dp))
             Row(Modifier.fillMaxWidth().clip(U.RSm).background(U.c.flameSoft).padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -616,7 +649,7 @@ private fun BottomPanel(data: GameData, permitted: Boolean, imperial: Boolean, r
                 Text(stringResource(R.string.too_fast), style = UType.Muted.copy(color = U.c.ink))
             }
         }
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(8.dp))
         if (s.walking) {
             val now = rememberNow(1000)
             val w = live.walk?.takeIf { now - it.end < 20 * 60_000L }
@@ -697,14 +730,69 @@ private fun Ventures(data: GameData, fix: app.fogwalk.explore.Fix?, imperial: Bo
             onClose = { context.container.explorer.cancelRace() },
         ) { onFocus(start.first, start.second) }
     }
+    val s = data.settings
+    if (s.altars > 0 || s.ring.isNotEmpty()) AltarRow(data, imperial, onFocus)
+}
+
+/** The altars from azure shrines: set them around a place that cannot be walked, then close the ring. */
+@Composable
+private fun AltarRow(data: GameData, imperial: Boolean, onFocus: (Double, Double) -> Unit) {
+    val context = LocalContext.current
+    val container = context.container
+    val s = data.settings
+    val azure = shrineColor(app.fogwalk.domain.ShrineKind.AZURE)
+    val side = distance(Altars.MAX_SIDE_M, imperial)
+    val say: (Bought) -> Unit = { b ->
+        val text = when (b) {
+            Bought.NO_FIX -> context.getString(R.string.altar_no_fix)
+            Bought.FAR -> context.getString(R.string.altar_far, side)
+            else -> null
+        }
+        if (text != null) android.widget.Toast.makeText(context, text, android.widget.Toast.LENGTH_SHORT).show()
+    }
+    val first = s.ring.firstOrNull()
+    VentureRow(
+        Icons.Rounded.ChangeHistory, azure, azure.copy(alpha = 0.18f), stringResource(R.string.altars_title),
+        if (s.ring.isEmpty()) stringResource(R.string.altars_hint, Altars.MIN, side)
+        else stringResource(R.string.altars_line, s.altars, s.ring.size),
+        onClose = if (s.ring.isNotEmpty()) { { container.explorer.liftAltars() } } else null,
+        closeLabel = stringResource(R.string.altar_lift),
+        onClick = first?.let { { onFocus(it.first, it.second) } },
+    )
+    Row(Modifier.padding(start = 50.dp, bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (s.altars > 0) Chip(stringResource(R.string.altar_place), azure.copy(alpha = 0.18f)) {
+            container.scope.launch {
+                val b = container.explorer.placeAltar()
+                withContext(Dispatchers.Main) { say(b) }
+            }
+        }
+        if (s.ring.size >= Altars.MIN) Chip(stringResource(R.string.altar_close), if (Altars.canClose(s.ring)) U.c.accentSoft else U.c.surface2) {
+            container.scope.launch {
+                val b = container.explorer.closeRing()
+                withContext(Dispatchers.Main) { if (b == Bought.FAR) android.widget.Toast.makeText(context, context.getString(R.string.ring_too_long, side), android.widget.Toast.LENGTH_SHORT).show() }
+            }
+        }
+    }
+}
+
+/** Lets a row reach past its parent's padding by [x] on each side, so its pressed shade has room around the icon. */
+private fun Modifier.bleed(x: Dp) = layout { m, cs ->
+    val px = x.roundToPx()
+    if (!cs.hasBoundedWidth) return@layout m.measure(cs).let { p -> layout(p.width, p.height) { p.place(0, 0) } }
+    val p = m.measure(cs.copy(minWidth = cs.minWidth + 2 * px, maxWidth = cs.maxWidth + 2 * px))
+    layout(p.width - 2 * px, p.height) { p.place(-px, 0) }
 }
 
 @Composable
 private fun VentureRow(
     icon: ImageVector, color: Color, soft: Color, title: String, text: String,
-    bearing: Double? = null, onClose: (() -> Unit)? = null, onClick: () -> Unit,
+    bearing: Double? = null, onClose: (() -> Unit)? = null, closeLabel: String = stringResource(R.string.race_cancel), onClick: (() -> Unit)?,
 ) {
-    Row(Modifier.fillMaxWidth().clip(U.RSm).clickable(onClick = onClick).padding(bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        Modifier.fillMaxWidth().bleed(8.dp).clip(U.RSm).then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(horizontal = 8.dp, vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Box(Modifier.size(38.dp).clip(CircleShape).background(soft), contentAlignment = Alignment.Center) {
             Icon(icon, null, Modifier.size(20.dp), tint = color)
         }
@@ -716,7 +804,7 @@ private fun VentureRow(
         if (bearing != null) Icon(Icons.Rounded.Navigation, null, Modifier.size(26.dp).rotate(bearing.toFloat()), tint = color)
         if (onClose != null) {
             Spacer(Modifier.width(6.dp))
-            Icon(Icons.Rounded.Close, stringResource(R.string.race_cancel), Modifier.size(22.dp).clip(CircleShape).clickable(onClick = onClose), tint = U.c.faint)
+            Icon(Icons.Rounded.Close, closeLabel, Modifier.size(22.dp).clip(CircleShape).clickable(onClick = onClose), tint = U.c.faint)
         }
     }
 }

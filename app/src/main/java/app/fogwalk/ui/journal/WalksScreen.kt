@@ -94,6 +94,16 @@ fun WalksScreen(data: GameData, onBack: () -> Unit, onOpen: (Long) -> Unit) {
             if (walks.isEmpty()) item {
                 Text(stringResource(R.string.walks_empty), style = UType.Muted, modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp))
             }
+            // Routes kept at hand for races, ahead of the months.
+            val pinned = walks.filter { it.id in data.settings.pinned }
+            if (pinned.isNotEmpty()) {
+                item(key = "pinned") {
+                    Text(stringResource(R.string.walks_pinned).uppercase(l), style = UType.Eyebrow.copy(color = U.c.gold), modifier = Modifier.padding(start = 4.dp, top = 12.dp))
+                }
+                items(pinned, key = { "p:${it.id}" }) { w ->
+                    UCard(onClick = { onOpen(w.id) }, padding = PaddingValues(12.dp)) { WalkRow(w, data, imperial) }
+                }
+            }
             byMonth.forEach { (title, list) ->
                 item(key = "m:$title") {
                     Text(title.uppercase(l), style = UType.Eyebrow, modifier = Modifier.padding(start = 4.dp, top = 12.dp))

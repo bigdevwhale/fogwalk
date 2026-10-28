@@ -92,6 +92,8 @@ import app.fogwalk.container
 import app.fogwalk.content.Content
 import app.fogwalk.data.Units
 import app.fogwalk.domain.Badge
+import app.fogwalk.domain.Beacons
+import app.fogwalk.domain.ShrineKind
 import app.fogwalk.domain.Rarity
 import app.fogwalk.ui.theme.U
 import kotlinx.coroutines.runBlocking
@@ -305,3 +307,34 @@ fun groupColor(group: String): Pair<Color, Color> = when (group) {
     "arms" -> U.c.accent to U.c.accentSoft
     else -> U.c.sky to U.c.skySoft
 }
+
+fun shrineName(context: Context, kind: ShrineKind): String = context.getString(
+    when (kind) {
+        ShrineKind.GOLD -> R.string.shrine_gold
+        ShrineKind.GROVE -> R.string.shrine_grove
+        ShrineKind.AZURE -> R.string.shrine_azure
+    }
+)
+
+/** What a shrine of [kind] gives when reached. */
+fun shrineGives(context: Context, kind: ShrineKind): String = when (kind) {
+    ShrineKind.GOLD -> context.getString(R.string.shrine_gives_gold, Beacons.COINS + Beacons.GOLD_COINS, Beacons.XP)
+    ShrineKind.GROVE -> context.getString(R.string.shrine_gives_grove, Beacons.COINS, Beacons.XP + Beacons.GROVE_XP)
+    ShrineKind.AZURE -> context.getString(R.string.shrine_gives_azure, Beacons.COINS, Beacons.XP)
+}
+
+/** What reaching a shrine brought, for the toast and the notification; [gift] is the grove's. */
+fun shrineReached(context: Context, kind: ShrineKind, gift: Int): String = shrineName(context, kind) + ": " + when (kind) {
+    ShrineKind.GOLD -> context.getString(R.string.shrine_got_gold, Beacons.COINS + Beacons.GOLD_COINS)
+    ShrineKind.GROVE -> context.getString(
+        when (gift) {
+            0 -> R.string.shrine_got_lantern
+            1 -> R.string.shrine_got_stone
+            else -> R.string.shrine_got_shield
+        }
+    )
+    ShrineKind.AZURE -> context.getString(R.string.shrine_got_altar)
+}
+
+/** A shrine's colour on the map and in the panels. */
+fun shrineColor(kind: ShrineKind): Color = Color(app.fogwalk.ui.map.WorldOverlay.shrineColor(kind))

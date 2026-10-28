@@ -288,7 +288,7 @@ object ContentEn : Content {
         Goal.METERS -> "Walk ${km(q.target)} km"
         Goal.CACHES -> if (q.target == 1) "Open a chest" else "Open ${q.target} chests"
         Goal.RARE -> "Open a rare chest or better"
-        Goal.BEACON -> "Reach the shrine of the day"
+        Goal.BEACON -> "Reach one of the day's shrines"
     }
 
     override fun oath(o: app.fogwalk.domain.Oath): String = when (o.goal) {

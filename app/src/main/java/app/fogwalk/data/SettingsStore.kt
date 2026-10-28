@@ -21,9 +21,6 @@ enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
 enum class Units { METRIC, IMPERIAL }
 
-/** Today's beacon: a far point placed in the fog. Day is an epoch day; 0 means none yet. */
-data class BeaconSpot(val day: Long, val lat: Double, val lon: Double)
-
 data class Settings(
     val theme: ThemeMode = ThemeMode.SYSTEM,
     val onboarded: Boolean = false,
@@ -40,7 +37,8 @@ data class Settings(
     val lanternUntil: Long = 0,
     /** Until when the radar shows caches through the fog, epoch millis. */
     val radarUntil: Long = 0,
-    val beacon: BeaconSpot = BeaconSpot(0, 0.0, 0.0),
+    /** Today's shrines, placed in the fog; day 0 means none yet. */
+    val shrines: app.fogwalk.domain.ShrineDay = app.fogwalk.domain.ShrineDay(),
     /** Epoch day of the last beacon reroll, one per day. */
     val rerollDay: Long = 0,
     /** Epoch days a streak shield covered. */
@@ -71,6 +69,12 @@ data class Settings(
     val gear: Map<String, Int> = emptyMap(),
     /** The tavern's rumour of the week. */
     val rumor: app.fogwalk.domain.Rumor? = null,
+    /** Altars in the satchel, from azure shrines. */
+    val altars: Int = 0,
+    /** Altars set on the ground, in the order they were set. */
+    val ring: List<Pair<Double, Double>> = emptyList(),
+    /** Journeys kept at hand for races. */
+    val pinned: Set<Long> = emptySet(),
 )
 
 class SettingsStore(context: Context) {
@@ -89,7 +93,7 @@ class SettingsStore(context: Context) {
         shields = this[SHIELDS] ?: 0,
         lanternUntil = this[LANTERN] ?: 0,
         radarUntil = this[RADAR] ?: 0,
-        beacon = BeaconSpot(this[BEACON_DAY] ?: 0, this[BEACON_LAT] ?: 0.0, this[BEACON_LON] ?: 0.0),
+        shrines = this[SHRINES]?.let { app.fogwalk.domain.ShrineDay.decode(it) } ?: app.fogwalk.domain.ShrineDay(),
         rerollDay = this[REROLL_DAY] ?: 0,
         shielded = (this[SHIELDED] ?: emptySet()).mapNotNull { it.toLongOrNull() }.toSet(),
         remind = this[REMIND] ?: true,
@@ -107,6 +111,9 @@ class SettingsStore(context: Context) {
         race = this[RACE]?.let { app.fogwalk.domain.Race.decode(it) },
         gear = (this[GEAR] ?: emptySet()).mapNotNull { e -> e.split(":").takeIf { it.size == 2 }?.let { (k, v) -> v.toIntOrNull()?.let { k to it } } }.toMap(),
         rumor = this[RUMOR]?.let { app.fogwalk.domain.Rumor.decode(it) },
+        altars = this[ALTARS] ?: 0,
+        ring = this[RING]?.let { app.fogwalk.domain.Altars.decode(it) } ?: emptyList(),
+        pinned = (this[PINNED] ?: emptySet()).mapNotNull { it.toLongOrNull() }.toSet(),
     )
 
     suspend fun now(): Settings = settings.first()
@@ -124,9 +131,7 @@ class SettingsStore(context: Context) {
             it[SHIELDS] = s.shields
             it[LANTERN] = s.lanternUntil
             it[RADAR] = s.radarUntil
-            it[BEACON_DAY] = s.beacon.day
-            it[BEACON_LAT] = s.beacon.lat
-            it[BEACON_LON] = s.beacon.lon
+            it[SHRINES] = s.shrines.encode()
             it[REROLL_DAY] = s.rerollDay
             it[SHIELDED] = s.shielded.map { d -> d.toString() }.toSet()
             it[REMIND] = s.remind
@@ -144,6 +149,9 @@ class SettingsStore(context: Context) {
             it[RACE] = s.race?.encode().orEmpty()
             it[GEAR] = s.gear.map { (k, v) -> "$k:$v" }.toSet()
             it[RUMOR] = s.rumor?.encode().orEmpty()
+            it[ALTARS] = s.altars
+            it[RING] = app.fogwalk.domain.Altars.encode(s.ring)
+            it[PINNED] = s.pinned.map { w -> w.toString() }.toSet()
         }
     }
 
@@ -158,9 +166,7 @@ class SettingsStore(context: Context) {
         val SHIELDS = intPreferencesKey("shields")
         val LANTERN = longPreferencesKey("lantern_until")
         val RADAR = longPreferencesKey("radar_until")
-        val BEACON_DAY = longPreferencesKey("beacon_day")
-        val BEACON_LAT = doublePreferencesKey("beacon_lat")
-        val BEACON_LON = doublePreferencesKey("beacon_lon")
+        val SHRINES = stringPreferencesKey("shrines")
         val REROLL_DAY = longPreferencesKey("reroll_day")
         val SHIELDED = stringSetPreferencesKey("shielded")
         val REMIND = booleanPreferencesKey("remind")
@@ -178,5 +184,8 @@ class SettingsStore(context: Context) {
         val RACE = stringPreferencesKey("race")
         val GEAR = stringSetPreferencesKey("gear")
         val RUMOR = stringPreferencesKey("rumor")
+        val ALTARS = intPreferencesKey("altars")
+        val RING = stringPreferencesKey("ring")
+        val PINNED = stringSetPreferencesKey("pinned_walks")
     }
 }

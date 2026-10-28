@@ -197,12 +197,22 @@ private fun Celebrations(data: GameData) {
             val started = parts.getOrNull(2)?.toLongOrNull() ?: 0L
             val margin = if (walk != null) kotlin.math.abs((walk.end - walk.start) - (race.at - started)) else 0L
             val gap = "%d:%02d".format(margin / 60_000, margin / 1000 % 60)
+            // The race was walked as a journey of its own, begun the moment it started; a won route can take the old one's place.
+            val beaten = walk?.id
+            val fresh = data.walks.filter { it.start in started..race.at }.minByOrNull { it.start }?.id?.takeIf { won && it !in s.pinned }
+            val swap = beaten != null && beaten in s.pinned
             CelebrateDialog(
                 icon = Icons.Rounded.Timer, color = if (won) U.c.sage else U.c.faint, soft = if (won) U.c.sageSoft else U.c.surface2,
                 eyebrow = stringResource(R.string.race_title),
                 title = stringResource(if (won) R.string.race_won else R.string.race_lost),
                 text = stringResource(if (won) R.string.race_won_text else R.string.race_lost_text, gap, race.xp),
                 confetti = won,
+                action = fresh?.let { w ->
+                    stringResource(if (swap) R.string.race_pin_swap else R.string.race_pin) to {
+                        container.scope.launch { container.settings.update { it.copy(pinned = it.pinned - (if (swap) setOfNotNull(beaten) else emptySet()) + w) } }
+                        Unit
+                    }
+                },
             ) { container.scope.launch { container.settings.update { it.copy(seenBadges = it.seenBadges + race.ref) } } }
         }
         chest != null -> ChestDialog(chest, data.relics, data.finds.count { it.relic.isNotEmpty() && it.relic == chest.relic && it.at <= chest.at }) {

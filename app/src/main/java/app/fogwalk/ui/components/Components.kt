@@ -328,7 +328,12 @@ fun TimeDialog(minutes: Int, onDismiss: () -> Unit, onPicked: (Int) -> Unit) {
 
 /** A moment worth marking: a badge, a level, a finished challenge. */
 @Composable
-fun CelebrateDialog(icon: ImageVector, color: Color, soft: Color, eyebrow: String, title: String, text: String, confetti: Boolean = true, onDismiss: () -> Unit) {
+fun CelebrateDialog(
+    icon: ImageVector, color: Color, soft: Color, eyebrow: String, title: String, text: String, confetti: Boolean = true,
+    /** A second thing to do about it, shown as the main button: its label and what it does before the dialog closes. */
+    action: Pair<String, () -> Unit>? = null,
+    onDismiss: () -> Unit,
+) {
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         Box(Modifier.fillMaxWidth()) {
             Column(
@@ -343,7 +348,11 @@ fun CelebrateDialog(icon: ImageVector, color: Color, soft: Color, eyebrow: Strin
                 Spacer(Modifier.height(8.dp))
                 Text(text, style = UType.Sub.copy(textAlign = androidx.compose.ui.text.style.TextAlign.Center))
                 Spacer(Modifier.height(20.dp))
-                PrimaryButton(stringResource(R.string.nice), onDismiss, Modifier.fillMaxWidth(), color = color)
+                if (action != null) {
+                    PrimaryButton(action.first, { action.second(); onDismiss() }, Modifier.fillMaxWidth(), color = color)
+                    Spacer(Modifier.height(4.dp))
+                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.nice), color = U.c.muted, style = UType.Button) }
+                } else PrimaryButton(stringResource(R.string.nice), onDismiss, Modifier.fillMaxWidth(), color = color)
             }
             if (confetti) Confetti(title, Modifier.matchParentSize())
         }

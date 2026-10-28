@@ -8,6 +8,25 @@ then close it like any HTML comment. The release notes carry it, and the chat bo
 
 All notable changes to Fogwalk. Versions follow [semantic versioning](https://semver.org/).
 
+## [1.5.0] - 2026-10-28
+
+### Added
+- **Three shrines a day.** Golden, grove and azure shrines awaken each in its own direction, so one at least can be reached when the others stand behind fences. Only one wakes a day. The golden adds 60 gold; the grove adds 80 XP and lights a lantern or a seeing stone, or gives a streak shield; the azure gives an altar. Pick one to set out for, and the others won't wake on the way by chance (#15).
+- **Altars.** Set altars from azure shrines around a place you can't walk into, each within 400 m of the last, then close the ring: the mist inside it lifts (#14).
+- **Routes kept at hand.** A star on a journey keeps it at the top of the history, ready for races. A race is now a journey of its own, and after a win the new route can take the beaten one's place (#19).
+
+### Changed
+- The shadow's route is drawn in violet, apart from your own green trail (#19).
+- The shrines are shown from their row in the map panel, which can be tapped like the treasure map's; the round shrine button is gone (#18).
+- Relic tiles are all the same size, and timers on the map no longer break onto two lines (#18).
+
+<!-- tg
+Новое: каждый день три святилища — золотое, рощи и лазурное, в разных сторонах. Пробуждается одно, можно выбрать цель.
+Алтари из лазурных святилищ: поставьте их вокруг места, куда не пройти, замкните круг — и туман внутри рассеется.
+Избранные маршруты для гонок с тенью, а выигранную гонку можно закрепить вместо старого маршрута.
+Исправлено: ровная сетка реликвий, таймеры на карте в одну строку, путь тени теперь фиолетовый.
+-->
+
 ## [1.4.0] - 2026-10-26
 
 ### Added

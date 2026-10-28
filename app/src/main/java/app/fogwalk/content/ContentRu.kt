@@ -315,7 +315,7 @@ object ContentRu : Content {
         Goal.METERS -> "Пройдите ${km(q.target)} км"
         Goal.CACHES -> if (q.target == 1) "Откройте сундук" else "Откройте ${q.target} ${plural(q.target, "сундук", "сундука", "сундуков")}"
         Goal.RARE -> "Откройте редкий сундук или лучше"
-        Goal.BEACON -> "Дойдите до святилища дня"
+        Goal.BEACON -> "Дойдите до одного из святилищ дня"
     }
 
     override fun oath(o: app.fogwalk.domain.Oath): String = when (o.goal) {

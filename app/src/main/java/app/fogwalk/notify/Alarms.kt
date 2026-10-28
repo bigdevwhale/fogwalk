@@ -160,7 +160,7 @@ object Alarms {
                 context.getString(R.string.notif_opened_text, e.find.coins),
                 "map",
             )
-            is GameEvent.Beacon -> notify(context, ID_BEACON, context.getString(R.string.beacon_reached), context.getString(R.string.beacon_reached_text), "map")
+            is GameEvent.Beacon -> notify(context, ID_BEACON, context.getString(R.string.beacon_reached), app.fogwalk.ui.shrineReached(context, e.kind, e.gift), "map")
             else -> Unit
         }
     }

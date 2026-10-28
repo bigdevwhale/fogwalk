@@ -8,6 +8,7 @@ import app.fogwalk.data.FogDatabase
 import app.fogwalk.data.SettingsStore
 import app.fogwalk.data.Walk
 import app.fogwalk.data.Waypoint
+import app.fogwalk.domain.Altars
 import app.fogwalk.domain.Arms
 import app.fogwalk.domain.Beacons
 import app.fogwalk.domain.Cache
@@ -29,6 +30,9 @@ import app.fogwalk.domain.Relics
 import app.fogwalk.domain.Seasons
 import app.fogwalk.domain.Sectors
 import app.fogwalk.domain.Shop
+import app.fogwalk.domain.Shrine
+import app.fogwalk.domain.ShrineDay
+import app.fogwalk.domain.ShrineKind
 import app.fogwalk.domain.Streaks
 import app.fogwalk.domain.Wallet
 import app.fogwalk.geo.Grid
@@ -79,7 +83,10 @@ sealed interface GameEvent {
     data class Opened(val find: Find) : GameEvent
     data class NewSector(val sector: Long) : GameEvent
     data class Milestone(val sector: Long, val share: Double, val coins: Int) : GameEvent
-    data object Beacon : GameEvent
+    /** A shrine of [kind] reached; [gift] is the grove's, see [Beacons.gift]. */
+    data class Beacon(val kind: ShrineKind, val gift: Int = -1) : GameEvent
+    /** The altars' ring closed and [cells] came clear of the mist. */
+    data class RingClosed(val cells: Int) : GameEvent
     data class Near(val cache: Cache, val meters: Int) : GameEvent
     data object RaceStarted : GameEvent
     /** [margin] ms the walker beat the shadow by; negative when the shadow won. */
@@ -126,6 +133,8 @@ class Explorer(
     private var upkeepDay = Long.MIN_VALUE
     @Volatile
     private var simulatingUntil = 0L
+    /** Set when a race ends: the walk after it is a new one, so the raced stretch stands as a journey of its own. */
+    private var splitWalk = false
 
     fun load() {
         scope.launch(worker) {
@@ -255,29 +264,22 @@ class Explorer(
         s.treasure?.let { t -> digFor(t, points, f) }
         s.race?.let { r -> runRace(r, points, f.time) }
 
-        // The beacon: placed at the day's first fix (see [ensureBeacon]), reached by coming within REACH_M, farther in better boots.
+        // The shrines: placed at the day's first fix (see [ensureBeacon]), reached by coming within REACH_M, farther in better boots.
+        // The first one reached wakes, or only the chosen one when the walker set out for it.
         var beacon = false
-        val b = settings.now().beacon
+        val sd = settings.now().shrines
         val today = dao.day(day) ?: Day(day)
-        val toBeacon = points.minOf { (la, lo) -> Grid.distance(la, lo, b.lat, b.lon) }
-        if (b.day == day && !today.beacon && toBeacon <= Gear.shrineM(s.gear) + min(f.accuracy.toDouble(), 20.0)) {
-            beacon = true
-            dao.grant(Entry("q:$day:2", f.time, Beacons.COINS, Beacons.XP))
-            _events.tryEmit(GameEvent.Beacon)
+        if (sd.day == day && !today.beacon) {
+            val reachM = Gear.shrineM(s.gear) + min(f.accuracy.toDouble(), 20.0)
+            val hit = sd.shrines.filter { sd.chosen == null || it.kind == sd.chosen }
+                .firstOrNull { sh -> points.any { (la, lo) -> Grid.distance(la, lo, sh.lat, sh.lon) <= reachM } }
+            if (hit != null) {
+                beacon = true
+                wake(hit, day, f.time)
+            }
         }
 
-        // Sector milestones.
-        for (sector in touched) {
-            val share = fog.sectorShare(sector)
-            for ((at, coins, xp) in Sectors.milestones) {
-                if (share < at) break
-                val ref = Sectors.ref(sector, at)
-                if (ref in grantedSectors) continue
-                grantedSectors += ref
-                if (dao.grant(Entry(ref, f.time, coins, xp)) != -1L) _events.tryEmit(GameEvent.Milestone(sector, at, coins))
-            }
-            if (share >= Sectors.CHARTED) raiseArms(sector, f.time)
-        }
+        milestones(touched, f.time)
         newSectors.forEach { _events.tryEmit(GameEvent.NewSector(it)) }
 
         val hour = local.hour
@@ -302,6 +304,10 @@ class Explorer(
             w = w.copy(end = f.time, meters = w.meters + moved, cells = w.cells + fresh.size, caches = w.caches + foundHere)
             dao.upsertWalk(w)
             walk = w
+            if (splitWalk) {
+                splitWalk = false
+                walk = null
+            }
             if (from != null) {
                 val route = ArrayList<Waypoint>(2)
                 if (routed != w.id) route += Waypoint(walk = w.id, at = f.time, lat = from.first, lon = from.second)
@@ -372,14 +378,107 @@ class Explorer(
         Bought.OK
     }
 
-    /** Places the day's shrine around [f] unless today's is already there. */
+    /** Places the day's shrines around [f] unless today's are already there. */
     private suspend fun ensureBeacon(f: Fix) {
         val day = Instant.ofEpochMilli(f.time).atZone(zone()).toLocalDate().toEpochDay()
-        if (settings.now().beacon.day == day) return
+        if (settings.now().shrines.day == day) return
         val dao = db.dao()
         val level = Levels.level(Wallet.xp(fog.size, dao.finds(), dao.ledger()))
-        val (lat, lon) = Beacons.place(day, 0, f.lat, f.lon, level) { la, lo -> fog.exploredAround(la, lo, 120.0) }
-        settings.update { it.copy(beacon = app.fogwalk.data.BeaconSpot(day, lat, lon)) }
+        val shrines = Beacons.place(day, 0, f.lat, f.lon, level) { la, lo -> fog.exploredAround(la, lo, 120.0) }
+        settings.update { it.copy(shrines = ShrineDay(day, shrines)) }
+    }
+
+    /** The day's quest is done, and the shrine adds what its kind gives. */
+    private suspend fun wake(sh: Shrine, day: Long, at: Long) {
+        val dao = db.dao()
+        dao.grant(Entry("q:$day:2", at, Beacons.COINS, Beacons.XP))
+        val ref = Beacons.ref(day, sh.kind)
+        var gift = -1
+        when (sh.kind) {
+            ShrineKind.GOLD -> dao.grant(Entry(ref, at, Beacons.GOLD_COINS, 0))
+            ShrineKind.GROVE -> if (dao.grant(Entry(ref, at, 0, Beacons.GROVE_XP)) != -1L) {
+                val s = settings.now()
+                val boost = Gear.boostMs(s.gear)
+                gift = Beacons.gift(day, s.shields)
+                settings.update {
+                    when (gift) {
+                        0 -> it.copy(lanternUntil = max(it.lanternUntil, at) + boost)
+                        1 -> it.copy(radarUntil = max(it.radarUntil, at) + boost)
+                        else -> it.copy(shields = (it.shields + 1).coerceAtMost(Shop.MAX_SHIELDS))
+                    }
+                }
+            }
+            ShrineKind.AZURE -> if (dao.grant(Entry(ref, at, 0, 0)) != -1L) settings.update { it.copy(altars = it.altars + 1) }
+        }
+        settings.update { it.copy(shrines = it.shrines.copy(chosen = sh.kind)) }
+        _events.tryEmit(GameEvent.Beacon(sh.kind, gift))
+    }
+
+    /** Sets out for one of the day's shrines, so the others don't wake on the way; null lets any of them. */
+    fun choose(kind: ShrineKind?) {
+        scope.launch(worker) {
+            if (db.dao().day(today())?.beacon == true) return@launch
+            settings.update { it.copy(shrines = it.shrines.copy(chosen = kind)) }
+        }
+    }
+
+    /** Sets an altar from the satchel where the walker stands. */
+    suspend fun placeAltar(): Bought = withContext(worker) {
+        val fix = _live.value.fix?.takeIf { it.time > 0 && it.accuracy <= ALTAR_ACCURACY } ?: return@withContext Bought.NO_FIX
+        val s = settings.now()
+        if (s.altars <= 0) return@withContext Bought.NOTHING
+        val last = s.ring.lastOrNull()
+        if (last != null && Grid.distance(last.first, last.second, fix.lat, fix.lon) > Altars.MAX_SIDE_M) return@withContext Bought.FAR
+        settings.update { it.copy(altars = it.altars - 1, ring = it.ring + (fix.lat to fix.lon)) }
+        Bought.OK
+    }
+
+    /** Closes the ring: the mist inside lifts and the altars are spent. */
+    suspend fun closeRing(): Bought = withContext(worker) {
+        val ring = settings.now().ring
+        if (ring.size < Altars.MIN) return@withContext Bought.NOTHING
+        if (!Altars.canClose(ring)) return@withContext Bought.FAR
+        val now = System.currentTimeMillis()
+        val fresh = ArrayList<Long>()
+        val touched = HashSet<Long>()
+        val newSectors = HashSet<Long>()
+        Altars.inside(ring) { k ->
+            val sector = Grid.sector(k)
+            val wasNew = fog.count(sector, Grid.SECTOR_Z) == 0
+            if (fog.add(k)) {
+                fresh += k
+                touched += sector
+                if (wasNew) newSectors += sector
+            }
+        }
+        if (fresh.isNotEmpty()) db.dao().insertCells(fresh.map { Cell(it, now) })
+        milestones(touched, now)
+        newSectors.forEach { _events.tryEmit(GameEvent.NewSector(it)) }
+        settings.update { it.copy(ring = emptyList()) }
+        if (fresh.isNotEmpty()) fog.changed()
+        _events.tryEmit(GameEvent.RingClosed(fresh.size))
+        Bought.OK
+    }
+
+    /** Takes the altars back up into the satchel. */
+    fun liftAltars() {
+        scope.launch(worker) { settings.update { it.copy(altars = it.altars + it.ring.size, ring = emptyList()) } }
+    }
+
+    /** Sector milestones for lands that have just gained ground. */
+    private suspend fun milestones(touched: Set<Long>, time: Long) {
+        val dao = db.dao()
+        for (sector in touched) {
+            val share = fog.sectorShare(sector)
+            for ((at, coins, xp) in Sectors.milestones) {
+                if (share < at) break
+                val ref = Sectors.ref(sector, at)
+                if (ref in grantedSectors) continue
+                grantedSectors += ref
+                if (dao.grant(Entry(ref, time, coins, xp)) != -1L) _events.tryEmit(GameEvent.Milestone(sector, at, coins))
+            }
+            if (share >= Sectors.CHARTED) raiseArms(sector, time)
+        }
     }
 
     /** Digs up the map's treasure once the walker passes over it. */
@@ -418,6 +517,8 @@ class Explorer(
         val pts = route.map { it.lat to it.lon }
         if (r.started == 0L) {
             if (points.any { (la, lo) -> Grid.distance(la, lo, pts[0].first, pts[0].second) <= Races.NEAR_M }) {
+                // The race is a journey of its own from here, so a winning route can be kept and raced in turn.
+                walk = null
                 settings.update { it.copy(race = r.copy(started = now, reached = 0)) }
                 _events.tryEmit(GameEvent.RaceStarted)
             }
@@ -431,6 +532,7 @@ class Explorer(
                 val won = elapsed < duration
                 db.dao().grant(Entry(Races.ref(r.walk, r.started, won), now, 0, if (won) Races.WIN_XP else Races.LOSE_XP))
                 settings.update { it.copy(race = null) }
+                splitWalk = true
                 _events.tryEmit(GameEvent.RaceDone(won, duration - elapsed))
             }
             elapsed > Races.timeout(duration) -> {
@@ -580,5 +682,7 @@ class Explorer(
         /** Worst accuracy, m, that may still place the day's shrine. */
         const val BEACON_ACCURACY = 1000f
         const val NEAR_M = 150.0
+        /** Worst accuracy, m, an altar may be set with. */
+        const val ALTAR_ACCURACY = 40f
     }
 }
