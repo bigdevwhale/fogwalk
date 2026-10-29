@@ -1,0 +1,69 @@
+name: Package registration proof
+
+# Builds the release APK that proves to Play Console that app.fogwalk is ours:
+# the snippet from Android developer verification → Package names → Upload APK
+# goes into assets/adi-registration.properties, signed with the release key.
+# Nothing is published; the APK is a short-lived workflow artifact.
+
+on:
+  workflow_dispatch:
+    inputs:
+      snippet:
+        description: 'Snippet from Play Console (Register package name → Upload APK)'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  proof:
+    name: Build signed proof APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SNIPPET: ${{ github.event.inputs.snippet }}
+      SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+      SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+      SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+      SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Decode signing keystore
+        run: |
+          if [ -z "$SIGNING_KEYSTORE_BASE64" ]; then echo "::error::No signing secrets set."; exit 1; fi
+          echo "$SIGNING_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          echo "SIGNING_KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+
+      - name: Put the snippet into assets
+        run: |
+          mkdir -p app/src/main/assets
+          printf '%s\n' "$SNIPPET" > app/src/main/assets/adi-registration.properties
+
+      - name: Build release APK
+        run: ./gradlew assembleRelease --stacktrace
+
+      - name: Check the signer and the snippet
+        run: |
+          APK=app/build/outputs/apk/release/app-release.apk
+          SIGNER=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/apksigner
+          "$SIGNER" verify --print-certs "$APK" | tee certs.txt
+          grep -qi "ee2862dcf3be1212cb3ac7679b613f5ff85b140ffdcc781e0ef96f63eeef8838" certs.txt \
+            || { echo "::error::Signed with a different key than the releases."; exit 1; }
+          unzip -p "$APK" assets/adi-registration.properties | diff - app/src/main/assets/adi-registration.properties
+          cp "$APK" Fogwalk-registration-proof.apk
+          rm -f "$RUNNER_TEMP/release.jks"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Fogwalk-registration-proof
+          path: Fogwalk-registration-proof.apk
+          retention-days: 3
+          if-no-files-found: error
