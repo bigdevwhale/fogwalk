@@ -32,7 +32,8 @@ class StepCounter(private val context: Context, private val explorer: Explorer) 
         override fun onSensorChanged(e: SensorEvent) {
             val total = e.values[0].toLong()
             // The first reading only sets the mark; a lower one means the phone restarted.
-            if (last >= 0 && total >= last) {
+            if (last >= 0 && total > last) {
+                explorer.stepped(System.currentTimeMillis())
                 if (pending == 0) main.postDelayed(late, FLUSH_MS)
                 pending += (total - last).toInt()
             }
@@ -65,6 +66,7 @@ class StepCounter(private val context: Context, private val explorer: Explorer) 
         val want = active && enabled && sensor != null && permitted()
         if (want == listening) return
         listening = want
+        explorer.pedometerRestarted()
         if (want) {
             last = -1
             sm?.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_NORMAL)

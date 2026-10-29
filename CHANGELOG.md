@@ -8,6 +8,16 @@ then close it like any HTML comment. The release notes carry it, and the chat bo
 
 All notable changes to Fogwalk. Versions follow [semantic versioning](https://semver.org/).
 
+## [1.5.1] - 2026-10-29
+
+### Fixed
+- Sitting at home no longer adds kilometres to the day. Indoors the satellites drift between neighbouring houses and still report a walking speed; with the pedometer on, distance now counts only while it hears steps. A bike or a scooter at riding pace still counts (#20).
+
+<!-- tg
+Исправлено: дома телефон больше не «гуляет» между соседними домами и не набирает километры.
+Если включён шагомер, расстояние засчитывается только когда он слышит шаги; велосипед и самокат считаются как раньше.
+-->
+
 ## [1.5.0] - 2026-10-28
 
 ### Added

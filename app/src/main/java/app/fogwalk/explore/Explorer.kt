@@ -327,6 +327,12 @@ class Explorer(
         }
     }
 
+    /** The pedometer started or stopped listening; see [Track.pedometerRestarted]. */
+    fun pedometerRestarted() = track.pedometerRestarted()
+
+    /** The pedometer heard steps just now: the walker is not at rest. Called at once, unlike [addSteps]. */
+    fun stepped(at: Long) = track.stepped(at)
+
     /** Steps from the pedometer: they go to the day, and to the walk while one is under way. */
     fun addSteps(n: Int, at: Long) {
         scope.launch(worker) {

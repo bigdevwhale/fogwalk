@@ -15,7 +15,9 @@ import kotlin.math.sqrt
  * - a lone fix far from where the walker could be is dropped (three in a row mean a real jump);
  * - distance grows only once the smoothed position has left the last committed point by more than
  *   the noise, so standing still adds nothing;
- * - "too fast" needs the satellites' own speed, or several fast steps in a row, not one bad fix.
+ * - "too fast" needs the satellites' own speed, or several fast steps in a row, not one bad fix;
+ * - while the pedometer listens and hears no steps, the walker is at rest whatever the satellites say:
+ *   indoors their drift is slow, smooth and comes with a made-up speed, which nothing above catches.
  */
 class Track {
     /** A cleaned position. [from] is where the walker came from when a step was made, else null. */
@@ -42,6 +44,11 @@ class Track {
     private var anchorLon = 0.0
     private var anchorTime = 0L
     private var hasAnchor = false
+    /** When the pedometer last proved it hears steps, or 0 while it doesn't listen. Set from the main thread. */
+    @Volatile
+    private var pedometerSince = 0L
+    @Volatile
+    private var lastStepAt = 0L
 
     /** Null when [f] should only move the dot on the map (or nothing at all). */
     fun add(f: Fix): Step? {
@@ -101,6 +108,13 @@ class Track {
         // Standing still: the satellites say so, and the drift is small.
         val still = reported != null && reported < STILL_SPEED && step < STILL_DRIFT
         if (step < minStep(acc, reported != null) || still) return Step(lat, lon, f.accuracy, f.time, f.bearing, null, 0.0, false)
+        // No steps heard: the drift is left behind, so it isn't counted once the walker sets off. A clean fix
+        // at riding pace still counts, since a bike or a scooter makes no steps.
+        val riding = reported != null && reported > RIDE_SPEED && f.accuracy <= RIDE_ACCURACY
+        if (atRest(f.time) && !riding) {
+            moveAnchor(f.time)
+            return Step(lat, lon, f.accuracy, f.time, f.bearing, null, 0.0, false)
+        }
         val from = anchorLat to anchorLon
         moveAnchor(f.time)
         return Step(lat, lon, f.accuracy, f.time, f.bearing, from, step, false)
@@ -108,6 +122,20 @@ class Track {
 
     /** True while satellites have spoken recently; network fixes may then not even move the dot. */
     fun hasGps(now: Long): Boolean = now - lastGps < GPS_FRESH_MS
+
+    /** The pedometer started or stopped listening. Either way it is not trusted until it hears a first step. */
+    fun pedometerRestarted() {
+        pedometerSince = 0
+        lastStepAt = 0
+    }
+
+    /** The pedometer heard steps at [at]. */
+    fun stepped(at: Long) {
+        if (pedometerSince == 0L) pedometerSince = at
+        lastStepAt = at
+    }
+
+    private fun atRest(t: Long): Boolean = pedometerSince > 0 && t - lastStepAt > STEP_SILENCE_MS
 
     private fun simulated(f: Fix): Step {
         val had = hasAnchor
@@ -154,5 +182,10 @@ class Track {
         const val FAST_HITS = 3
         const val GAP_MS = 3 * 60_000L
         const val GPS_FRESH_MS = 30_000L
+        /** No steps for this long means at rest; the sensor may hold its count back for several seconds. */
+        const val STEP_SILENCE_MS = 30_000L
+        /** Faster than a walk, m/s: the satellites' speed this high and this clean is a ride, not drift. */
+        const val RIDE_SPEED = 2.5f
+        const val RIDE_ACCURACY = 15f
     }
 }

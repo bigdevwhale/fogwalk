@@ -180,12 +180,24 @@ class FogwalkTest {
         return out
     }
 
-    private fun run(fixes: List<Fix>): Triple<Double, Int, Int> {
+    /** Indoors: the error wanders far and slowly, and the satellites still claim a walking speed. */
+    private fun indoorDrift(seconds: Int): List<Fix> {
+        val rnd = java.util.Random(11)
+        return noisyWalk(seconds, 0.0, 15.0, spikes = false, network = true, doppler = true).map {
+            if (it.gps) it.copy(accuracy = 20f, speed = 0.5f + rnd.nextFloat()) else it
+        }
+    }
+
+    /** [stepsEvery] seconds between pedometer readings, or null when the pedometer doesn't listen. */
+    private fun run(fixes: List<Fix>, stepsEvery: Int? = null): Triple<Double, Int, Int> {
         val track = Track()
         var meters = 0.0
         var fast = 0
         var steps = 0
+        // The pedometer proved itself awake before the first fix, longer ago than a pause between steps.
+        if (stepsEvery != null) track.stepped(fixes.first().time - Track.STEP_SILENCE_MS - 1)
         for (f in fixes) {
+            if (stepsEvery != null && (f.time / 1000) % stepsEvery == 0L) track.stepped(f.time)
             val s = track.add(f) ?: continue
             meters += s.meters
             if (s.fast) fast++
@@ -209,6 +221,32 @@ class FogwalkTest {
         // Satellite fixes carry their own speed; without it a slow drift can't be told from a stroll.
         val (meters, fast, _) = run(noisyWalk(900, 0.0, 10.0, spikes = true, network = true, doppler = true))
         assertTrue("drifted $meters m", meters < 60)
+        assertEquals(0, fast)
+    }
+
+    @Test
+    fun theSilentPedometerKeepsTheWalkerHome() {
+        val drift = indoorDrift(3600)
+        // Without the pedometer an hour on the sofa wanders off (the bug from issue #20).
+        val (alone, _, _) = run(drift)
+        assertTrue("drifted only $alone m without the pedometer", alone > 200)
+        val (meters, fast, _) = run(drift, stepsEvery = Int.MAX_VALUE)
+        assertEquals("drifted $meters m with a silent pedometer", 0.0, meters, 0.0)
+        assertEquals(0, fast)
+    }
+
+    @Test
+    fun aHeardWalkCountsAsBefore() {
+        val walk = noisyWalk(720, 1.4, 8.0, spikes = true, network = true, doppler = true)
+        val (meters, _, _) = run(walk, stepsEvery = 5)
+        assertEquals(run(walk).first, meters, 0.01)
+    }
+
+    @Test
+    fun aRideWithoutStepsStillCounts() {
+        val ride = noisyWalk(600, 4.0, 4.0, spikes = false, network = false, doppler = true)
+        val (meters, fast, _) = run(ride, stepsEvery = Int.MAX_VALUE)
+        assertTrue("rode $meters m", meters in 2000.0..2800.0)
         assertEquals(0, fast)
     }
 
