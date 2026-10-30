@@ -9,6 +9,7 @@
 *Фэнтези-игра для настоящих прогулок: карта сначала серая, и каждая пройденная улица остаётся на ней навсегда. Сундуки с сокровищами, три святилища в день, алтари, снимающие туман там, куда не пройти, 60 реликвий со звёздами, сезонные наборы, гербы земель, 209 деяний, квесты, клятвы, карты сокровищ и гонки с собственной тенью. Бесплатно, без рекламы и аккаунта.*
 
 [![Android CI](https://github.com/bigdevwhale/fogwalk/actions/workflows/android.yml/badge.svg)](https://github.com/bigdevwhale/fogwalk/actions/workflows/android.yml)
+[![Google Play](https://img.shields.io/badge/Google_Play-скачать-34A853?logo=googleplay&logoColor=white)](https://play.google.com/store/apps/details?id=app.fogwalk)
 [![Release](https://img.shields.io/github/v/release/bigdevwhale/fogwalk?color=1E6B50&label=скачать&logo=android)](https://github.com/bigdevwhale/fogwalk/releases/latest)
 ![Android 8.0+](https://img.shields.io/badge/Android-8.0%2B-1E6B50?logo=android&logoColor=white)
 ![Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white)
@@ -72,7 +73,9 @@ Fogwalk превращает город в старинный атлас, зат
 
 ## Скачать
 
-APK — в **[Releases](https://github.com/bigdevwhale/fogwalk/releases/latest)**, отладочный APK — в любом [запуске CI](https://github.com/bigdevwhale/fogwalk/actions/workflows/android.yml). Нужен Android 8.0 (API 26) или новее и GPS. Сервисы Google не требуются.
+**[Скачать в Google Play](https://play.google.com/store/apps/details?id=app.fogwalk)**.
+
+Или APK — в **[Releases](https://github.com/bigdevwhale/fogwalk/releases/latest)**, отладочный APK — в любом [запуске CI](https://github.com/bigdevwhale/fogwalk/actions/workflows/android.yml). Нужен Android 8.0 (API 26) или новее и GPS. Сервисы Google не требуются.
 
 > [!TIP]
 > На Xiaomi (MIUI / HyperOS), Huawei и некоторых других телефонах разрешите **автозапуск** и снимите ограничения батареи, чтобы странствия с выключенным экраном не обрывались.

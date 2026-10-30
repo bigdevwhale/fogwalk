@@ -9,6 +9,7 @@
 *A fantasy exploration game for real walks: the map starts grey, and every street you walk is charted for good. Treasure chests, three shrines a day, altars that lift the mist where you cannot walk, 60 relics with stars, seasonal sets, arms of the lands, 209 deeds, quests, oaths, treasure maps and races against your own shadow. Free, no ads, no account.*
 
 [![Android CI](https://github.com/bigdevwhale/fogwalk/actions/workflows/android.yml/badge.svg)](https://github.com/bigdevwhale/fogwalk/actions/workflows/android.yml)
+[![Google Play](https://img.shields.io/badge/Google_Play-get_it-34A853?logo=googleplay&logoColor=white)](https://play.google.com/store/apps/details?id=app.fogwalk)
 [![Release](https://img.shields.io/github/v/release/bigdevwhale/fogwalk?color=1E6B50&label=download&logo=android)](https://github.com/bigdevwhale/fogwalk/releases/latest)
 ![Android 8.0+](https://img.shields.io/badge/Android-8.0%2B-1E6B50?logo=android&logoColor=white)
 ![Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white)
@@ -72,7 +73,9 @@ Every screen, relic, land name and deed is written natively in both languages; R
 
 ## Download
 
-Get the APK from **[Releases](https://github.com/bigdevwhale/fogwalk/releases/latest)**, or the debug APK attached to any [CI run](https://github.com/bigdevwhale/fogwalk/actions/workflows/android.yml). Fogwalk needs Android 8.0 (API 26) or newer and GPS. It works without Google services.
+**[Get it on Google Play](https://play.google.com/store/apps/details?id=app.fogwalk)**.
+
+Or get the APK from **[Releases](https://github.com/bigdevwhale/fogwalk/releases/latest)**, or the debug APK attached to any [CI run](https://github.com/bigdevwhale/fogwalk/actions/workflows/android.yml). Fogwalk needs Android 8.0 (API 26) or newer and GPS. It works without Google services.
 
 > [!TIP]
 > On Xiaomi (MIUI / HyperOS), Huawei and some other phones, allow **Autostart** and remove battery limits so journeys with the screen off aren't cut short.
