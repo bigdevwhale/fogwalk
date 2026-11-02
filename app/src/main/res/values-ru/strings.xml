@@ -396,4 +396,21 @@
     <string name="community_follow_sub">бот напишет, когда выйдет версия</string>
     <string name="community_chat">Чат StillCraft</string>
     <string name="community_chat_sub">все приложения и люди</string>
+    <string name="treasure_hot_short">Горячо</string>
+    <string name="treasure_warm_short">Тепло</string>
+    <string name="treasure_cool_short">Прохладно</string>
+    <string name="treasure_cold_short">Холодно</string>
+    <string name="race_even_short">Вровень</string>
+    <string name="shrine_done_short">Достигнуто</string>
+    <string name="share">Поделиться</string>
+    <string name="postcard">Открытка</string>
+    <string name="postcard_day">День</string>
+    <string name="postcard_night">Ночь</string>
+    <string name="postcard_map">Карта</string>
+    <string name="postcard_map_note">Выключите карту, чтобы не показывать свои улицы</string>
+    <string name="postcard_tagline">Открываю мир шагами</string>
+    <string name="postcard_chronicle">Летопись странника</string>
+    <string name="postcard_text">Открываю мир шагами в Fogwalk: %1$s</string>
+    <string name="postcard_store">Fogwalk в Google Play</string>
+    <string name="journal_today">Сегодня</string>
 </resources>

@@ -332,8 +332,14 @@ fun CelebrateDialog(
     icon: ImageVector, color: Color, soft: Color, eyebrow: String, title: String, text: String, confetti: Boolean = true,
     /** A second thing to do about it, shown as the main button: its label and what it does before the dialog closes. */
     action: Pair<String, () -> Unit>? = null,
+    /** What the postcard of it may add: the player's level, when the caller has it. */
+    data: app.fogwalk.ui.GameData? = null,
+    /** Whether it can be sent as a postcard: not for a deed or relic still to come. */
+    share: Boolean = true,
     onDismiss: () -> Unit,
 ) {
+    var sharing by remember { mutableStateOf(false) }
+    if (sharing) app.fogwalk.ui.share.PostcardDialog(app.fogwalk.ui.share.Postcard.Honor(icon, color, soft, eyebrow, title, text), data) { sharing = false }
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         Box(Modifier.fillMaxWidth()) {
             Column(
@@ -355,6 +361,7 @@ fun CelebrateDialog(
                 } else PrimaryButton(stringResource(R.string.nice), onDismiss, Modifier.fillMaxWidth(), color = color)
             }
             if (confetti) Confetti(title, Modifier.matchParentSize())
+            if (share) Box(Modifier.align(Alignment.TopEnd).padding(6.dp)) { app.fogwalk.ui.share.ShareButton { sharing = true } }
         }
     }
 }

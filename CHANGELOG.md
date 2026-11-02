@@ -8,6 +8,25 @@ then close it like any HTML comment. The release notes carry it, and the chat bo
 
 All notable changes to Fogwalk. Versions follow [semantic versioning](https://semver.org/).
 
+## [1.6.0] - 2026-11-02
+
+### Added
+- **Postcards.** Share your chronicle, a journey, or a deed, relic, set, banner, race or level from its celebration, as a 1080 × 1920 postcard framed like a page from an old atlas, by day or by night. The chronicle's card shows the shape of the ground you have charted in the mist, a journey's card its route and the swath it cleared; the map can be turned off to keep your streets to yourself. Every card carries a small QR code to Fogwalk on Google Play.
+- **Today in the chronicle.** The cells, distance, chests and lands of the day, next to the totals (#25).
+
+### Changed
+- **The map is the map again.** The panel under it folds each pursuit (treasure map, tavern rumour, race, altars, shrines) into a compass chip with its distance and a needle toward it; tap one to open its line and see it on the map. With everything under way the panel takes about a third of the room it did.
+- A land's card on the map wears the land's arms instead of a magnifier, in colour once its banner is raised (#24).
+
+### Fixed
+- Setting out without location access no longer closes the app on Android 8–11.
+
+<!-- tg
+Новое: открытки — делитесь летописью, странствием, деянием или реликвией в сторис, с QR-кодом на Fogwalk. Карту на открытке можно выключить.
+Карта снова видна: цели в нижней панели свернулись в компактные значки со стрелкой и расстоянием, нажмите — откроется подробнее.
+В летописи появились итоги дня, а в карточке земли — её герб.
+-->
+
 ## [1.5.1] - 2026-10-29
 
 ### Fixed

@@ -388,4 +388,21 @@
     <string name="community_follow_sub">the bot writes when a version is out</string>
     <string name="community_chat">StillCraft chat</string>
     <string name="community_chat_sub">all the apps and people</string>
+    <string name="treasure_hot_short">Hot</string>
+    <string name="treasure_warm_short">Warm</string>
+    <string name="treasure_cool_short">Cool</string>
+    <string name="treasure_cold_short">Cold</string>
+    <string name="race_even_short">Even</string>
+    <string name="shrine_done_short">Reached</string>
+    <string name="share">Share</string>
+    <string name="postcard">Postcard</string>
+    <string name="postcard_day">Day</string>
+    <string name="postcard_night">Night</string>
+    <string name="postcard_map">Map</string>
+    <string name="postcard_map_note">Turn the map off to keep your streets to yourself</string>
+    <string name="postcard_tagline">Charting the world on foot</string>
+    <string name="postcard_chronicle">A wanderer\'s chronicle</string>
+    <string name="postcard_text">Charting the world on foot with Fogwalk: %1$s</string>
+    <string name="postcard_store">Fogwalk on Google Play</string>
+    <string name="journal_today">Today</string>
 </resources>

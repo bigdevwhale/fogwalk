@@ -50,6 +50,12 @@ import androidx.compose.material3.IconButton
 import kotlinx.coroutines.launch
 import androidx.compose.material.icons.rounded.Timer
 import app.fogwalk.ui.components.UCard
+import app.fogwalk.ui.share.Postcard
+import app.fogwalk.ui.share.PostcardDialog
+import app.fogwalk.ui.share.ShareButton
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import app.fogwalk.ui.dateFormat
 import app.fogwalk.ui.timeFormat
 import app.fogwalk.ui.distance
@@ -80,7 +86,10 @@ fun WalkScreen(id: Long, data: GameData, onBack: () -> Unit, onRace: (Long) -> U
     Column(Modifier.fillMaxSize().background(U.c.bg).statusBarsPadding()) {
         val title = w?.let { day.format(Instant.ofEpochMilli(it.start).atZone(data.zone)).replaceFirstChar { c -> c.titlecase(l) } }
         val pinned = id in data.settings.pinned
+        var sharing by remember { mutableStateOf(false) }
+        if (sharing) PostcardDialog(Postcard.Walk(id), data) { sharing = false }
         TopBar(title ?: stringResource(R.string.walks_title), onBack) {
+            if (w != null) ShareButton { sharing = true }
             if (w != null) IconButton(onClick = {
                 val container = context.container
                 container.scope.launch { container.settings.update { it.copy(pinned = if (id in it.pinned) it.pinned - id else it.pinned + id) } }
@@ -158,7 +167,7 @@ private fun Figure(value: String, label: String, modifier: Modifier) {
 
 /** Minutes per kilometre (or mile), "—" when there was hardly any distance. */
 @Composable
-private fun pace(ms: Long, meters: Double, imperial: Boolean): String {
+internal fun pace(ms: Long, meters: Double, imperial: Boolean): String {
     val unit = if (imperial) 1609.344 else 1000.0
     if (meters < 100 || ms <= 0) return "—"
     val sec = (ms / 1000.0 / (meters / unit)).toInt()

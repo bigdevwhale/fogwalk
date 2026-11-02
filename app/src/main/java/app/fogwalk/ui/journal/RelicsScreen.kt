@@ -83,6 +83,7 @@ fun RelicsScreen(data: GameData, onBack: () -> Unit) {
         val count = data.copies[r.id] ?: 0
         val next = Relics.toNextStar(count)
         CelebrateDialog(
+            data = data, share = count > 0,
             icon = relicIcon(r.id), color = color, soft = soft,
             eyebrow = c.rarity(r.rarity) + " · " + c.setName(r.set),
             title = c.relicName(r.id) + "  " + stars(Relics.stars(count)),

@@ -202,6 +202,7 @@ private fun Celebrations(data: GameData) {
             val fresh = data.walks.filter { it.start in started..race.at }.minByOrNull { it.start }?.id?.takeIf { won && it !in s.pinned }
             val swap = beaten != null && beaten in s.pinned
             CelebrateDialog(
+                data = data,
                 icon = Icons.Rounded.Timer, color = if (won) U.c.sage else U.c.faint, soft = if (won) U.c.sageSoft else U.c.surface2,
                 eyebrow = stringResource(R.string.race_title),
                 title = stringResource(if (won) R.string.race_won else R.string.race_lost),
@@ -221,6 +222,7 @@ private fun Celebrations(data: GameData) {
         newSet != null -> {
             val (coins, _) = Relics.setReward(newSet)
             CelebrateDialog(
+                data = data,
                 icon = setIcon(newSet), color = U.c.violet, soft = U.c.violetSoft,
                 eyebrow = stringResource(R.string.set_complete),
                 title = c.setName(newSet),
@@ -233,6 +235,7 @@ private fun Celebrations(data: GameData) {
             val set = e.ref.split(":")[1]
             val star = e.ref.substringAfterLast(':').toIntOrNull() ?: 1
             CelebrateDialog(
+                data = data,
                 icon = setIcon(set), color = U.c.gold, soft = U.c.goldSoft,
                 eyebrow = stringResource(R.string.set_star_up, star),
                 title = c.setName(set),
@@ -243,6 +246,7 @@ private fun Celebrations(data: GameData) {
         banners.isNotEmpty() -> {
             val arm = banners.last().ref.substringAfter(':').toIntOrNull() ?: 0
             CelebrateDialog(
+                data = data,
                 icon = armIcon(arm), color = U.c.accent, soft = U.c.accentSoft,
                 eyebrow = stringResource(R.string.arms_raised),
                 title = c.armName(arm),
@@ -254,6 +258,7 @@ private fun Celebrations(data: GameData) {
             val b = fresh.last()
             val (color, soft) = badgeColor(b)
             CelebrateDialog(
+                data = data,
                 icon = badgeIcon(b), color = color, soft = soft,
                 eyebrow = stringResource(R.string.badge_unlocked),
                 title = c.badgeTitle(b.id),
@@ -261,6 +266,7 @@ private fun Celebrations(data: GameData) {
             ) { container.scope.launch { container.settings.update { it.copy(seenBadges = it.seenBadges + fresh.map { f -> f.id }) } } }
         }
         data.level > s.levelSeen -> CelebrateDialog(
+            data = data,
             icon = Icons.Rounded.Map, color = U.c.accent, soft = U.c.accentSoft,
             eyebrow = stringResource(R.string.level_up),
             title = stringResource(R.string.level_n, data.level) + " · " + c.rank(Levels.rank(data.level)),

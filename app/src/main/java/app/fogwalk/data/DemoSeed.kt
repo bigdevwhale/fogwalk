@@ -106,4 +106,23 @@ object DemoSeed {
             )
         }
     }
+
+    /** Something of every kind to walk toward, so the map's strip shows them all: a treasure, a rumour, a race and altars. */
+    suspend fun ventures(db: FogDatabase, settings: SettingsStore, fog: app.fogwalk.domain.FogStore) {
+        if (here.first == 0.0) return
+        val (lat, lon) = here
+        val dao = db.dao()
+        val week = Caches.week(LocalDate.now().toEpochDay())
+        val opened = dao.findKeys("c:$week:").toSet()
+        val rumor = app.fogwalk.domain.Rumors.hear(lat, lon, week, opened)
+        val raced = dao.walks().maxByOrNull { it.meters }?.id
+        settings.update {
+            it.copy(
+                treasure = it.treasure ?: app.fogwalk.domain.Treasures.place(System.currentTimeMillis(), 0, lat, lon) { a, b -> fog.exploredAround(a, b, 120.0) },
+                rumor = it.rumor?.takeIf { r -> r.week == week } ?: rumor,
+                race = it.race ?: raced?.let { w -> app.fogwalk.domain.Race(w, 0, 0) },
+                altars = maxOf(it.altars, 2),
+            )
+        }
+    }
 }

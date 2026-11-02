@@ -51,7 +51,8 @@ Fogwalk turns the city into an old atlas lost in mist. Wherever you walk, the mi
 | 🏅 | **209 deeds** | 33 ladders of deeds: walk 1 km… 100 km… 1,000 km… 5,000 km; chart a clearing… a kingdom; open a chest… a thousand; a year-long streak; night and dawn journeys; relic stars, seasons and arms. |
 | 🪙 | **Gold and the merchant** | Gold buys mists for the map (Old Parchment, Starlit Night, Dragon's Ash, Elven Lights…), gear that improves in five ever dearer steps (a wider reveal, chests felt and opened from farther, longer charms), treasure maps, a weekly tavern rumour of the finest chest nearby, a torch, a seeing stone, wards and a scroll that moves the shrines. |
 | 👣 | **Journeys with the screen off** | Tap *Set out* and Fogwalk keeps charting in a quiet notification, with a call when a chest is close. It ignores anything faster than a bike. |
-| 📖 | **Chronicle** | Charted area (and your share of the known world), lands, days on the road, your levels, from *Wanderer* to *Legend of the Realm*, and every journey with its route on the map. |
+| 📖 | **Chronicle** | Charted area (and your share of the known world), what today brought, lands, days on the road, your levels, from *Wanderer* to *Legend of the Realm*, and every journey with its route on the map. |
+| 💌 | **Postcards** | Share your chronicle, a journey or a fresh deed, relic or level as a story-sized postcard, by day or by night, with a QR code to Fogwalk. The map on it can be turned off to keep your streets to yourself. |
 
 <table>
   <tr>

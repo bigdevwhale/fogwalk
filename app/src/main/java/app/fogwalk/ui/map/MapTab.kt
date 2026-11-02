@@ -8,6 +8,7 @@ import android.view.MotionEvent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -27,10 +28,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.DirectionsWalk
 import androidx.compose.material.icons.rounded.ChangeHistory
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Flare
 import androidx.compose.material.icons.rounded.Inventory2
@@ -480,7 +483,8 @@ private fun PickCard(p: Pick, data: GameData, imperial: Boolean, onClose: () -> 
     val (color, soft) = when (p) {
         is Pick.OfCache -> if (p.sensed) U.c.muted to U.c.surface2 else rarityColor(p.cache.rarity)
         is Pick.OfShrine -> shrineColor(p.kind) to shrineColor(p.kind).copy(alpha = 0.18f)
-        is Pick.OfLand -> U.c.accent to U.c.accentSoft
+        // A land wears its arms, in colour once its banner is raised.
+        is Pick.OfLand -> if (data.share(p.sector) >= Sectors.CHARTED) U.c.accent to U.c.accentSoft else U.c.muted to U.c.surface2
         Pick.OfTreasure -> U.c.gold to U.c.goldSoft
     }
     Row(
@@ -491,10 +495,10 @@ private fun PickCard(p: Pick, data: GameData, imperial: Boolean, onClose: () -> 
             val icon = when (p) {
                 is Pick.OfCache -> Icons.Rounded.Inventory2
                 is Pick.OfShrine -> Icons.Rounded.Flare
-                is Pick.OfLand -> Icons.Rounded.TravelExplore
+                is Pick.OfLand -> app.fogwalk.ui.armIcon(app.fogwalk.domain.Arms.of(p.sector))
                 Pick.OfTreasure -> Icons.Rounded.Map
             }
-            Icon(icon, null, Modifier.size(22.dp), tint = color)
+            Icon(icon, (p as? Pick.OfLand)?.let { c.armName(app.fogwalk.domain.Arms.of(it.sector)) }, Modifier.size(22.dp), tint = color)
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
@@ -609,7 +613,8 @@ private fun BottomPanel(
     val live by container.explorer.live.collectAsStateWithLifecycle()
     val s = data.settings
     Column(
-        Modifier.fillMaxWidth().shadow(10.dp, U.RLg).clip(U.RLg).background(U.c.surface).border(1.5.dp, U.c.gilt, U.RLg).padding(14.dp),
+        Modifier.fillMaxWidth().shadow(10.dp, U.RLg).clip(U.RLg).background(U.c.surface).border(1.5.dp, U.c.gilt, U.RLg)
+            .animateContentSize().padding(horizontal = 12.dp, vertical = 10.dp),
     ) {
         if (!permitted) {
             Text(stringResource(R.string.need_location_title), style = UType.Strong)
@@ -620,29 +625,28 @@ private fun BottomPanel(
             return@Column
         }
         val fix = live.fix?.takeIf { it.time > 0 }
-        Ventures(data, fix, imperial, race, onFocus)
-        // The shrines: the one set out for, or else the nearest; tapping shows it on the map.
-        val sd = s.shrines.takeIf { it.day == data.today }
-        val reached = data.todayRow.beacon
-        val b = sd?.target(fix?.lat, fix?.lon)
-        val context = LocalContext.current
-        val color = if (reached || b == null) U.c.accent else shrineColor(b.kind)
-        VentureRow(
-            Icons.Rounded.Flare, color, if (reached || b == null) U.c.accentSoft else color.copy(alpha = 0.18f), stringResource(R.string.shrines_of_day),
-            when {
-                reached && sd?.chosen != null -> stringResource(R.string.shrine_done, shrineName(context, sd.chosen))
-                reached -> stringResource(R.string.beacon_done)
-                b == null || fix == null -> stringResource(R.string.beacon_waiting)
-                else -> stringResource(
-                    if (sd.chosen != null) R.string.shrine_heading else R.string.shrine_nearest,
-                    shrineName(context, b.kind), distance(Grid.distance(fix.lat, fix.lon, b.lat, b.lon), imperial),
-                )
-            },
-            bearing = if (b != null && fix != null && !reached) Grid.bearing(fix.lat, fix.lon, b.lat, b.lon) else null,
-            onClick = b?.let { { onShrine(it) } },
-        )
+        // Each pursuit is a compass chip; tapping one opens its line and shows it on the map, so the map keeps the screen.
+        val list = ventures(data, fix, imperial, race, onFocus, onShrine)
+        var open by remember { mutableStateOf<String?>(null) }
+        val shown = list.firstOrNull { it.key == open }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally)) {
+            list.forEach { v ->
+                VentureChip(v, v.key == open, Modifier.weight(1f, fill = false).widthIn(min = 76.dp)) {
+                    open = if (open == v.key) null else v.key.also { v.focus?.invoke() }
+                }
+            }
+        }
+        if (shown != null) {
+            Spacer(Modifier.height(6.dp))
+            VentureRow(
+                shown.icon, shown.color, shown.soft, shown.title, shown.text,
+                bearing = shown.bearing, onClose = shown.onClose, closeLabel = shown.closeLabel ?: stringResource(R.string.race_cancel),
+                onClick = shown.onClick, lines = 3,
+            )
+            shown.extra?.invoke()
+        }
         if (live.tooFast) {
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(8.dp))
             Row(Modifier.fillMaxWidth().clip(U.RSm).background(U.c.flameSoft).padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Rounded.Speed, null, Modifier.size(18.dp), tint = U.c.flame)
                 Spacer(Modifier.width(8.dp))
@@ -669,109 +673,192 @@ private fun BottomPanel(
                 PrimaryButton(stringResource(R.string.stop_walk), { ExploreService.stop(context) }, color = U.c.ink, icon = Icons.Rounded.Stop)
             }
         } else {
+            // The screen-off promise rides on a toast at the start rather than a line under the button.
+            val hint = stringResource(R.string.start_walk_hint)
             PrimaryButton(
-                stringResource(R.string.start_walk), { ExploreService.start(context) }, Modifier.fillMaxWidth(),
+                stringResource(R.string.start_walk),
+                {
+                    ExploreService.start(context)
+                    android.widget.Toast.makeText(context, hint, android.widget.Toast.LENGTH_SHORT).show()
+                },
+                Modifier.fillMaxWidth(),
                 icon = Icons.AutoMirrored.Rounded.DirectionsWalk,
             )
-            Spacer(Modifier.height(6.dp))
-            Text(stringResource(R.string.start_walk_hint), style = UType.Small, modifier = Modifier.align(Alignment.CenterHorizontally))
         }
     }
 }
 
-/** Rows for what the walker is after besides the shrine: a treasure, a rumoured chest, a race. */
+/** One pursuit on the map: its chip in the strip, and the line it opens. */
+private class Venture(
+    val key: String, val icon: ImageVector, val color: Color, val soft: Color,
+    val title: String, val text: String, val short: String,
+    val bearing: Double? = null, val done: Boolean = false,
+    /** Shows it on the map when its chip is opened. */
+    val focus: (() -> Unit)? = null,
+    /** A tap on the opened line. */
+    val onClick: (() -> Unit)? = null,
+    val onClose: (() -> Unit)? = null, val closeLabel: String? = null,
+    val extra: (@Composable () -> Unit)? = null,
+)
+
+/** What the walker is after: a treasure, a rumoured chest, a race, the altars and the day's shrines. */
 @Composable
-private fun Ventures(data: GameData, fix: app.fogwalk.explore.Fix?, imperial: Boolean, race: RaceView?, onFocus: (Double, Double) -> Unit) {
+private fun ventures(
+    data: GameData, fix: app.fogwalk.explore.Fix?, imperial: Boolean, race: RaceView?,
+    onFocus: (Double, Double) -> Unit, onShrine: (Shrine) -> Unit,
+): List<Venture> {
     val context = LocalContext.current
     val c = content()
     val now = rememberNow(1000)
-    data.settings.treasure?.let { t ->
+    val s = data.settings
+    val list = mutableListOf<Venture>()
+    s.treasure?.let { t ->
         val toCentre = fix?.let { Grid.distance(it.lat, it.lon, t.cLat, t.cLon) }
+        val warmth = if (fix != null && toCentre != null && toCentre <= t.radius) Treasures.warmth(Grid.distance(fix.lat, fix.lon, t.lat, t.lon)) else null
         val text = when {
-            fix == null || toCentre == null -> stringResource(R.string.treasure_hint)
-            toCentre > t.radius -> stringResource(R.string.treasure_to_circle, distance(toCentre - t.radius, imperial))
-            else -> stringResource(
-                when (Treasures.warmth(Grid.distance(fix.lat, fix.lon, t.lat, t.lon))) {
-                    0 -> R.string.treasure_hot
-                    1 -> R.string.treasure_warm
-                    2 -> R.string.treasure_cool
-                    else -> R.string.treasure_cold
-                }
-            )
+            toCentre == null -> stringResource(R.string.treasure_hint)
+            warmth == null -> stringResource(R.string.treasure_to_circle, distance(toCentre - t.radius, imperial))
+            else -> stringResource(listOf(R.string.treasure_hot, R.string.treasure_warm, R.string.treasure_cool).getOrElse(warmth) { R.string.treasure_cold })
         }
-        VentureRow(
-            Icons.Rounded.Map, U.c.gold, U.c.goldSoft, stringResource(R.string.treasure_one), text,
-            bearing = if (fix != null && toCentre != null && toCentre > t.radius) Grid.bearing(fix.lat, fix.lon, t.cLat, t.cLon) else null,
-        ) { onFocus(t.cLat, t.cLon) }
+        val short = when {
+            toCentre == null -> "…"
+            warmth == null -> distance(toCentre - t.radius, imperial)
+            else -> stringResource(listOf(R.string.treasure_hot_short, R.string.treasure_warm_short, R.string.treasure_cool_short).getOrElse(warmth) { R.string.treasure_cold_short })
+        }
+        val go = { onFocus(t.cLat, t.cLon) }
+        list += Venture(
+            "treasure", Icons.Rounded.Map, U.c.gold, U.c.goldSoft, stringResource(R.string.treasure_one), text, short,
+            bearing = if (fix != null && warmth == null) Grid.bearing(fix.lat, fix.lon, t.cLat, t.cLon) else null,
+            focus = go, onClick = go,
+        )
     }
     data.rumor?.let { r ->
-        val m = fix?.let { Grid.distance(it.lat, it.lon, r.lat, r.lon) }
-        VentureRow(
-            Icons.Rounded.RecordVoiceOver, U.c.flame, U.c.flameSoft, stringResource(R.string.rumor),
-            stringResource(R.string.rumor_line, c.rarity(r.rarity), m?.let { distance(it, imperial) } ?: "…"),
-            bearing = fix?.let { Grid.bearing(it.lat, it.lon, r.lat, r.lon) },
-        ) { onFocus(r.lat, r.lon) }
+        val m = fix?.let { distance(Grid.distance(it.lat, it.lon, r.lat, r.lon), imperial) }
+        val go = { onFocus(r.lat, r.lon) }
+        list += Venture(
+            "rumor", Icons.Rounded.RecordVoiceOver, U.c.flame, U.c.flameSoft, stringResource(R.string.rumor),
+            stringResource(R.string.rumor_line, c.rarity(r.rarity), m ?: "…"), m ?: "…",
+            bearing = fix?.let { Grid.bearing(it.lat, it.lon, r.lat, r.lon) }, focus = go, onClick = go,
+        )
     }
     if (race != null) {
         val start = race.route.first()
-        val text = if (race.started == 0L) {
-            stringResource(R.string.race_to_start, fix?.let { distance(Grid.distance(it.lat, it.lon, start.first, start.second), imperial) } ?: "…")
+        val toStart = fix?.let { distance(Grid.distance(it.lat, it.lon, start.first, start.second), imperial) }
+        val (text, short) = if (race.started == 0L) {
+            stringResource(R.string.race_to_start, toStart ?: "…") to (toStart ?: "…")
         } else {
             val gap = race.shadowM(now) - race.along[race.reached]
             when {
-                gap > 10 -> stringResource(R.string.race_behind, distance(gap, imperial))
-                gap < -10 -> stringResource(R.string.race_ahead, distance(-gap, imperial))
-                else -> stringResource(R.string.race_even)
+                gap > 10 -> stringResource(R.string.race_behind, distance(gap, imperial)) to "−" + distance(gap, imperial)
+                gap < -10 -> stringResource(R.string.race_ahead, distance(-gap, imperial)) to "+" + distance(-gap, imperial)
+                else -> stringResource(R.string.race_even) to stringResource(R.string.race_even_short)
             }
         }
-        VentureRow(
-            Icons.Rounded.Timer, U.c.sage, U.c.sageSoft, stringResource(R.string.race_title), text,
+        val go = { onFocus(start.first, start.second) }
+        list += Venture(
+            "race", Icons.Rounded.Timer, U.c.sage, U.c.sageSoft, stringResource(R.string.race_title), text, short,
             bearing = if (race.started == 0L && fix != null) Grid.bearing(fix.lat, fix.lon, start.first, start.second) else null,
-            onClose = { context.container.explorer.cancelRace() },
-        ) { onFocus(start.first, start.second) }
+            focus = go, onClick = go, onClose = { context.container.explorer.cancelRace() },
+        )
     }
-    val s = data.settings
-    if (s.altars > 0 || s.ring.isNotEmpty()) AltarRow(data, imperial, onFocus)
+    if (s.altars > 0 || s.ring.isNotEmpty()) list += altars(data, imperial, onFocus)
+    // The shrines: the one set out for, or else the nearest; its opened line brings up the shrine's own card.
+    val sd = s.shrines.takeIf { it.day == data.today }
+    val reached = data.todayRow.beacon
+    val b = sd?.target(fix?.lat, fix?.lon)
+    val color = if (reached || b == null) U.c.accent else shrineColor(b.kind)
+    list += Venture(
+        "shrine", Icons.Rounded.Flare, color, if (reached || b == null) U.c.accentSoft else color.copy(alpha = 0.18f), stringResource(R.string.shrines_of_day),
+        when {
+            reached && sd?.chosen != null -> stringResource(R.string.shrine_done, shrineName(context, sd.chosen))
+            reached -> stringResource(R.string.beacon_done)
+            b == null || fix == null -> stringResource(R.string.beacon_waiting)
+            else -> stringResource(
+                if (sd.chosen != null) R.string.shrine_heading else R.string.shrine_nearest,
+                shrineName(context, b.kind), distance(Grid.distance(fix.lat, fix.lon, b.lat, b.lon), imperial),
+            )
+        },
+        when {
+            reached -> stringResource(R.string.shrine_done_short)
+            b == null || fix == null -> "…"
+            else -> distance(Grid.distance(fix.lat, fix.lon, b.lat, b.lon), imperial)
+        },
+        bearing = if (b != null && fix != null && !reached) Grid.bearing(fix.lat, fix.lon, b.lat, b.lon) else null,
+        done = reached,
+        focus = b?.let { { onFocus(it.lat, it.lon) } },
+        onClick = b?.let { { onShrine(it) } },
+    )
+    return list
 }
 
 /** The altars from azure shrines: set them around a place that cannot be walked, then close the ring. */
 @Composable
-private fun AltarRow(data: GameData, imperial: Boolean, onFocus: (Double, Double) -> Unit) {
+private fun altars(data: GameData, imperial: Boolean, onFocus: (Double, Double) -> Unit): Venture {
     val context = LocalContext.current
     val container = context.container
     val s = data.settings
     val azure = shrineColor(app.fogwalk.domain.ShrineKind.AZURE)
     val side = distance(Altars.MAX_SIDE_M, imperial)
-    val say: (Bought) -> Unit = { b ->
-        val text = when (b) {
-            Bought.NO_FIX -> context.getString(R.string.altar_no_fix)
-            Bought.FAR -> context.getString(R.string.altar_far, side)
-            else -> null
-        }
-        if (text != null) android.widget.Toast.makeText(context, text, android.widget.Toast.LENGTH_SHORT).show()
-    }
     val first = s.ring.firstOrNull()
-    VentureRow(
-        Icons.Rounded.ChangeHistory, azure, azure.copy(alpha = 0.18f), stringResource(R.string.altars_title),
+    return Venture(
+        "altars", Icons.Rounded.ChangeHistory, azure, azure.copy(alpha = 0.18f), stringResource(R.string.altars_title),
         if (s.ring.isEmpty()) stringResource(R.string.altars_hint, Altars.MIN, side)
         else stringResource(R.string.altars_line, s.altars, s.ring.size),
+        if (s.ring.isEmpty()) "×${s.altars}" else "${s.ring.size} / ${maxOf(Altars.MIN, s.ring.size)}",
+        focus = first?.let { { onFocus(it.first, it.second) } },
+        onClick = first?.let { { onFocus(it.first, it.second) } },
         onClose = if (s.ring.isNotEmpty()) { { container.explorer.liftAltars() } } else null,
         closeLabel = stringResource(R.string.altar_lift),
-        onClick = first?.let { { onFocus(it.first, it.second) } },
-    )
-    Row(Modifier.padding(start = 50.dp, bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (s.altars > 0) Chip(stringResource(R.string.altar_place), azure.copy(alpha = 0.18f)) {
-            container.scope.launch {
-                val b = container.explorer.placeAltar()
-                withContext(Dispatchers.Main) { say(b) }
+    ) {
+        val say: (Bought) -> Unit = { b ->
+            val text = when (b) {
+                Bought.NO_FIX -> context.getString(R.string.altar_no_fix)
+                Bought.FAR -> context.getString(R.string.altar_far, side)
+                else -> null
+            }
+            if (text != null) android.widget.Toast.makeText(context, text, android.widget.Toast.LENGTH_SHORT).show()
+        }
+        Row(Modifier.padding(start = 50.dp, top = 2.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (s.altars > 0) Chip(stringResource(R.string.altar_place), azure.copy(alpha = 0.18f)) {
+                container.scope.launch {
+                    val b = container.explorer.placeAltar()
+                    withContext(Dispatchers.Main) { say(b) }
+                }
+            }
+            if (s.ring.size >= Altars.MIN) Chip(stringResource(R.string.altar_close), if (Altars.canClose(s.ring)) U.c.accentSoft else U.c.surface2) {
+                container.scope.launch {
+                    val b = container.explorer.closeRing()
+                    withContext(Dispatchers.Main) { if (b == Bought.FAR) android.widget.Toast.makeText(context, context.getString(R.string.ring_too_long, side), android.widget.Toast.LENGTH_SHORT).show() }
+                }
             }
         }
-        if (s.ring.size >= Altars.MIN) Chip(stringResource(R.string.altar_close), if (Altars.canClose(s.ring)) U.c.accentSoft else U.c.surface2) {
-            container.scope.launch {
-                val b = container.explorer.closeRing()
-                withContext(Dispatchers.Main) { if (b == Bought.FAR) android.widget.Toast.makeText(context, context.getString(R.string.ring_too_long, side), android.widget.Toast.LENGTH_SHORT).show() }
+    }
+}
+
+/** A pursuit folded to its icon, a compass needle toward it and how far it is. */
+@Composable
+private fun VentureChip(v: Venture, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    Column(
+        modifier.clip(U.RSm).background(if (selected) U.c.surface2 else Color.Transparent)
+            .clickable(onClickLabel = v.title, onClick = onClick).padding(vertical = 5.dp, horizontal = 2.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(Modifier.size(44.dp)) {
+            Box(Modifier.size(38.dp).align(Alignment.Center).clip(CircleShape).background(v.soft), contentAlignment = Alignment.Center) {
+                Icon(v.icon, v.title, Modifier.size(20.dp), tint = v.color)
+            }
+            if (v.bearing != null || v.done) {
+                Box(
+                    Modifier.size(19.dp).align(Alignment.BottomEnd).shadow(2.dp, CircleShape).clip(CircleShape).background(U.c.surface),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (v.bearing != null) Icon(Icons.Rounded.Navigation, null, Modifier.size(14.dp).rotate(v.bearing.toFloat()), tint = v.color)
+                    else Icon(Icons.Rounded.Check, null, Modifier.size(14.dp), tint = v.color)
+                }
             }
         }
+        Spacer(Modifier.height(2.dp))
+        Text(v.short, style = UType.Small.copy(fontSize = 12.sp, color = U.c.ink), maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -787,6 +874,7 @@ private fun Modifier.bleed(x: Dp) = layout { m, cs ->
 private fun VentureRow(
     icon: ImageVector, color: Color, soft: Color, title: String, text: String,
     bearing: Double? = null, onClose: (() -> Unit)? = null, closeLabel: String = stringResource(R.string.race_cancel), onClick: (() -> Unit)?,
+    lines: Int = 2,
 ) {
     Row(
         Modifier.fillMaxWidth().bleed(8.dp).clip(U.RSm).then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
@@ -799,7 +887,7 @@ private fun VentureRow(
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(title, style = UType.Strong.copy(fontSize = 15.sp))
-            Text(text, style = UType.Muted, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(text, style = UType.Muted, maxLines = lines, overflow = TextOverflow.Ellipsis)
         }
         if (bearing != null) Icon(Icons.Rounded.Navigation, null, Modifier.size(26.dp).rotate(bearing.toFloat()), tint = color)
         if (onClose != null) {

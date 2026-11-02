@@ -118,6 +118,7 @@ fun DeedsScreen(data: GameData, onBack: () -> Unit) {
         val (color, soft) = groupColor(b.group)
         val on = b.id in done
         CelebrateDialog(
+            data = data, share = on,
             icon = groupIcon(b.group), color = if (on) color else U.c.faint, soft = if (on) soft else U.c.surface2,
             eyebrow = stringResource(if (on) R.string.badge_unlocked else R.string.badge_locked),
             title = c.badgeTitle(b.id),

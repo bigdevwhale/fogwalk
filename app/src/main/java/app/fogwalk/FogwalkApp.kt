@@ -56,6 +56,7 @@ class FogwalkApp : Application() {
         container.scope.launch {
             if (BuildConfig.DEMO) DemoSeed.seedIfEmpty(this@FogwalkApp, container.db, container.settings)
             container.explorer.load()
+            if (BuildConfig.DEMO) DemoSeed.ventures(container.db, container.settings, container.fog)
             if (BuildConfig.DEMO && DemoSeed.here.first != 0.0) {
                 container.explorer.submit(app.fogwalk.explore.Fix(DemoSeed.here.first, DemoSeed.here.second, 6f, System.currentTimeMillis(), bearing = 40f, simulated = true))
             }

@@ -107,6 +107,10 @@ interface FogDao {
     @Query("SELECT COUNT(*) FROM cells")
     suspend fun cellCount(): Int
 
+    /** Cells revealed from [since] on, for today's lands. */
+    @Query("SELECT id FROM cells WHERE at >= :since")
+    suspend fun cellsSince(since: Long): LongArray
+
     @Query("SELECT * FROM days ORDER BY day")
     fun observeDays(): Flow<List<Day>>
 

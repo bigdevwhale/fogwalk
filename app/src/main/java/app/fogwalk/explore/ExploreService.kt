@@ -77,6 +77,8 @@ class ExploreService : Service() {
         private const val ACTION_STOP = "app.fogwalk.STOP_WALK"
 
         fun start(context: Context) {
+            // A foreground start that ends in stopSelf() before startForeground() crashes the app on Android 8–11.
+            if (!context.container.feed.permitted()) return
             ContextCompat.startForegroundService(context, Intent(context, ExploreService::class.java))
         }
 

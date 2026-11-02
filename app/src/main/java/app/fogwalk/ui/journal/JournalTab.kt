@@ -25,6 +25,7 @@ import androidx.compose.material.icons.rounded.Explore
 import androidx.compose.material.icons.rounded.Flare
 import androidx.compose.material.icons.rounded.Inventory2
 import androidx.compose.material.icons.rounded.LocalFireDepartment
+import androidx.compose.material.icons.rounded.Map
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -70,6 +71,10 @@ import app.fogwalk.ui.components.UCard
 import app.fogwalk.ui.content
 import app.fogwalk.ui.distance
 import app.fogwalk.ui.locale
+import app.fogwalk.container
+import app.fogwalk.ui.share.Postcard
+import app.fogwalk.ui.share.PostcardDialog
+import app.fogwalk.ui.share.ShareButton
 import app.fogwalk.ui.theme.U
 import app.fogwalk.ui.theme.UType
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -82,11 +87,14 @@ import kotlin.math.sqrt
 fun JournalTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
     val imperial = data.settings.units == Units.IMPERIAL
     val c = content()
+    var sharing by remember { mutableStateOf(false) }
+    if (sharing) PostcardDialog(Postcard.Progress, data) { sharing = false }
     Column(
         Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp).padding(bottom = 24.dp),
     ) {
         Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.tab_journal), style = UType.Title, modifier = Modifier.weight(1f))
+            ShareButton { sharing = true }
             IconButton(onClick = { go.settings() }) { Icon(Icons.Rounded.Settings, stringResource(R.string.settings), tint = U.c.muted) }
         }
 
@@ -109,6 +117,8 @@ fun JournalTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
                 Stat(Icons.Rounded.Explore, "%,d".format(data.cells), stringResource(R.string.stat_cells), U.c.sky, Modifier.weight(1f))
             }
         }
+
+        TodayCard(data, imperial)
 
         SectionTitle(stringResource(R.string.activity))
         UCard { Heatmap(data) }
@@ -167,8 +177,30 @@ fun JournalTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
     }
 }
 
+/** What today brought: new cells, the distance, chests and the lands cleared of mist. */
+@Composable
+private fun TodayCard(data: GameData, imperial: Boolean) {
+    val dao = androidx.compose.ui.platform.LocalContext.current.container.db.dao()
+    val day = data.todayRow
+    val lands by androidx.compose.runtime.produceState(0, data.today, day.cells) {
+        val since = java.time.LocalDate.ofEpochDay(data.today).atStartOfDay(data.zone).toInstant().toEpochMilli()
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            dao.cellsSince(since).mapTo(HashSet()) { Grid.sector(it) }.size
+        }
+    }
+    SectionTitle(stringResource(R.string.journal_today))
+    UCard {
+        Row(Modifier.fillMaxWidth()) {
+            Stat(Icons.Rounded.Explore, "%,d".format(day.cells), stringResource(R.string.stat_cells), U.c.sky, Modifier.weight(1f))
+            Stat(Icons.AutoMirrored.Rounded.DirectionsWalk, distance(day.meters, imperial), stringResource(R.string.stat_walked), U.c.sage, Modifier.weight(1f))
+            Stat(Icons.Rounded.Inventory2, day.caches.toString(), stringResource(R.string.stat_caches), U.c.gold, Modifier.weight(1f))
+            Stat(Icons.Rounded.Map, lands.toString(), stringResource(R.string.stat_sectors), U.c.accent, Modifier.weight(1f))
+        }
+    }
+}
+
 /** "0.000012 %": the share of the Earth's surface explored, with enough digits to show something. */
-private fun worldShare(m2: Double): String {
+internal fun worldShare(m2: Double): String {
     val p = m2 / 1_000_000 / Grid.EARTH_KM2 * 100
     if (p <= 0) return "0"
     var digits = 2
