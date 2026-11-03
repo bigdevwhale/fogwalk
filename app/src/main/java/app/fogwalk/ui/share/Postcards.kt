@@ -47,6 +47,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -345,7 +346,11 @@ private fun androidx.compose.foundation.layout.ColumnScope.ProgressFace(data: Ga
         }
         Spacer(Modifier.width(12.dp))
         Column {
-            Text(c.rank(Levels.rank(data.level)), style = UType.Title.copy(fontSize = 24.sp, lineHeight = 26.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            // Long ranks ("Легенда королевства") shrink to fit instead of being cut off.
+            Text(
+                c.rank(Levels.rank(data.level)), style = UType.Title.copy(fontSize = 24.sp, lineHeight = 26.sp), maxLines = 1,
+                autoSize = TextAutoSize.StepBased(minFontSize = 14.sp, maxFontSize = 24.sp),
+            )
             Text(stringResource(R.string.level_n, data.level), style = UType.Muted.copy(fontSize = 13.sp))
         }
     }
