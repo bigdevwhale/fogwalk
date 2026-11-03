@@ -7,6 +7,7 @@ import app.fogwalk.data.FogDatabase
 import app.fogwalk.data.SettingsStore
 import app.fogwalk.domain.FogStore
 import app.fogwalk.explore.Explorer
+import app.fogwalk.explore.HealthSteps
 import app.fogwalk.explore.LocationFeed
 import app.fogwalk.explore.StepCounter
 import app.fogwalk.notify.Alarms
@@ -18,6 +19,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import org.osmdroid.config.Configuration
 import java.io.File
+import java.time.LocalDate
+import java.time.ZoneId
 
 class AppContainer(context: Context) {
     val db = FogDatabase.create(context)
@@ -27,6 +30,28 @@ class AppContainer(context: Context) {
     val explorer = Explorer(db, settings, fog, scope)
     val steps = StepCounter(context.applicationContext, explorer)
     val feed = LocationFeed(context.applicationContext, explorer) { steps.setActive(it) }
+    val health = HealthSteps(context.applicationContext)
+
+    /**
+     * Brings the steps over from Health Connect, when they come from there: the last days' totals and
+     * the walks of those days. Health Connect keeps them itself, so reading now and then is enough.
+     */
+    suspend fun syncHealth() {
+        val from = settings.now().healthFrom
+        if (from < 0) return
+        val today = LocalDate.now()
+        val start = maxOf(LocalDate.ofEpochDay(from), today.minusDays(HEALTH_DAYS))
+        val days = health.days(start, today) ?: return
+        val since = start.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val walks = mutableMapOf<Long, Long>()
+        for (w in explorer.walksSince(since)) walks[w.id] = health.between(maxOf(w.start, since), w.end) ?: return
+        explorer.healthSteps(days, walks)
+    }
+
+    private companion object {
+        /** How far back Health Connect is read: a watch may hand over a few days at once. */
+        const val HEALTH_DAYS = 6L
+    }
 
     /** True while an activity is on screen; walk pings stay quiet then. */
     @Volatile
@@ -52,6 +77,9 @@ class FogwalkApp : Application() {
         // The pedometer follows its switch in the settings.
         container.scope.launch(Dispatchers.Main) {
             container.settings.settings.map { it.steps }.distinctUntilChanged().collect { container.steps.setEnabled(it) }
+        }
+        container.scope.launch {
+            container.settings.settings.map { it.healthFrom >= 0 }.distinctUntilChanged().collect { container.explorer.healthCounts = it }
         }
         container.scope.launch {
             if (BuildConfig.DEMO) DemoSeed.seedIfEmpty(this@FogwalkApp, container.db, container.settings)

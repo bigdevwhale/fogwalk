@@ -333,8 +333,16 @@ class Explorer(
     /** The pedometer heard steps just now: the walker is not at rest. Called at once, unlike [addSteps]. */
     fun stepped(at: Long) = track.stepped(at)
 
+    /**
+     * True while steps come from Health Connect: the pedometer then only tells walking from resting,
+     * and its counts are dropped, as Health Connect already has those steps and would count them twice.
+     */
+    @Volatile
+    var healthCounts = false
+
     /** Steps from the pedometer: they go to the day, and to the walk while one is under way. */
     fun addSteps(n: Int, at: Long) {
+        if (healthCounts) return
         scope.launch(worker) {
             ready.await()
             val dao = db.dao()
@@ -346,6 +354,42 @@ class Explorer(
             dao.upsertWalk(next)
             walk = next
             _live.update { it.copy(walk = next) }
+        }
+    }
+
+    /** Walks that ended at or after [since] (epoch ms), the current one as it stands now. */
+    suspend fun walksSince(since: Long): List<Walk> = withContext(worker) {
+        ready.await()
+        val current = walk
+        db.dao().walks().filter { it.end >= since }.map { if (it.id == current?.id) current else it }
+    }
+
+    /**
+     * Steps from Health Connect: [days] are totals per epoch day, [walks] per walk id. Each is taken
+     * when it is more than Fogwalk already has, since Health Connect also holds the steps the phone's
+     * own pedometer heard; so nothing is counted twice and steps once shown are never taken back.
+     */
+    suspend fun healthSteps(days: Map<Long, Long>, walks: Map<Long, Long>) = withContext(worker) {
+        ready.await()
+        val dao = db.dao()
+        for ((day, total) in days) {
+            val n = min(total, MAX_DAY_STEPS).toInt()
+            val row = dao.day(day)
+            if (n > (row?.steps ?: 0)) dao.upsertDay((row ?: Day(day)).copy(steps = n))
+        }
+        for ((id, total) in walks) {
+            val n = min(total, MAX_DAY_STEPS).toInt()
+            val current = walk
+            if (current?.id == id) {
+                if (n <= current.steps) continue
+                val next = current.copy(steps = n)
+                dao.upsertWalk(next)
+                walk = next
+                _live.update { it.copy(walk = next) }
+            } else {
+                val w = dao.walks().firstOrNull { it.id == id } ?: continue
+                if (n > w.steps) dao.upsertWalk(w.copy(steps = n))
+            }
         }
     }
 
@@ -685,6 +729,8 @@ class Explorer(
         const val MAX_SPEED = 8.5
         const val FILL_STEP = 8.0
         const val WALK_GAP_MS = 20 * 60_000L
+        /** No day plausibly holds more steps; anything above is a glitch in some health app. */
+        const val MAX_DAY_STEPS = 70_000L
         /** Worst accuracy, m, that may still place the day's shrine. */
         const val BEACON_ACCURACY = 1000f
         const val NEAR_M = 150.0

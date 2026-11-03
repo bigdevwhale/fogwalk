@@ -52,6 +52,8 @@ data class Settings(
     val haptics: Boolean = true,
     /** Count steps with the phone's pedometer. */
     val steps: Boolean = false,
+    /** The epoch day steps began to come from Health Connect; -1 while they don't. */
+    val healthFrom: Long = -1,
     /** Where the map last saw the walker, to open there next time. */
     val lastLat: Double = 0.0,
     val lastLon: Double = 0.0,
@@ -101,6 +103,7 @@ class SettingsStore(context: Context) {
         nearbyAlerts = this[NEARBY] ?: true,
         haptics = this[HAPTICS] ?: true,
         steps = this[STEPS] ?: false,
+        healthFrom = this[HEALTH_FROM] ?: -1,
         lastLat = this[LAST_LAT] ?: 0.0,
         lastLon = this[LAST_LON] ?: 0.0,
         walking = this[WALKING] ?: false,
@@ -139,6 +142,7 @@ class SettingsStore(context: Context) {
             it[NEARBY] = s.nearbyAlerts
             it[HAPTICS] = s.haptics
             it[STEPS] = s.steps
+            it[HEALTH_FROM] = s.healthFrom
             it[LAST_LAT] = s.lastLat
             it[LAST_LON] = s.lastLon
             it[WALKING] = s.walking
@@ -174,6 +178,7 @@ class SettingsStore(context: Context) {
         val NEARBY = booleanPreferencesKey("nearby_alerts")
         val HAPTICS = booleanPreferencesKey("haptics")
         val STEPS = booleanPreferencesKey("steps")
+        val HEALTH_FROM = longPreferencesKey("health_from")
         val LAST_LAT = doublePreferencesKey("last_lat")
         val LAST_LON = doublePreferencesKey("last_lon")
         val WALKING = booleanPreferencesKey("walking")

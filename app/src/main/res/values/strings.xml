@@ -343,6 +343,12 @@
     <string name="set_steps">Pedometer</string>
     <string name="set_steps_text">Count your steps on walks with the phone\'s step sensor</string>
     <string name="steps_denied">Without access to physical activity the steps can\'t be counted</string>
+    <string name="set_health">Steps from Health Connect</string>
+    <string name="set_health_text">Take the steps Samsung Health, Mi Fitness, Zepp Life, Google Fit, watches and bands counted, all day, not only on walks. Huawei Health doesn\'t share with Health Connect; the Health Sync app can carry its steps over.</string>
+    <string name="health_denied">Health Connect hasn\'t allowed reading steps</string>
+    <string name="health_install">Health Connect needs installing or updating first</string>
+    <string name="health_allow">Allow in Health Connect</string>
+    <string name="health_get">Install Health Connect</string>
     <string name="set_appearance">Appearance</string>
     <string name="theme_system">System</string>
     <string name="theme_light">Light</string>

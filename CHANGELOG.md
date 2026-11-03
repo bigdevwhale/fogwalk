@@ -8,6 +8,19 @@ then close it like any HTML comment. The release notes carry it, and the chat bo
 
 All notable changes to Fogwalk. Versions follow [semantic versioning](https://semver.org/).
 
+## [1.7.0] - 2026-11-03
+
+### Added
+- **Steps from Health Connect.** Turn it on in **Settings → Feel** and Fogwalk shows the steps Samsung Health, Mi Fitness, Zepp Life, Google Fit, watches and bands counted, for the whole day and for each journey, not only what the phone heard while a journey ran. Steps a watch hands over late arrive on the next look; a count once shown is never lowered. While it is on, the phone's pedometer only tells walking from resting and no longer adds steps of its own, so nothing is counted twice (#32).
+
+### Fixed
+- A long rank such as "Legend of the Realm" no longer gets cut off on the chronicle postcard; it shrinks to fit (#30).
+
+<!-- tg
+Новое: шаги из Health Connect — включите в Настройках, и Fogwalk покажет шаги из Mi Fitness, Samsung Health, Google Fit, часов и браслетов за весь день и за каждое странствие.
+Исправлено: длинное звание вроде «Легенда королевства» больше не обрезается на открытке летописи.
+-->
+
 ## [1.6.0] - 2026-11-02
 
 ### Added

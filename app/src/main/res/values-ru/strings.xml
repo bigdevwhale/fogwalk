@@ -351,6 +351,12 @@
     <string name="set_steps">Шагомер</string>
     <string name="set_steps_text">Считать шаги на прогулках датчиком шагов телефона</string>
     <string name="steps_denied">Без доступа к физической активности шаги не посчитать</string>
+    <string name="set_health">Шаги из Health Connect</string>
+    <string name="set_health_text">Брать шаги, которые насчитали Samsung Health, Mi Fitness, Zepp Life, Google Fit, часы и браслеты, за весь день, а не только на прогулках. Huawei Health с Health Connect не делится, но его шаги может переносить приложение Health Sync.</string>
+    <string name="health_denied">Health Connect не разрешил читать шаги</string>
+    <string name="health_install">Сначала нужно установить или обновить Health Connect</string>
+    <string name="health_allow">Разрешить в Health Connect</string>
+    <string name="health_get">Установить Health Connect</string>
     <string name="set_appearance">Оформление</string>
     <string name="theme_system">Как в системе</string>
     <string name="theme_light">Светлая</string>

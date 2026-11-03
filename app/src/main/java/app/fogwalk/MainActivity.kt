@@ -15,12 +15,16 @@ import app.fogwalk.notify.Alarms
 import app.fogwalk.ui.FogwalkRoot
 import app.fogwalk.ui.theme.FogwalkTheme
 import app.fogwalk.ui.theme.isDark
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
     /** Screen requested from outside: a notification. */
     private val openRoute = MutableStateFlow<String?>(null)
+    /** Reads Health Connect while the app is in sight. */
+    private var healthSync: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -47,10 +51,14 @@ class MainActivity : AppCompatActivity() {
     override fun onStart() {
         super.onStart()
         container.visible = true
+        healthSync = container.scope.launch {
+            while (true) { container.syncHealth(); delay(60_000) }
+        }
     }
 
     override fun onStop() {
         container.visible = false
+        healthSync?.cancel()
         super.onStop()
     }
 

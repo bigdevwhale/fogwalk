@@ -15,7 +15,7 @@ The developer never receives your location, your walks or anything else from the
 The app keeps the following only in its private storage on your phone:
 
 - the parts of the map you have explored, and your journeys with their routes, times and distances;
-- step counts, if you turn the pedometer on;
+- step counts, if you turn the pedometer or Health Connect on;
 - chests opened, relics, gold, quests, oaths, deeds and the rest of your progress;
 - your settings (language, theme, reminder time, pedometer and others).
 
@@ -44,6 +44,10 @@ has no access to that backup. You can turn it off in your phone's backup setting
   Used only while the app is open or while a journey you started runs with a visible notification.
 - **Foreground service (location)** — to keep charting a journey with the screen off.
 - **Physical activity** — for the optional pedometer, using the phone's own step counter.
+- **Health Connect: read steps** — only if you turn on *Steps from Health Connect* in the settings.
+  Fogwalk reads step counts (per day and for your journeys' times) while the app is open, keeps them
+  only on the device next to your journeys, and never writes to Health Connect or shares the data.
+  You can revoke it at any time in Health Connect.
 - **Internet and network state** — to download map tiles.
 - **Notifications** — for the journey notification, nearby chests and the evening reminder.
 - **Run at startup** — to reschedule the reminder after the phone restarts or the time changes.
@@ -80,7 +84,7 @@ Fogwalk — игра для прогулок под Android с открытым 
 Только в собственном хранилище приложения на телефоне:
 
 - открытые части карты и странствия с маршрутами, временем и расстоянием;
-- шаги, если вы включили шагомер;
+- шаги, если вы включили шагомер или Health Connect;
 - открытые сундуки, реликвии, золото, квесты, клятвы, деяния и остальной прогресс;
 - настройки (язык, тема, время напоминания, шагомер и другие).
 
@@ -108,6 +112,10 @@ Fogwalk — игра для прогулок под Android с открытым 
   Используется, только пока приложение открыто или пока идёт начатое вами странствие с видимым уведомлением.
 - **Фоновая служба (местоположение)** — чтобы странствие наносилось на карту с выключенным экраном.
 - **Физическая активность** — для шагомера по желанию, через встроенный счётчик шагов телефона.
+- **Health Connect: чтение шагов** — только если в настройках включено «Шаги из Health Connect».
+  Fogwalk читает число шагов (по дням и за время странствий), пока приложение открыто, хранит его
+  только на устройстве рядом со странствиями, ничего не записывает в Health Connect и никому не передаёт.
+  Отозвать доступ можно в любой момент в Health Connect.
 - **Интернет и состояние сети** — чтобы загружать тайлы карты.
 - **Уведомления** — для уведомления о странствии, сундуков рядом и вечернего напоминания.
 - **Запуск при включении** — чтобы восстановить напоминание после перезагрузки или смены времени.

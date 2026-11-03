@@ -51,6 +51,7 @@ import app.fogwalk.data.Backup
 import app.fogwalk.data.Settings
 import app.fogwalk.data.ThemeMode
 import app.fogwalk.data.Units
+import app.fogwalk.explore.HealthSteps
 import app.fogwalk.notify.Alarms
 import app.fogwalk.ui.Language
 import app.fogwalk.ui.timeFormat
@@ -176,6 +177,10 @@ fun SettingsScreen(settings: Settings, onBack: () -> Unit) {
                         else update { it.copy(steps = v) }
                     }
                 }
+                if (container.health.available || container.health.installable) {
+                    Divider()
+                    HealthSource(settings)
+                }
             }
 
             SectionTitle(stringResource(R.string.set_appearance))
@@ -238,6 +243,47 @@ fun SettingsScreen(settings: Settings, onBack: () -> Unit) {
                 }
             },
             onDismiss = { pendingImport = null },
+        )
+    }
+}
+
+/** Steps from Health Connect: what health apps, watches and bands counted, all day long. */
+@Composable
+private fun HealthSource(settings: Settings) {
+    val context = LocalContext.current
+    val container = context.container
+    val health = container.health
+    val on = settings.healthFrom >= 0
+    // null while asking Health Connect whether reading is still allowed.
+    var allowed by remember { mutableStateOf<Boolean?>(null) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { container.scope.launch { allowed = health.allowed() } }
+    fun use(v: Boolean) = container.scope.launch {
+        container.settings.update { it.copy(healthFrom = if (v) java.time.LocalDate.now().toEpochDay() else -1) }
+        container.syncHealth()
+    }
+    val denied = stringResource(R.string.health_denied)
+    val install = stringResource(R.string.health_install)
+    val ask = rememberLauncherForActivityResult(HealthSteps.requestContract()) { got ->
+        allowed = HealthSteps.READ in got
+        if (allowed == true) use(true) else Toast.makeText(context, denied, Toast.LENGTH_LONG).show()
+    }
+    fun pick() {
+        if (health.available) ask.launch(setOf(HealthSteps.READ))
+        else {
+            Toast.makeText(context, install, Toast.LENGTH_LONG).show()
+            runCatching { context.startActivity(health.storeIntent()) }
+        }
+    }
+    SwitchRow(stringResource(R.string.set_health), stringResource(R.string.set_health_text), on && allowed != false) { v ->
+        if (!v) use(false) else if (on && allowed == true) Unit else pick()
+    }
+    if (on && allowed == false) {
+        Spacer(Modifier.height(4.dp))
+        Text(denied, style = UType.Muted.copy(color = U.c.accent))
+        Text(
+            stringResource(if (health.available) R.string.health_allow else R.string.health_get),
+            style = UType.Button.copy(color = U.c.accent),
+            modifier = Modifier.clickable { pick() }.padding(vertical = 6.dp),
         )
     }
 }
