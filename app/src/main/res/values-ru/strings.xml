@@ -234,7 +234,7 @@
     <string name="claim">Забрать</string>
     <string name="show_on_map">Показать на карте</string>
     <string name="streak_safe">Сегодня засчитано. Серия в безопасности</string>
-    <string name="streak_need">Откройте %1$d новых клеток, пройдите 1 км или дойдите до святилища</string>
+    <string name="streak_need">Откройте %1$d новых клеток, пройдите 1 км или 2000 шагов, или дойдите до святилища</string>
     <string name="best_streak">рекорд %1$d</string>
     <string name="caches_refill">Каждый понедельник сундуки появляются по всему королевству заново, даже на знакомых дорогах.</string>
 

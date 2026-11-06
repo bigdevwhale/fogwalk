@@ -431,4 +431,9 @@ class FogwalkTest {
         assertTrue(app.fogwalk.explore.Dot.moves(here, Fix(fLat, fLon, 150f, here.time + 16_000)))
         assertTrue(app.fogwalk.explore.Dot.moves(null, here))
     }
+    @Test
+    fun knownStreetsKeepTheStreak() {
+        assertTrue(Streaks.active(Day(day = 10, cells = 0, meters = 0.0, caches = 0, rare = 0, beacon = false, night = 0, dawn = 0, steps = 2500)))
+        assertFalse(Streaks.active(Day(day = 10, cells = 0, meters = 0.0, caches = 0, rare = 0, beacon = false, night = 0, dawn = 0, steps = 500)))
+    }
 }

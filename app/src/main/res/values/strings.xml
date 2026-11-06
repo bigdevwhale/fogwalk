@@ -226,7 +226,7 @@
     <string name="claim">Claim</string>
     <string name="show_on_map">Show on the map</string>
     <string name="streak_safe">Today counts. The streak is safe</string>
-    <string name="streak_need">Reveal %1$d new cells, walk 1 km or reach the shrine today</string>
+    <string name="streak_need">Reveal %1$d new cells, walk 1 km or 2,000 steps, or reach the shrine today</string>
     <string name="best_streak">best %1$d</string>
     <string name="caches_refill">Chests refill across the whole realm every Monday, even on roads you already know.</string>
 

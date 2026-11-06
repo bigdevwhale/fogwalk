@@ -31,8 +31,10 @@ object Levels {
 object Streaks {
     const val CELLS = 25
     const val METERS = 1000.0
+    /** Steps that keep the streak on their own: a walk along known streets still counts (#39). */
+    const val STEPS = 2000
 
-    fun active(d: Day?): Boolean = d != null && (d.cells >= CELLS || d.meters >= METERS || d.beacon)
+    fun active(d: Day?): Boolean = d != null && (d.cells >= CELLS || d.meters >= METERS || d.steps >= STEPS || d.beacon)
 
     data class Streak(val current: Int, val best: Int, val todayDone: Boolean)
 
