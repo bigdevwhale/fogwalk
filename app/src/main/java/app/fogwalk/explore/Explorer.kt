@@ -54,6 +54,20 @@ import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
 
+/** Where the dot goes while there's no good GPS fix to walk on. */
+object Dot {
+    /** A newer fix this much older than the shown one replaces it whatever its accuracy, ms. */
+    const val STALE_MS = 15_000L
+
+    /** True if [new] should move the dot from [shown]: it's no worse, or lands inside the shown circle, or that one is stale. */
+    fun moves(shown: Fix?, new: Fix): Boolean {
+        if (shown == null || shown.time <= 0 || shown.simulated) return true
+        if (new.time - shown.time > STALE_MS) return true
+        if (new.accuracy <= shown.accuracy) return true
+        return app.fogwalk.geo.Grid.distance(shown.lat, shown.lon, new.lat, new.lon) <= shown.accuracy
+    }
+}
+
 /** A position from GPS (or the debug walker). */
 data class Fix(
     val lat: Double,
@@ -192,8 +206,9 @@ class Explorer(
         if (f.accuracy <= BEACON_ACCURACY) ensureBeacon(f)
         val step = track.add(f)
         if (step == null) {
-            // Not walkable; still worth a dot on the map while satellites are silent.
-            if (!track.hasGps(f.time)) _live.update { it.copy(fix = f) }
+            // Not walkable; still worth a dot on the map while satellites are silent, but only a fix no
+            // worse than the one shown, so a poor GPS and the cell towers don't toss the dot about (#35).
+            if (!track.hasGps(f.time)) _live.update { if (Dot.moves(it.fix, f)) it.copy(fix = f) else it }
             return
         }
         _live.update { it.copy(fix = f.copy(lat = step.lat, lon = step.lon), tooFast = step.fast) }

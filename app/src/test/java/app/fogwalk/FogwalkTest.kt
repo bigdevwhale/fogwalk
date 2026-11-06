@@ -417,4 +417,18 @@ class FogwalkTest {
         val far = ring + Grid.offset(lat, lon, 900.0, 300.0)
         assertFalse(Altars.canClose(far))
     }
+    @Test
+    fun dotHoldsWithoutGoodGps() {
+        val lat = 55.75; val lon = 37.62
+        val here = Fix(lat, lon, 20f, 1_000_000L, gps = false)
+        val (fLat, fLon) = Grid.offset(lat, lon, 400.0, 90.0)
+        // A worse fix far away within seconds: the dot stays (#35).
+        assertFalse(app.fogwalk.explore.Dot.moves(here, Fix(fLat, fLon, 150f, here.time + 2_000)))
+        // A worse one inside the shown circle, a better one anywhere, or anything once the shown one is stale: it moves.
+        val (nLat, nLon) = Grid.offset(lat, lon, 10.0, 90.0)
+        assertTrue(app.fogwalk.explore.Dot.moves(here, Fix(nLat, nLon, 60f, here.time + 2_000)))
+        assertTrue(app.fogwalk.explore.Dot.moves(here, Fix(fLat, fLon, 12f, here.time + 2_000)))
+        assertTrue(app.fogwalk.explore.Dot.moves(here, Fix(fLat, fLon, 150f, here.time + 16_000)))
+        assertTrue(app.fogwalk.explore.Dot.moves(null, here))
+    }
 }
