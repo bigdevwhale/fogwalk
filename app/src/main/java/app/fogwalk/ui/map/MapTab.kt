@@ -132,6 +132,12 @@ import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.CustomZoomButtonsController
 import org.osmdroid.views.MapView
+import kotlin.math.abs
+import org.osmdroid.views.overlay.gestures.RotationGestureOverlay
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Remove
+import androidx.compose.material.icons.rounded.Navigation
+import androidx.compose.ui.draw.rotate
 
 private class Toast(val id: Long, val icon: ImageVector, val text: String, val color: Color)
 
@@ -160,6 +166,8 @@ fun MapTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
     }
 
     var follow by remember { mutableStateOf(true) }
+    /** The map's turn, degrees; 0 is north up (#37). */
+    var turned by remember { mutableStateOf(0f) }
     var pick by remember { mutableStateOf<Pick?>(null) }
     val toasts = remember { mutableStateListOf<Toast>() }
     // A chest opened, by walking up or by the hook, lets go of its card.
@@ -186,6 +194,8 @@ fun MapTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
             isHorizontalMapRepetitionEnabled = false
             isVerticalMapRepetitionEnabled = false
             setScrollableAreaLimitLatitude(MapView.getTileSystem().maxLatitude, MapView.getTileSystem().minLatitude, 0)
+            // Two fingers turn the map (#37); the compass button sets north back up.
+            overlays.add(RotationGestureOverlay(this).apply { isEnabled = true })
             overlays.add(overlay)
             val start = live.fix
             if (start != null) {
@@ -196,6 +206,7 @@ fun MapTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
             setOnTouchListener { _, e ->
                 if (zoom.onTouch(e)) return@setOnTouchListener true
                 if (e.action == MotionEvent.ACTION_MOVE && e.pointerCount >= 1) follow = false
+                if (e.pointerCount >= 2 || e.actionMasked == MotionEvent.ACTION_UP) post { turned = mapOrientation }
                 false
             }
         }
@@ -363,6 +374,17 @@ fun MapTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
 
         Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(12.dp)) {
             Column(Modifier.align(Alignment.End), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                // North up again, shown only while the map is turned.
+                if (abs(((turned % 360) + 360) % 360) > 0.5f && abs(((turned % 360) + 360) % 360 - 360) > 0.5f) {
+                    Box(
+                        Modifier.size(48.dp).shadow(6.dp, CircleShape).clip(CircleShape).background(U.c.surface).border(1.5.dp, U.c.gilt, CircleShape)
+                            .clickable { mapView.mapOrientation = 0f; turned = 0f },
+                        contentAlignment = Alignment.Center,
+                    ) { Icon(Icons.Rounded.Navigation, stringResource(R.string.north_up), Modifier.size(23.dp).rotate(turned), tint = U.c.flame) }
+                }
+                // Zoom with one hand (#38).
+                RoundButton(Icons.Rounded.Add, U.c.ink, stringResource(R.string.zoom_in)) { mapView.controller.zoomIn() }
+                RoundButton(Icons.Rounded.Remove, U.c.ink, stringResource(R.string.zoom_out)) { mapView.controller.zoomOut() }
                 RoundButton(if (follow) Icons.Rounded.MyLocation else Icons.Rounded.LocationSearching, U.c.accent, stringResource(R.string.my_location)) {
                     follow = true
                     live.fix?.let {

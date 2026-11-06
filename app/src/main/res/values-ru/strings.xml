@@ -61,6 +61,9 @@
     <string name="today_line">Сегодня %1$s · %2$s</string>
     <string name="xp_to_next">%1$d опыта до следующего уровня</string>
     <string name="my_location">Где я</string>
+    <string name="zoom_in">Приблизить</string>
+    <string name="zoom_out">Отдалить</string>
+    <string name="north_up">Север наверх</string>
     <string name="beacon_waiting">Пробудятся с первыми шагами сегодня</string>
     <string name="beacon_done">Сегодня достигнуто. Завтра пробудятся новые</string>
     <string name="beacon_hint">Подойдите на %1$d м: %2$s</string>

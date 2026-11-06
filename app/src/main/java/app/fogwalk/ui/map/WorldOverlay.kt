@@ -168,7 +168,7 @@ class WorldOverlay(
         ay = (se.y - nw.y) / (my1 - my0)
         by = nw.y - ay * my0
 
-        drawFog(c, s, w, h)
+        drawFog(c, s, w, h, mv.mapOrientation)
         drawLands(c, s, w, h, mx0, mx1, my0, my1)
         hits.clear()
         val t = System.currentTimeMillis()
@@ -188,7 +188,12 @@ class WorldOverlay(
      * the soft edges shimmer as they landed on the coarse bitmap's pixels a fraction differently.
      * It is redrawn when new ground is revealed, when the view leaves the margin, or once a zoom settles.
      */
-    private fun drawFog(c: Canvas, s: Scene, w: Int, h: Int) {
+    private fun drawFog(c: Canvas, s: Scene, w: Int, h: Int, turn: Float) {
+        // A turned map draws on a turned canvas: the fog must cover the screen's turned rectangle (#37).
+        val rad = Math.toRadians(turn.toDouble())
+        val cs = abs(kotlin.math.cos(rad)); val sn = abs(kotlin.math.sin(rad))
+        val ex = (w * cs + h * sn) / 2 - w / 2.0
+        val ey = (w * sn + h * cs) / 2 - h / 2.0
         val key = listOf(fog.version.value, s.style, s.density, w, h)
         val now = android.os.SystemClock.uptimeMillis()
         if (ax != lastAx) zoomedAt = now
@@ -200,13 +205,13 @@ class WorldOverlay(
             val t = ay * cacheOy + by
             val r = l + bmp.width * scale * ratio
             val b = t + bmp.height * scale * (ay / cacheAy)
-            val covers = l <= 0 && t <= 0 && r >= w && b >= h
+            val covers = l <= -ex && t <= -ey && r >= w + ex && b >= h + ey
             // Mid-zoom the old fog is stretched; it is redrawn sharp when the fingers rest.
             val settled = abs(ratio - 1) > 0.002 && now - zoomedAt > 220
             !covers || ratio !in 0.7..1.45 || settled
         }
         if (rebuild) {
-            render(s, w, h)
+            render(s, w, h, max(ex, ey))
             fogKey = key
         }
         val f = fogBitmap ?: return
@@ -216,8 +221,8 @@ class WorldOverlay(
         c.drawBitmap(f, null, dst, blitPaint)
     }
 
-    private fun render(s: Scene, w: Int, h: Int) {
-        val margin = max(w, h) * 0.3
+    private fun render(s: Scene, w: Int, h: Int, turned: Double = 0.0) {
+        val margin = max(w, h) * 0.3 + turned
         // Mercator units per fog pixel, and the cache's corner snapped to that lattice.
         cacheAx = ax
         cacheAy = ay
@@ -702,8 +707,12 @@ class WorldOverlay(
 
     override fun onSingleTapConfirmed(e: MotionEvent, mapView: MapView): Boolean {
         val r = 30 * density
-        val hit = hits.minByOrNull { (_, p) -> (p[0] - e.x) * (p[0] - e.x) + (p[1] - e.y) * (p[1] - e.y) }
-            ?.takeIf { (_, p) -> (p[0] - e.x) * (p[0] - e.x) + (p[1] - e.y) * (p[1] - e.y) <= r * r }
+        // Markers sit on the turned canvas; the finger is on the screen.
+        val pt = mapView.projection.unrotateAndScalePoint(e.x.toInt(), e.y.toInt(), null)
+        val ex = pt.x.toFloat()
+        val ey = pt.y.toFloat()
+        val hit = hits.minByOrNull { (_, p) -> (p[0] - ex) * (p[0] - ex) + (p[1] - ey) * (p[1] - ey) }
+            ?.takeIf { (_, p) -> (p[0] - ex) * (p[0] - ex) + (p[1] - ey) * (p[1] - ey) <= r * r }
         if (hit != null) {
             onPick(hit.first)
             return true
