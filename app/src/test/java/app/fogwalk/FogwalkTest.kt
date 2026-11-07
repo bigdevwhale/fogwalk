@@ -436,4 +436,24 @@ class FogwalkTest {
         assertTrue(Streaks.active(Day(day = 10, cells = 0, meters = 0.0, caches = 0, rare = 0, beacon = false, night = 0, dawn = 0, steps = 2500)))
         assertFalse(Streaks.active(Day(day = 10, cells = 0, meters = 0.0, caches = 0, rare = 0, beacon = false, night = 0, dawn = 0, steps = 500)))
     }
+
+    @Test
+    fun shrinesStepOntoPaths() {
+        val lat = 55.9; val lon = 37.8
+        // A footway 100 m east of the point, running north-south.
+        val (wLat, wLon) = Grid.offset(lat, lon, 100.0, 90.0)
+        val way = listOf((wLat - 0.002) to wLon, (wLat + 0.002) to wLon)
+        val on = app.fogwalk.explore.Paths.snap(lat, lon, listOf(way))!!
+        assertEquals(100.0, Grid.distance(lat, lon, on.first, on.second), 2.0)
+        // Too far from any path: no place.
+        assertEquals(null, app.fogwalk.explore.Paths.snap(lat, lon, listOf(way), maxM = 50.0))
+        // The same day gives the same places as before, and every shrine lands on the path when it's near.
+        val cands = Beacons.candidates(20_000, 0, lat, lon, 5)
+        val placed = Beacons.place(20_000, 0, lat, lon, 5) { _, _ -> 0 }
+        assertEquals(placed.map { it.kind }, cands.map { it.first })
+        val near = cands.map { (_, cs) -> cs.first().let { (a, b) -> Grid.offset(a, b, 30.0, 0.0) } }.map { (a, b) -> listOf(a to b, (a + 0.001) to b) }
+        val moved = Beacons.onPaths(cands, near, { _, _ -> 0 }) { a, b, w -> app.fogwalk.explore.Paths.snap(a, b, w) }!!
+        assertEquals(3, moved.size)
+        assertEquals(null, Beacons.onPaths(cands, emptyList(), { _, _ -> 0 }) { a, b, w -> app.fogwalk.explore.Paths.snap(a, b, w) })
+    }
 }

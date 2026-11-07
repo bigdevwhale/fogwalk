@@ -48,17 +48,35 @@ object Beacons {
     const val GROVE_XP = 80
 
     /** [explored] counts explored cells around a point; in each third the least explored of six candidates wins. */
-    fun place(day: Long, salt: Int, lat: Double, lon: Double, level: Int, explored: (Double, Double) -> Int): List<Shrine> {
+    fun place(day: Long, salt: Int, lat: Double, lon: Double, level: Int, explored: (Double, Double) -> Int): List<Shrine> =
+        candidates(day, salt, lat, lon, level).map { (kind, cs) -> cs.minBy { (a, b) -> explored(a, b) }.let { (a, b) -> Shrine(kind, a, b) } }
+
+    /** Six places for each kind of shrine, a third of the compass each; the same for the same day and start. */
+    fun candidates(day: Long, salt: Int, lat: Double, lon: Double, level: Int): List<Pair<ShrineKind, List<Pair<Double, Double>>>> {
         val rnd = Random(day * 7919 + salt * 104_729L)
         val reach = (900 + level * 25).coerceAtMost(1700).toDouble()
         val base = rnd.nextDouble() * 360
         return ShrineKind.entries.shuffled(rnd).mapIndexed { third, kind ->
-            val (a, b) = (0 until 6).map { i ->
+            kind to (0 until 6).map { i ->
                 val d = 600 + rnd.nextDouble() * (reach - 600)
                 Grid.offset(lat, lon, d, base + third * 120 + i * 20 + rnd.nextDouble() * 10)
-            }.minBy { (a, b) -> explored(a, b) }
-            Shrine(kind, a, b)
+            }
         }
+    }
+
+    /**
+     * The shrines moved onto walkable [ways] (#21): of each kind's places that have a path near, the
+     * least explored, set on the path. Null if some kind has no path near any of its places.
+     */
+    fun onPaths(
+        cands: List<Pair<ShrineKind, List<Pair<Double, Double>>>>,
+        ways: List<List<Pair<Double, Double>>>,
+        explored: (Double, Double) -> Int,
+        snap: (Double, Double, List<List<Pair<Double, Double>>>) -> Pair<Double, Double>?,
+    ): List<Shrine>? = cands.map { (kind, cs) ->
+        val on = cs.mapNotNull { (a, b) -> snap(a, b, ways) }
+        if (on.isEmpty()) return null
+        on.minBy { (a, b) -> explored(a, b) }.let { (a, b) -> Shrine(kind, a, b) }
     }
 
     /** The grove's gift on [day]: 0 a lantern, 1 a seeing stone, 2 a streak shield while there is room for one. */
