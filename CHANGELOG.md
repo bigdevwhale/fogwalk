@@ -8,6 +8,20 @@ then close it like any HTML comment. The release notes carry it, and the chat bo
 
 All notable changes to Fogwalk. Versions follow [semantic versioning](https://semver.org/).
 
+## [1.8.0] - 2026-11-07
+### Added
+- **Zoom buttons** on the map, for one hand (#38).
+- **Turn the map** with two fingers; a compass button, shown while it is turned, sets north back up (#37).
+### Changed
+- **Shrines stand by paths.** Once the day's shrines are placed, Fogwalk asks OpenStreetMap for the footways and streets near them and moves each onto the nearest one, away from private ground and from industrial, military, railway and building-site land (#21). Without a connection they stay where they fell.
+- **2,000 steps keep the streak** too, so a walk along known streets counts even with no new cells (#39).
+### Fixed
+- The dot no longer jumps about while there's no good GPS fix (indoors, among tall buildings, where GPS is jammed): it follows only a fix as good as the one shown, or one inside its circle, or a fresh one after 15 seconds (#35).
+<!-- tg
+Кнопки зума на карте, а саму карту можно повернуть двумя пальцами (компас вернёт север наверх).
+Святилища теперь встают у дорожек и улиц, а не посреди заводов и закрытых территорий.
+2000 шагов за день тоже сохраняют серию, а точка на карте больше не скачет без хорошего GPS.
+-->
 ## [1.7.0] - 2026-11-03
 
 ### Added
