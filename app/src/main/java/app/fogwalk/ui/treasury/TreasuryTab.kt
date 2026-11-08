@@ -196,7 +196,7 @@ private fun ShopPart(data: GameData, mark: (Ware) -> Modifier) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         val boost = Gear.boostMs(s.gear)
         val boostMin = (boost / 60_000).toInt()
-        BoostRow(Icons.Rounded.Lightbulb, U.c.gold, U.c.goldSoft, stringResource(R.string.lantern), stringResource(R.string.lantern_text, boostMin), Shop.LANTERN, data.coins) {
+        BoostRow(Icons.Rounded.Lightbulb, U.c.gold, U.c.goldSoft, stringResource(R.string.lantern), stringResource(R.string.lantern_text, boostMin, (Gear.revealM(s.gear) * Shop.LANTERN_FACTOR).toInt(), Gear.revealM(s.gear).toInt()), Shop.LANTERN, data.coins) {
             confirm = Triple(context.getString(R.string.lantern), Shop.LANTERN) {
                 buy("lantern", Shop.LANTERN) { container.settings.update { it.copy(lanternUntil = maxOf(it.lanternUntil, now) + boost) } }
             }

@@ -45,8 +45,8 @@
         <item quantity="other">%1$d-day streak</item>
     </plurals>
     <plurals name="shields">
-        <item quantity="one">%1$d streak shield</item>
-        <item quantity="other">%1$d streak shields</item>
+        <item quantity="one">%1$d ward of the streak</item>
+        <item quantity="other">%1$d wards of the streak</item>
     </plurals>
 
     <!-- Map -->
@@ -69,12 +69,12 @@
     <string name="shrine_done">%1$s reached today. New ones awaken tomorrow</string>
     <string name="shrine_others">Only one shrine wakes a day; today\'s is reached</string>
     <string name="shrine_gives_gold">%1$d gold and %2$d XP</string>
-    <string name="shrine_gives_grove">%1$d gold, %2$d XP and a gift: a lantern, a seeing stone or a streak shield</string>
+    <string name="shrine_gives_grove">%1$d gold, %2$d XP and a gift: a torch, a seeing stone or a ward of the streak</string>
     <string name="shrine_gives_azure">%1$d gold, %2$d XP and an altar to lift the mist where you can\'t walk</string>
     <string name="shrine_got_gold">+%1$d gold</string>
-    <string name="shrine_got_lantern">the lantern is lit</string>
+    <string name="shrine_got_lantern">the torch is lit</string>
     <string name="shrine_got_stone">the seeing stone glows</string>
-    <string name="shrine_got_shield">a streak shield</string>
+    <string name="shrine_got_shield">a ward of the streak</string>
     <string name="shrine_got_altar">an altar for your satchel</string>
     <string name="shrine_choose">Set out for this one</string>
     <string name="shrine_unchoose">Let any shrine wake</string>
@@ -243,7 +243,7 @@
     <string name="style_use">Tap to use</string>
     <string name="boosts">Potions and charms</string>
     <string name="lantern">Torch</string>
-    <string name="lantern_text">Burns a wider path for %1$d min</string>
+    <string name="lantern_text">Burns a wider path for %1$d min: %2$d m around you instead of %3$d m</string>
     <string name="radar">Seeing stone</string>
     <string name="radar_text">Shows where every chest lies for %1$d min. Through the mist you see a chest, not its worth</string>
     <string name="shield">Ward of the streak</string>

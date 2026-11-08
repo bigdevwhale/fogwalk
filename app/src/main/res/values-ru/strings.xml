@@ -51,10 +51,10 @@
         <item quantity="other">%1$d дня подряд</item>
     </plurals>
     <plurals name="shields">
-        <item quantity="one">%1$d щит серии</item>
-        <item quantity="few">%1$d щита серии</item>
-        <item quantity="many">%1$d щитов серии</item>
-        <item quantity="other">%1$d щита серии</item>
+        <item quantity="one">%1$d оберег серии</item>
+        <item quantity="few">%1$d оберега серии</item>
+        <item quantity="many">%1$d оберегов серии</item>
+        <item quantity="other">%1$d оберега серии</item>
     </plurals>
 
     <!-- Map -->
@@ -77,12 +77,12 @@
     <string name="shrine_done">%1$s: сегодня достигнуто. Завтра пробудятся новые</string>
     <string name="shrine_others">В день пробуждается только одно святилище, сегодняшнее уже достигнуто</string>
     <string name="shrine_gives_gold">%1$d золота и %2$d опыта</string>
-    <string name="shrine_gives_grove">%1$d золота, %2$d опыта и дар: фонарь, камень прозрения или щит серии</string>
+    <string name="shrine_gives_grove">%1$d золота, %2$d опыта и дар: факел, камень прозрения или оберег серии</string>
     <string name="shrine_gives_azure">%1$d золота, %2$d опыта и алтарь, чтобы снять туман там, куда не пройти</string>
     <string name="shrine_got_gold">+%1$d золота</string>
-    <string name="shrine_got_lantern">фонарь зажжён</string>
+    <string name="shrine_got_lantern">факел зажжён</string>
     <string name="shrine_got_stone">камень прозрения светится</string>
-    <string name="shrine_got_shield">щит серии</string>
+    <string name="shrine_got_shield">оберег серии</string>
     <string name="shrine_got_altar">алтарь в суму</string>
     <string name="shrine_choose">Идти к этому</string>
     <string name="shrine_unchoose">Любое святилище</string>
@@ -251,7 +251,7 @@
     <string name="style_use">Нажмите, чтобы выбрать</string>
     <string name="boosts">Зелья и обереги</string>
     <string name="lantern">Факел</string>
-    <string name="lantern_text">%1$d мин прожигает более широкую тропу</string>
+    <string name="lantern_text">%1$d мин прожигает тропу шире: радиус %2$d м вместо %3$d м</string>
     <string name="radar">Камень прозрения</string>
     <string name="radar_text">%1$d мин показывает, где лежат все сундуки. Сквозь туман виден сундук, но не его ценность</string>
     <string name="shield">Оберег серии</string>
