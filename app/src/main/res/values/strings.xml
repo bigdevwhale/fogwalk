@@ -53,6 +53,9 @@
     <string name="today_line">Today %1$s · %2$s</string>
     <string name="xp_to_next">%1$d XP to the next level</string>
     <string name="my_location">My location</string>
+    <string name="walk_delete">Delete</string>
+    <string name="walk_delete_q">Delete this journey?</string>
+    <string name="walk_delete_text">Its route and its page in the chronicle go. The cells it cleared, its finds and its coins stay.</string>
     <string name="zoom_in">Zoom in</string>
     <string name="zoom_out">Zoom out</string>
     <string name="north_up">North up</string>

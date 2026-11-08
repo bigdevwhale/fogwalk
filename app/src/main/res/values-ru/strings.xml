@@ -61,6 +61,9 @@
     <string name="today_line">Сегодня %1$s · %2$s</string>
     <string name="xp_to_next">%1$d опыта до следующего уровня</string>
     <string name="my_location">Где я</string>
+    <string name="walk_delete">Удалить</string>
+    <string name="walk_delete_q">Удалить странствие?</string>
+    <string name="walk_delete_text">Исчезнут его маршрут и запись в летописи. Открытые клетки, находки и монеты останутся.</string>
     <string name="zoom_in">Приблизить</string>
     <string name="zoom_out">Отдалить</string>
     <string name="north_up">Север наверх</string>

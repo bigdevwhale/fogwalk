@@ -53,6 +53,8 @@ import app.fogwalk.ui.components.UCard
 import app.fogwalk.ui.share.Postcard
 import app.fogwalk.ui.share.PostcardDialog
 import app.fogwalk.ui.share.ShareButton
+import app.fogwalk.ui.components.ConfirmDialog
+import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -87,6 +89,22 @@ fun WalkScreen(id: Long, data: GameData, onBack: () -> Unit, onRace: (Long) -> U
         val title = w?.let { day.format(Instant.ofEpochMilli(it.start).atZone(data.zone)).replaceFirstChar { c -> c.titlecase(l) } }
         val pinned = id in data.settings.pinned
         var sharing by remember { mutableStateOf(false) }
+        var deleting by remember { mutableStateOf(false) }
+        // The journey under way can't be taken out while it is still being written.
+        val ongoing = w != null && data.settings.walking && data.walks.firstOrNull()?.id == id
+        if (deleting) ConfirmDialog(
+            stringResource(R.string.walk_delete_q), stringResource(R.string.walk_delete_text), stringResource(R.string.walk_delete),
+            onConfirm = {
+                deleting = false
+                val container = context.container
+                container.scope.launch {
+                    container.settings.update { s -> s.copy(pinned = s.pinned - id, race = s.race?.takeIf { it.walk != id }) }
+                    container.db.dao().deleteWalk(id)
+                }
+                onBack()
+            },
+            onDismiss = { deleting = false }, danger = true,
+        )
         if (sharing) PostcardDialog(Postcard.Walk(id), data) { sharing = false }
         TopBar(title ?: stringResource(R.string.walks_title), onBack) {
             if (w != null) ShareButton { sharing = true }
@@ -99,6 +117,9 @@ fun WalkScreen(id: Long, data: GameData, onBack: () -> Unit, onRace: (Long) -> U
                     stringResource(if (pinned) R.string.walk_unpin else R.string.walk_pin),
                     tint = if (pinned) U.c.gold else U.c.muted,
                 )
+            }
+            if (w != null && !ongoing) IconButton(onClick = { deleting = true }) {
+                Icon(Icons.Rounded.DeleteOutline, stringResource(R.string.walk_delete), tint = U.c.muted)
             }
         }
         if (w == null) return@Column

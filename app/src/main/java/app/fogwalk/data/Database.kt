@@ -135,6 +135,19 @@ interface FogDao {
     @Upsert
     suspend fun upsertWalk(w: Walk)
 
+    @Query("DELETE FROM walks WHERE id = :id")
+    suspend fun deleteWalkRow(id: Long)
+
+    @Query("DELETE FROM waypoints WHERE walk = :id")
+    suspend fun deleteWaypoints(id: Long)
+
+    /** Takes a journey out of the chronicle (#43): its record and route only; cells, finds and coins stay. */
+    @androidx.room.Transaction
+    suspend fun deleteWalk(id: Long) {
+        deleteWaypoints(id)
+        deleteWalkRow(id)
+    }
+
     @Query("SELECT * FROM walks WHERE id = :id")
     fun observeWalk(id: Long): Flow<Walk?>
 
