@@ -106,7 +106,7 @@ fun SettingsScreen(settings: Settings, onBack: () -> Unit) {
         if (uri == null) return@rememberLauncherForActivityResult
         container.scope.launch {
             val ok = runCatching {
-                val json = Backup.export(container.db)
+                val json = Backup.export(container.db, container.settings.now())
                 context.contentResolver.openOutputStream(uri, "wt")!!.use { it.write(json.toByteArray()) }
             }.isSuccess
             withContext(Dispatchers.Main) { Toast.makeText(context, if (ok) exported else failed, Toast.LENGTH_SHORT).show() }
@@ -236,7 +236,7 @@ fun SettingsScreen(settings: Settings, onBack: () -> Unit) {
                 container.scope.launch {
                     val ok = runCatching {
                         val text = context.contentResolver.openInputStream(uri)!!.use { it.readBytes().decodeToString() }
-                        Backup.import(container.db, text)
+                        Backup.import(container.db, text, container.settings)
                         container.explorer.load()
                     }.isSuccess
                     withContext(Dispatchers.Main) { Toast.makeText(context, if (ok) restored else failed, Toast.LENGTH_SHORT).show() }

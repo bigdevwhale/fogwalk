@@ -6,7 +6,7 @@ import org.json.JSONObject
 
 /** The whole explored world as one JSON file, to move to a new phone or keep safe. */
 object Backup {
-    suspend fun export(db: FogDatabase): String {
+    suspend fun export(db: FogDatabase, s: Settings? = null): String {
         val dao = db.dao()
         val o = JSONObject()
         o.put("app", "fogwalk")
@@ -37,15 +37,43 @@ object Backup {
                     .put("caches", w.caches).put("steps", w.steps).put("lat", w.lat).put("lon", w.lon).put("route", route))
             }
         })
+        // What was bought and earned to keep (#22): fog styles, gear, wards and altars.
+        if (s != null) o.put("kit", JSONObject()
+            .put("owned", JSONArray(s.owned.toList())).put("fog", s.fog).put("fogDensity", s.fogDensity.toDouble())
+            .put("gear", JSONObject().apply { s.gear.forEach { (k, v) -> put(k, v) } })
+            .put("shields", s.shields).put("shielded", JSONArray(s.shielded.toList())).put("altars", s.altars)
+            .put("ring", JSONArray().apply { s.ring.forEach { (la, lo) -> put(la).put(lo) } }))
         return o.toString()
+    }
+
+    /** The kit of a backup laid over [mine]: more is kept, never less, on either side. */
+    fun mergeKit(mine: Settings, kit: JSONObject): Settings {
+        val owned = kit.optJSONArray("owned")?.let { a -> (0 until a.length()).map { a.getString(it) } }.orEmpty()
+        val gear = kit.optJSONObject("gear")?.let { g -> g.keys().asSequence().associateWith { g.getInt(it) } }.orEmpty()
+        val shielded = kit.optJSONArray("shielded")?.let { a -> (0 until a.length()).map { a.getLong(it) } }.orEmpty()
+        val ring = kit.optJSONArray("ring")?.let { a -> (0 until a.length() / 2).map { a.getDouble(it * 2) to a.getDouble(it * 2 + 1) } }.orEmpty()
+        val fog = kit.optString("fog")
+        val untouched = mine.fog == Settings().fog
+        return mine.copy(
+            owned = mine.owned + owned,
+            fog = if (untouched && fog.isNotEmpty() && fog in mine.owned + owned) fog else mine.fog,
+            fogDensity = if (untouched && kit.has("fogDensity")) kit.getDouble("fogDensity").toFloat() else mine.fogDensity,
+            gear = (mine.gear.keys + gear.keys).associateWith { maxOf(mine.gear[it] ?: 0, gear[it] ?: 0) },
+            shields = maxOf(mine.shields, kit.optInt("shields")),
+            shielded = mine.shielded + shielded,
+            altars = maxOf(mine.altars, kit.optInt("altars")),
+            ring = mine.ring.ifEmpty { ring },
+        )
     }
 
     private fun round(v: Double) = Math.round(v * 1e6) / 1e6
 
     /** Merges a backup into what is already there; nothing is lost on either side. */
-    suspend fun import(db: FogDatabase, text: String) {
+    suspend fun import(db: FogDatabase, text: String, settings: SettingsStore? = null) {
         val o = JSONObject(text)
         require(o.optString("app") == "fogwalk")
+        // Backups before 1.9 carry no kit.
+        o.optJSONObject("kit")?.let { kit -> settings?.update { mergeKit(it, kit) } }
         val dao = db.dao()
         db.withTransaction {
             val cells = o.getJSONArray("cells")

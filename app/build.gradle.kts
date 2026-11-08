@@ -123,4 +123,6 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     testImplementation(libs.junit)
+    // The real org.json, for tests of the backup (Android's own is only stubs on the JVM).
+    testImplementation("org.json:json:20231013")
 }
