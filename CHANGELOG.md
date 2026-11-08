@@ -8,6 +8,18 @@ then close it like any HTML comment. The release notes carry it, and the chat bo
 
 All notable changes to Fogwalk. Versions follow [semantic versioning](https://semver.org/).
 
+## [1.9.0] - 2026-11-08
+### Added
+- **Delete a journey** from the chronicle: its route and record go, the cells it cleared, its finds and coins stay (#43).
+- **How altars work:** a guide from the altars line, with the steps, an example and the limits (#28).
+### Changed
+- **Backups carry what you bought:** fog styles, gear, wards of the streak and altars move to a new phone too, and merging keeps the more of each side (#22).
+- **One name for each boost:** the grove's gift is the same torch and ward of the streak the shop sells (#42), and the shop says how wide the torch burns: «112 m instead of 70 m» (#40).
+<!-- tg
+Странствие теперь можно удалить из летописи, а у алтарей появился понятный гайд.
+При переносе на новый телефон резервная копия забирает и покупки: стили тумана, снаряжение, обереги и алтари.
+Факел и оберег серии называются одинаково и в Лавке, и в даре святилища, а у факела написан точный радиус.
+-->
 ## [1.8.0] - 2026-11-07
 ### Added
 - **Zoom buttons** on the map, for one hand (#38).

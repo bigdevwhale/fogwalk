@@ -132,6 +132,8 @@ import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.CustomZoomButtonsController
 import org.osmdroid.views.MapView
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import kotlin.math.abs
 import org.osmdroid.views.overlay.gestures.RotationGestureOverlay
 import androidx.compose.material.icons.rounded.Add
@@ -840,7 +842,22 @@ private fun altars(data: GameData, imperial: Boolean, onFocus: (Double, Double) 
             }
             if (text != null) android.widget.Toast.makeText(context, text, android.widget.Toast.LENGTH_SHORT).show()
         }
+        // How it works, with an example and the limits: the line alone is too short to learn from (#28).
+        var guide by remember { mutableStateOf(false) }
+        if (guide) androidx.compose.material3.AlertDialog(
+            onDismissRequest = { guide = false },
+            containerColor = U.c.bg,
+            title = { Text(stringResource(R.string.altars_guide_t), style = UType.Strong.copy(fontSize = 19.sp)) },
+            text = {
+                Text(
+                    stringResource(R.string.altars_guide, Altars.MIN, side, distance(app.fogwalk.explore.Explorer.ALTAR_ACCURACY.toDouble(), imperial)),
+                    style = UType.Sub, modifier = Modifier.verticalScroll(rememberScrollState()),
+                )
+            },
+            confirmButton = { androidx.compose.material3.TextButton(onClick = { guide = false }) { Text(stringResource(R.string.close), color = U.c.accent, style = UType.Button) } },
+        )
         Row(Modifier.padding(start = 50.dp, top = 2.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Chip(stringResource(R.string.altars_how), U.c.surface2) { guide = true }
             if (s.altars > 0) Chip(stringResource(R.string.altar_place), azure.copy(alpha = 0.18f)) {
                 container.scope.launch {
                     val b = container.explorer.placeAltar()

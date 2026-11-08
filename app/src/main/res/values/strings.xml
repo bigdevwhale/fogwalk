@@ -85,6 +85,9 @@
     <string name="altars_title">Altars</string>
     <string name="altars_line">%1$d in the satchel · %2$d set</string>
     <string name="altars_hint">Set %1$d or more around a place you can\'t walk into, each within %2$s of the last, then close the ring</string>
+    <string name="altars_how">How does it work?</string>
+    <string name="altars_guide_t">How altars work</string>
+    <string name="altars_guide">Altars are for ground you can\'t walk onto: a fenced yard, a factory, a pond, a building site. The mist over it lifts only inside a ring of altars.\n\n1. The azure shrine gives altars: one for each visit.\n2. Go to the edge of the closed ground and tap «Set an altar».\n3. Walk along the edge and set the next ones, each no more than %2$s from the one before. You need at least %1$d.\n4. When the last stands no more than %2$s from the first, tap «Close the ring»: the mist inside lifts, the cells count, and the altars are spent.\n\nExample: a pond 200 by 300 m takes four altars at its corners, about a kilometre round.\n\nLimits: an altar can only be set while GPS is better than %3$s. Changed your mind? «Take the altars back» returns the ones set to the satchel.</string>
     <string name="altar_place">Set an altar</string>
     <string name="altar_close">Close the ring</string>
     <string name="altar_lift">Take the altars back</string>
