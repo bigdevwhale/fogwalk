@@ -1,0 +1,61 @@
+name: Google Play
+
+# Uploads the AAB of a GitHub release to Google Play.
+# Runs after every successful Release workflow, or by hand for any tag.
+# Auth is keyless (Workload Identity Federation) – no service account JSON.
+
+on:
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (empty = latest release)'
+        required: false
+      track:
+        description: 'Play track'
+        type: choice
+        default: production
+        options: [production, beta, alpha, internal]
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency: google-play
+
+jobs:
+  upload:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    environment: google-play   # waits for the owner's approval
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Download AAB from the release
+        id: rel
+        run: |
+          TAG="${{ github.event.inputs.tag }}"
+          [ -n "$TAG" ] || TAG=$(gh release view -R "$GITHUB_REPOSITORY" --json tagName -q .tagName)
+          gh release download "$TAG" -R "$GITHUB_REPOSITORY" -p '*.aab' -D dist
+          ls -l dist
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "aab=$(ls dist/*.aab | head -1)" >> "$GITHUB_OUTPUT"
+
+      - id: auth
+        uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed  # v2
+        with:
+          workload_identity_provider: projects/250995438720/locations/global/workloadIdentityPools/github/providers/github
+          service_account: play-publisher@intense-context-514611-h3.iam.gserviceaccount.com
+
+      - name: Upload to Google Play
+        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5  # v1.1.5
+        with:
+          serviceAccountJson: ${{ steps.auth.outputs.credentials_file_path }}
+          packageName: app.fogwalk
+          releaseFiles: ${{ steps.rel.outputs.aab }}
+          releaseName: ${{ steps.rel.outputs.tag }}
+          tracks: ${{ github.event.inputs.track || 'production' }}
+          status: completed
