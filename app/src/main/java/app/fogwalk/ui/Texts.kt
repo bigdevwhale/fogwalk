@@ -336,5 +336,22 @@ fun shrineReached(context: Context, kind: ShrineKind, gift: Int): String = shrin
     ShrineKind.AZURE -> context.getString(R.string.shrine_got_altar)
 }
 
+/** Everything reaching a shrine of [kind] brought, for its big news (#52); [gift] is the grove's. */
+fun shrineWon(context: Context, kind: ShrineKind, gift: Int, gear: Map<String, Int>): String {
+    val coins = Beacons.COINS + if (kind == ShrineKind.GOLD) Beacons.GOLD_COINS else 0
+    val xp = Beacons.XP + if (kind == ShrineKind.GROVE) Beacons.GROVE_XP else 0
+    val minutes = (app.fogwalk.domain.Gear.boostMs(gear) / 60_000).toInt()
+    val extra = when (kind) {
+        ShrineKind.GOLD -> null
+        ShrineKind.GROVE -> when (gift) {
+            0 -> context.getString(R.string.shrine_won_lantern, minutes)
+            1 -> context.getString(R.string.shrine_won_stone, minutes)
+            else -> context.getString(R.string.shrine_won_shield)
+        }
+        ShrineKind.AZURE -> context.getString(R.string.shrine_won_altar)
+    }
+    return context.getString(R.string.shrine_won, coins, xp) + (extra?.let { "\n" + it } ?: "")
+}
+
 /** A shrine's colour on the map and in the panels. */
 fun shrineColor(kind: ShrineKind): Color = Color(app.fogwalk.ui.map.WorldOverlay.shrineColor(kind))

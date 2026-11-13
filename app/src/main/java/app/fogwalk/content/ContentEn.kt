@@ -318,7 +318,7 @@ object ContentEn : Content {
 
     private val mottos = listOf(
         "Every road you walk stays on the map.",
-        "The mist hides more than roads.",
+        "The Mist of Forgetting gives way only to one who walks.",
         "Walk somewhere new today.",
         "Chests refill every Monday.",
         "The shrine always wakes where the mist is thickest.",

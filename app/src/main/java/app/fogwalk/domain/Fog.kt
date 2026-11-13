@@ -39,6 +39,20 @@ class FogStore {
         return true
     }
 
+    /** Takes [keys] back into the mist (#46); call [changed] after. Rebuilt from what is left, as open addressing can't delete. */
+    @Synchronized
+    fun removeAll(keys: LongArray) {
+        val gone = LongSet(keys.size)
+        keys.forEach { gone.add(it) }
+        val kept = LongArray(cells.size)
+        var n = 0
+        cells.forEach { if (it !in gone) kept[n++] = it }
+        cells.clear()
+        counts.forEach { it.clear() }
+        areaM2 = 0.0
+        for (i in 0 until n) add(kept[i])
+    }
+
     fun changed() {
         _version.value++
     }

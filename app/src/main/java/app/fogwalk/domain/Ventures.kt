@@ -186,6 +186,28 @@ object Races {
     const val MIN_ROUTE_M = 300.0
     const val WIN_XP = 200
     const val LOSE_XP = 40
+    /** Faster than this, in metres a second, a step between two points is a GPS leap, not a walk. */
+    const val MAX_SPEED = 3.5
+    /** Steps this short are kept whatever the time between them says. */
+    const val JITTER_M = 25.0
+
+    /**
+     * The route without GPS leaps: a point that could not have been reached on foot from the last one kept is
+     * dropped, so a phone left indoors does not fan a route out in spokes across the map.
+     */
+    fun <T> clean(points: List<T>, lat: (T) -> Double, lon: (T) -> Double, at: (T) -> Long): List<T> {
+        if (points.size < 3) return points
+        val out = ArrayList<T>(points.size)
+        out += points[0]
+        for (i in 1 until points.size) {
+            val p = points[i]
+            val q = out.last()
+            val m = Grid.distance(lat(q), lon(q), lat(p), lon(p))
+            val s = (at(p) - at(q)).coerceAtLeast(1_000) / 1000.0
+            if (m <= JITTER_M || m / s <= MAX_SPEED) out += p
+        }
+        return out
+    }
 
     /** Distance along the route at each point. */
     fun along(route: List<Pair<Double, Double>>): DoubleArray {
@@ -243,8 +265,11 @@ object Races {
 object Gear {
     class Piece(val id: String, val step: Double)
 
-    /** Cloak: wider reveal (m); senses: chests felt farther (m); satchel: longer torch and stone (min); boots: chests and the shrine reached from farther (m). */
-    val pieces = listOf(Piece("cloak", 4.0), Piece("senses", 100.0), Piece("satchel", 20.0), Piece("boots", 4.0))
+    /**
+     * Cloak: wider reveal (m); senses: chests felt farther (m); satchel: longer torch and stone (min); boots: chests
+     * and the shrine reached from farther (m); hook: a longer throw (m), and more throws a day (#46).
+     */
+    val pieces = listOf(Piece("cloak", 4.0), Piece("senses", 100.0), Piece("satchel", 20.0), Piece("boots", 4.0), Piece("hook", 30.0))
     val prices = intArrayOf(300, 600, 1200, 2500, 5000)
     const val MAX = 5
 
@@ -263,12 +288,17 @@ object Gear {
 /**
  * The grappling hook: once a day a chest behind a fence or across a pond is pulled in from up to
  * [RANGE_M] past the boots' reach. The farther the throw, the dearer, so walking stays the cheap way.
+ * Bought up as gear, it flies farther, and from its second and fourth level once more a day.
  */
 object Hook {
     const val RANGE_M = 120.0
 
+    fun range(gear: Map<String, Int>): Double = RANGE_M + Gear.bonus(gear, "hook")
+
+    fun throws(gear: Map<String, Int>): Int = 1 + (gear["hook"] ?: 0).coerceIn(0, Gear.MAX) / 2
+
     /** Gold for a throw [beyondM] metres past the reach: 20 and a coin for every two metres, in steps of five. */
-    fun price(beyondM: Double): Int = 20 + (beyondM.coerceIn(0.0, RANGE_M) / 10).roundToInt() * 5
+    fun price(beyondM: Double): Int = 20 + (beyondM.coerceAtLeast(0.0) / 10).roundToInt() * 5
 
     fun ref(day: Long) = "hook:$day"
 }

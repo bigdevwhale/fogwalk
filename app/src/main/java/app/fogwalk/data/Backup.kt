@@ -39,7 +39,7 @@ object Backup {
         })
         // What was bought and earned to keep (#22): fog styles, gear, wards and altars.
         if (s != null) o.put("kit", JSONObject()
-            .put("owned", JSONArray(s.owned.toList())).put("fog", s.fog).put("fogDensity", s.fogDensity.toDouble())
+            .put("owned", JSONArray(s.owned.toList())).put("fog", s.fog).put("fogDensity", s.fogDensity.toDouble()).put("companion", s.companion)
             .put("gear", JSONObject().apply { s.gear.forEach { (k, v) -> put(k, v) } })
             .put("shields", s.shields).put("shielded", JSONArray(s.shielded.toList())).put("altars", s.altars)
             .put("ring", JSONArray().apply { s.ring.forEach { (la, lo) -> put(la).put(lo) } }))
@@ -63,6 +63,9 @@ object Backup {
             shielded = mine.shielded + shielded,
             altars = maxOf(mine.altars, kit.optInt("altars")),
             ring = mine.ring.ifEmpty { ring },
+            companion = kit.optString("companion").takeIf { pal ->
+                mine.companion == Settings().companion && pal.isNotEmpty() && app.fogwalk.domain.Companions.key(pal) in mine.owned + owned
+            } ?: mine.companion,
         )
     }
 

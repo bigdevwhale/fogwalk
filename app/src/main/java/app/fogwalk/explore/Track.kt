@@ -16,6 +16,8 @@ import kotlin.math.sqrt
  * - distance grows only once the smoothed position has left the last committed point by more than
  *   the noise, so standing still adds nothing;
  * - "too fast" needs the satellites' own speed, or several fast steps in a row, not one bad fix;
+ * - but positions running off faster than a walker while the satellites claim a stroll are a glitch, not
+ *   a walk (#53): no stretch is ever drawn faster than a vehicle, nor faster than a runner while steps are heard;
  * - while the pedometer listens and hears no steps, the walker is at rest whatever the satellites say:
  *   indoors their drift is slow, smooth and comes with a made-up speed, which nothing above catches.
  */
@@ -49,6 +51,8 @@ class Track {
     private var pedometerSince = 0L
     @Volatile
     private var lastStepAt = 0L
+    /** Accepted raw fixes of the last few seconds, to see how fast the position itself runs. */
+    private val recent = ArrayDeque<Fix>()
 
     /** Null when [f] should only move the dot on the map (or nothing at all). */
     fun add(f: Fix): Step? {
@@ -80,6 +84,9 @@ class Track {
             return Step(lat, lon, f.accuracy, f.time, f.bearing, null, 0.0, fast)
         }
         rejects = 0
+        val burst = burst(f)
+        recent.addLast(f)
+        while (recent.size > 1 && f.time - recent.first().time > BURST_WINDOW_MS) recent.removeFirst()
 
         // Kalman update with walking-pace process noise.
         variance += dt * WALK_NOISE * WALK_NOISE
@@ -91,11 +98,14 @@ class Track {
 
         val step = Grid.distance(anchorLat, anchorLon, lat, lon)
         val stepDt = max(1.0, (f.time - anchorTime) / 1000.0)
-        // Doppler speed is the best judge of a vehicle; without it, several fast steps in a row.
-        // A short step says nothing either way.
+        // Doppler speed is the best judge of a vehicle; without it, several fast steps in a row. But the position
+        // running off faster than any walker counts too, whatever the satellites claim: a jammed or spoofed
+        // receiver reports a stroll while its fixes race down the street (#53). A short step says nothing either way.
+        val longStep = step >= minStep(acc, false)
+        val speed = max(burst, if (longStep) step / stepDt else 0.0)
         val fastEvidence = when {
-            reported != null -> fastNow
-            step >= minStep(acc, false) -> step / stepDt > Explorer.MAX_SPEED
+            fastNow || speed > Explorer.MAX_SPEED -> true
+            reported != null || longStep -> false
             else -> null
         }
         if (fastEvidence != null) fastHits = if (fastEvidence) fastHits + 1 else 0
@@ -108,6 +118,13 @@ class Track {
         // Standing still: the satellites say so, and the drift is small.
         val still = reported != null && reported < STILL_SPEED && step < STILL_DRIFT
         if (step < minStep(acc, reported != null) || still) return Step(lat, lon, f.accuracy, f.time, f.bearing, null, 0.0, false)
+        // Faster than the walker could have gone: left behind, not drawn. While the pedometer hears steps the
+        // walker is on foot, and a runner's pace is the limit.
+        val limit = if (pedometerSince > 0 && !atRest(f.time)) ON_FOOT_SPEED else Explorer.MAX_SPEED
+        if (max(speed, step / stepDt) > limit) {
+            moveAnchor(f.time)
+            return Step(lat, lon, f.accuracy, f.time, f.bearing, null, 0.0, false)
+        }
         // No steps heard: the drift is left behind, so it isn't counted once the walker sets off. A clean fix
         // at riding pace still counts, since a bike or a scooter makes no steps.
         val riding = reported != null && reported > RIDE_SPEED && f.accuracy <= RIDE_ACCURACY
@@ -135,6 +152,21 @@ class Track {
         lastStepAt = at
     }
 
+    /**
+     * The fastest the raw position has run over the last seconds, m/s, with both fixes' accuracy taken off the
+     * distance, so a walker's noise reads as standing still and only a real run of the dot shows.
+     */
+    private fun burst(f: Fix): Double {
+        var best = 0.0
+        for (p in recent) {
+            val dt = (f.time - p.time) / 1000.0
+            if (dt < BURST_MIN_S) continue
+            val d = Grid.distance(p.lat, p.lon, f.lat, f.lon) - p.accuracy - f.accuracy
+            if (d > 0) best = max(best, d / dt)
+        }
+        return best
+    }
+
     private fun atRest(t: Long): Boolean = pedometerSince > 0 && t - lastStepAt > STEP_SILENCE_MS
 
     private fun simulated(f: Fix): Step {
@@ -156,6 +188,8 @@ class Track {
         time = f.time
         rejects = 0
         fastHits = 0
+        recent.clear()
+        recent.addLast(f)
         moveAnchor(f.time)
     }
 
@@ -187,5 +221,9 @@ class Track {
         /** Faster than a walk, m/s: the satellites' speed this high and this clean is a ride, not drift. */
         const val RIDE_SPEED = 2.5f
         const val RIDE_ACCURACY = 15f
+        /** A runner's pace, m/s (18 km/h): the most a walker whose steps are heard can go. */
+        const val ON_FOOT_SPEED = 5.0
+        const val BURST_WINDOW_MS = 12_000L
+        const val BURST_MIN_S = 2.0
     }
 }

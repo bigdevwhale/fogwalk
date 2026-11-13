@@ -1,5 +1,6 @@
 package app.fogwalk.ui.journal
 
+import app.fogwalk.ui.GameIcon
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -150,9 +151,9 @@ fun WalkRow(w: Walk, data: GameData, imperial: Boolean) {
 
 /** The route of walk [id], loaded from the database. */
 @Composable
-fun rememberRoute(id: Long): List<Waypoint>? {
+fun rememberRoute(id: Long, version: Int = 0): List<Waypoint>? {
     val dao = LocalContext.current.container.db.dao()
-    val route by produceState<List<Waypoint>?>(null, id) { value = withContext(Dispatchers.IO) { dao.waypoints(id) } }
+    val route by produceState<List<Waypoint>?>(null, id, version) { value = withContext(Dispatchers.IO) { dao.waypoints(id) } }
     return route
 }
 
@@ -164,7 +165,7 @@ private fun RouteSketch(id: Long, modifier: Modifier) {
     Box(modifier.clip(U.RSm).background(U.c.surface2), contentAlignment = Alignment.Center) {
         if (route == null) return@Box
         if (route.size < 2) {
-            Icon(Icons.AutoMirrored.Rounded.DirectionsWalk, null, Modifier.size(22.dp), tint = U.c.faint)
+            GameIcon(Icons.AutoMirrored.Rounded.DirectionsWalk, null, Modifier.size(22.dp), tint = U.c.faint)
             return@Box
         }
         val xs = route.map { Grid.mx(it.lon) }

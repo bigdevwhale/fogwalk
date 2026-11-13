@@ -107,6 +107,18 @@ interface FogDao {
     @Query("SELECT COUNT(*) FROM cells")
     suspend fun cellCount(): Int
 
+    @Query("SELECT id FROM cells WHERE at BETWEEN :from AND :to")
+    suspend fun cellsBetween(from: Long, to: Long): LongArray
+
+    @Query("SELECT COUNT(*) FROM cells WHERE at BETWEEN :from AND :to")
+    suspend fun countCellsBetween(from: Long, to: Long): Int
+
+    @Query("DELETE FROM cells WHERE at BETWEEN :from AND :to")
+    suspend fun deleteCellsBetween(from: Long, to: Long)
+
+    @Query("DELETE FROM waypoints WHERE walk = :walk AND at BETWEEN :from AND :to")
+    suspend fun deleteWaypointsBetween(walk: Long, from: Long, to: Long)
+
     /** Cells revealed from [since] on, for today's lands. */
     @Query("SELECT id FROM cells WHERE at >= :since")
     suspend fun cellsSince(since: Long): LongArray

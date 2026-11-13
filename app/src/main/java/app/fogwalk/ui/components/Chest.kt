@@ -1,5 +1,6 @@
 package app.fogwalk.ui.components
 
+import app.fogwalk.ui.GameIcon
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
@@ -107,7 +108,11 @@ fun ChestDialog(find: Find, owned: Set<String>, copies: Int, onDismiss: () -> Un
                 Text(title, style = UType.Title.copy(fontSize = 22.sp))
                 Box(Modifier.size(190.dp), contentAlignment = Alignment.Center) {
                     if (open) Canvas(Modifier.size(190.dp).rotate(angle)) { rays(color) }
-                    Canvas(Modifier.size(110.dp).rotate(shake.value * 6f)) { chest(color, lid.value) }
+                    // The painted chest shakes shut, then stands open; treasure maps and oaths open the same chest.
+                    app.fogwalk.ui.ArtImage(
+                        app.fogwalk.ui.Art.chest(rarity, open),
+                        Modifier.size(130.dp).rotate(shake.value * 6f).scale(if (open) 0.92f + 0.08f * lid.value else 1f),
+                    )
                 }
                 AnimatedVisibility(open, enter = fadeIn(tween(400)) + scaleIn(tween(400), initialScale = 0.8f)) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -124,7 +129,8 @@ fun ChestDialog(find: Find, owned: Set<String>, copies: Int, onDismiss: () -> Un
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Box(Modifier.size(52.dp).clip(CircleShape).background(rs), contentAlignment = Alignment.Center) {
-                                    Icon(relicIcon(relic.id), null, Modifier.size(28.dp).scale(0.9f + 0.1f * lid.value), tint = rc)
+                                    app.fogwalk.ui.Art.relics[relic.id]?.let { app.fogwalk.ui.ArtImage(it, Modifier.size(44.dp).scale(0.9f + 0.1f * lid.value)) }
+                                        ?: GameIcon(relicIcon(relic.id), null, Modifier.size(28.dp), tint = rc)
                                 }
                                 Spacer(Modifier.width(14.dp))
                                 Column(Modifier.weight(1f)) {

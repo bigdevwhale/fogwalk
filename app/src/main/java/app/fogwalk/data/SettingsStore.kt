@@ -24,6 +24,8 @@ enum class Units { METRIC, IMPERIAL }
 data class Settings(
     val theme: ThemeMode = ThemeMode.SYSTEM,
     val onboarded: Boolean = false,
+    /** The story of the Mist has been read (or skipped); walkers from before it was told see it once. */
+    val storySeen: Boolean = false,
     val name: String = "",
     val units: Units = Units.METRIC,
     /** Fog style id from [app.fogwalk.domain.Shop]. */
@@ -77,6 +79,12 @@ data class Settings(
     val ring: List<Pair<Double, Double>> = emptyList(),
     /** Journeys kept at hand for races. */
     val pinned: Set<Long> = emptySet(),
+    /** The shrine just reached, "day|KIND|gift", until its news is shown (#52); empty when there is none. */
+    val shrineNews: String = "",
+    /** Chests taken off the map because they can't be reached (#46); keys of this week's only. */
+    val dismissed: Set<String> = emptySet(),
+    /** Who walks the map in the walker's place, from [app.fogwalk.domain.Companions] (#41). */
+    val companion: String = app.fogwalk.domain.Companions.TOKEN,
 )
 
 class SettingsStore(context: Context) {
@@ -87,6 +95,7 @@ class SettingsStore(context: Context) {
     private fun Preferences.read() = Settings(
         theme = this[THEME]?.let { t -> runCatching { ThemeMode.valueOf(t) }.getOrNull() } ?: ThemeMode.SYSTEM,
         onboarded = this[ONBOARDED] ?: false,
+        storySeen = this[STORY_SEEN] ?: false,
         name = this[NAME] ?: "",
         units = this[UNITS]?.let { u -> runCatching { Units.valueOf(u) }.getOrNull() } ?: Units.METRIC,
         fog = this[FOG] ?: "mist",
@@ -117,6 +126,9 @@ class SettingsStore(context: Context) {
         altars = this[ALTARS] ?: 0,
         ring = this[RING]?.let { app.fogwalk.domain.Altars.decode(it) } ?: emptyList(),
         pinned = (this[PINNED] ?: emptySet()).mapNotNull { it.toLongOrNull() }.toSet(),
+        shrineNews = this[SHRINE_NEWS] ?: "",
+        dismissed = this[DISMISSED] ?: emptySet(),
+        companion = this[COMPANION] ?: app.fogwalk.domain.Companions.TOKEN,
     )
 
     suspend fun now(): Settings = settings.first()
@@ -126,6 +138,7 @@ class SettingsStore(context: Context) {
             val s = change(it.read())
             it[THEME] = s.theme.name
             it[ONBOARDED] = s.onboarded
+            it[STORY_SEEN] = s.storySeen
             it[NAME] = s.name
             it[UNITS] = s.units.name
             it[FOG] = s.fog
@@ -156,12 +169,16 @@ class SettingsStore(context: Context) {
             it[ALTARS] = s.altars
             it[RING] = app.fogwalk.domain.Altars.encode(s.ring)
             it[PINNED] = s.pinned.map { w -> w.toString() }.toSet()
+            it[SHRINE_NEWS] = s.shrineNews
+            it[DISMISSED] = s.dismissed
+            it[COMPANION] = s.companion
         }
     }
 
     private companion object {
         val THEME = stringPreferencesKey("theme")
         val ONBOARDED = booleanPreferencesKey("onboarded")
+        val STORY_SEEN = booleanPreferencesKey("story_seen")
         val NAME = stringPreferencesKey("name")
         val UNITS = stringPreferencesKey("units")
         val FOG = stringPreferencesKey("fog")
@@ -192,5 +209,8 @@ class SettingsStore(context: Context) {
         val ALTARS = intPreferencesKey("altars")
         val RING = stringPreferencesKey("ring")
         val PINNED = stringSetPreferencesKey("pinned_walks")
+        val SHRINE_NEWS = stringPreferencesKey("shrine_news")
+        val DISMISSED = stringSetPreferencesKey("dismissed_chests")
+        val COMPANION = stringPreferencesKey("companion")
     }
 }

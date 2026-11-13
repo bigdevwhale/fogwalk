@@ -1,5 +1,9 @@
 package app.fogwalk.ui.journal
 
+import app.fogwalk.ui.components.frame
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.border
+import app.fogwalk.ui.GameIcon
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -22,6 +26,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.DirectionsWalk
 import androidx.compose.material.icons.rounded.Explore
+import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.Flare
 import androidx.compose.material.icons.rounded.Inventory2
 import androidx.compose.material.icons.rounded.LocalFireDepartment
@@ -89,42 +94,53 @@ fun JournalTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
     val c = content()
     var sharing by remember { mutableStateOf(false) }
     if (sharing) PostcardDialog(Postcard.Progress, data) { sharing = false }
+    var arms by remember { mutableStateOf(false) }
+    var allLands by remember { mutableStateOf(false) }
+    if (arms) ArmsSheet(data) { arms = false }
     Column(
-        Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp).padding(bottom = 24.dp),
+        Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 12.dp).padding(bottom = 24.dp),
     ) {
-        Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.tab_journal), style = UType.Title, modifier = Modifier.weight(1f))
-            ShareButton { sharing = true }
-            IconButton(onClick = { go.settings() }) { Icon(Icons.Rounded.Settings, stringResource(R.string.settings), tint = U.c.muted) }
+        // The walker's title over the old atlas: rank, how much of the world is charted, the streak.
+        app.fogwalk.ui.components.Banner(R.drawable.banner_chronicle, Modifier.padding(top = 8.dp), height = 176.dp) {
+            Column(Modifier.align(Alignment.CenterStart).padding(start = 18.dp, end = 96.dp)) {
+                val cream = Color(0xFFFFF6E0)
+                Text(
+                    c.rank(app.fogwalk.domain.Levels.rank(data.level)) + " · " + stringResource(R.string.level_n, data.level),
+                    style = UType.Eyebrow.copy(color = cream.copy(alpha = 0.9f)),
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(area(data.areaM2, imperial), style = UType.Display.copy(color = cream, fontSize = 34.sp), maxLines = 1)
+                Text(stringResource(R.string.world_share, worldShare(data.areaM2)), style = UType.Small.copy(color = cream.copy(alpha = 0.85f)))
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    GameIcon(Icons.Rounded.LocalFireDepartment, null, Modifier.size(18.dp), tint = if (data.streak.todayDone) U.c.flame else U.c.faint)
+                    Spacer(Modifier.width(4.dp))
+                    Text(stringResource(R.string.journal_streak, data.streak.current, data.streak.best), style = UType.Strong.copy(color = cream, fontSize = 14.sp))
+                }
+            }
+            // Light discs under the buttons, so they show on the painting.
+            Row(Modifier.align(Alignment.TopEnd).padding(8.dp).clip(CircleShape).background(U.c.surface.copy(alpha = 0.85f))) {
+                ShareButton { sharing = true }
+                IconButton(onClick = { go.settings() }) { GameIcon(Icons.Rounded.Settings, stringResource(R.string.settings), tint = U.c.muted) }
+            }
         }
 
-        UCard {
-            Text(stringResource(R.string.explored).uppercase(), style = UType.Eyebrow)
-            Spacer(Modifier.height(6.dp))
-            Text(area(data.areaM2, imperial), style = UType.Display)
-            Spacer(Modifier.height(2.dp))
-            Text(stringResource(R.string.world_share, worldShare(data.areaM2)), style = UType.Muted)
-            Spacer(Modifier.height(14.dp))
-            Row(Modifier.fillMaxWidth()) {
-                Stat(Icons.AutoMirrored.Rounded.DirectionsWalk, distance(data.facts.km * 1000, imperial), stringResource(R.string.stat_walked), U.c.sage, Modifier.weight(1f))
-                Stat(Icons.Rounded.Explore, data.facts.sectors.toString(), stringResource(R.string.stat_sectors), U.c.accent, Modifier.weight(1f))
-                Stat(Icons.Rounded.Inventory2, data.facts.caches.toString(), stringResource(R.string.stat_caches), U.c.gold, Modifier.weight(1f))
-            }
-            Spacer(Modifier.height(12.dp))
-            Row(Modifier.fillMaxWidth()) {
-                Stat(Icons.Rounded.Flare, data.facts.beacons.toString(), stringResource(R.string.stat_beacons), U.c.rose, Modifier.weight(1f))
-                Stat(Icons.Rounded.LocalFireDepartment, data.streak.best.toString(), stringResource(R.string.stat_best_streak), U.c.flame, Modifier.weight(1f))
-                Stat(Icons.Rounded.Explore, "%,d".format(data.cells), stringResource(R.string.stat_cells), U.c.sky, Modifier.weight(1f))
-            }
-        }
+        Spacer(Modifier.height(12.dp))
+        Figures(data, imperial)
 
-        TodayCard(data, imperial)
+        // The three books: deeds, relics and arms, each a door of its own.
+        Spacer(Modifier.height(12.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Door(R.drawable.ui_trophy, stringResource(R.string.door_deeds), data.badges.size, Badges.all.size, Modifier.weight(1f)) { go.deeds() }
+            Door(R.drawable.ui_cabinet, stringResource(R.string.door_relics), data.relics.size, app.fogwalk.domain.Relics.all.size, Modifier.weight(1f)) { go.relics() }
+            Door(R.drawable.ui_castle, stringResource(R.string.door_arms), data.arms.size, Arms.COUNT, Modifier.weight(1f)) { arms = true }
+        }
 
         SectionTitle(stringResource(R.string.activity))
         UCard { Heatmap(data) }
 
         SectionTitle(stringResource(R.string.sectors))
-        val sectors = data.sectors.first.indices.sortedByDescending { data.sectors.second[it] }.take(8)
+        val sectors = data.sectors.first.indices.sortedByDescending { data.sectors.second[it] }.take(if (allLands) 12 else 3)
         if (sectors.isEmpty()) {
             Text(stringResource(R.string.sectors_empty), style = UType.Muted, modifier = Modifier.padding(horizontal = 4.dp))
         } else UCard {
@@ -139,7 +155,7 @@ fun JournalTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         val arm = Arms.of(key)
-                        Icon(armIcon(arm), c.armName(arm), Modifier.size(16.dp), tint = if (share >= Sectors.CHARTED) U.c.accent else U.c.faint)
+                        GameIcon(armIcon(arm), c.armName(arm), Modifier.size(16.dp), tint = if (share >= Sectors.CHARTED) U.c.accent else U.c.faint)
                         Spacer(Modifier.width(8.dp))
                         Text(c.sectorName(key), style = UType.Strong.copy(fontSize = 15.sp), modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(percent(share), style = UType.Strong.copy(fontSize = 14.sp, color = if (share >= Sectors.CHARTED) U.c.accent else U.c.muted))
@@ -149,22 +165,17 @@ fun JournalTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
                 }
                 if (n < sectors.size - 1) Spacer(Modifier.height(2.dp))
             }
+            if (data.sectors.first.size > 3) Text(
+                stringResource(if (allLands) R.string.lands_fewer else R.string.lands_all, data.sectors.first.size), style = UType.Button.copy(color = U.c.accent),
+                modifier = Modifier.fillMaxWidth().clip(U.RSm).clickable { allLands = !allLands }.padding(top = 10.dp, bottom = 2.dp),
+            )
         }
-
-        SectionTitle(stringResource(R.string.badges_count, data.badges.size, Badges.all.size))
-        DeedsSummary(data, go)
-
-        SectionTitle(stringResource(R.string.relics_count, data.relics.size, app.fogwalk.domain.Relics.all.size))
-        RelicsSummary(data) { go.relics() }
-
-        SectionTitle(stringResource(R.string.arms_title, data.arms.size, Arms.COUNT))
-        ArmsCard(data)
 
         val walks = remember(data.walks) { journeys(data.walks) }
         if (walks.isNotEmpty()) {
             SectionTitle(stringResource(R.string.recent_walks))
             UCard(padding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 6.dp)) {
-                walks.take(5).forEachIndexed { i, w ->
+                walks.take(3).forEachIndexed { i, w ->
                     Box(Modifier.fillMaxWidth().clip(U.RSm).clickable { go.walk(w.id) }.padding(vertical = 8.dp)) { WalkRow(w, data, imperial) }
                     Box(Modifier.fillMaxWidth().height(1.dp).background(U.c.line))
                 }
@@ -177,9 +188,10 @@ fun JournalTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
     }
 }
 
-/** What today brought: new cells, the distance, chests and the lands cleared of mist. */
+/** The walker's figures, all time or today, in one card: a switch instead of two cards saying nearly the same. */
 @Composable
-private fun TodayCard(data: GameData, imperial: Boolean) {
+private fun Figures(data: GameData, imperial: Boolean) {
+    var today by remember { mutableStateOf(false) }
     val dao = androidx.compose.ui.platform.LocalContext.current.container.db.dao()
     val day = data.todayRow
     val lands by androidx.compose.runtime.produceState(0, data.today, day.cells) {
@@ -188,13 +200,61 @@ private fun TodayCard(data: GameData, imperial: Boolean) {
             dao.cellsSince(since).mapTo(HashSet()) { Grid.sector(it) }.size
         }
     }
-    SectionTitle(stringResource(R.string.journal_today))
     UCard {
+        Row(Modifier.clip(CircleShape).background(U.c.surface2).padding(3.dp)) {
+            listOf(false to R.string.figures_all, true to R.string.journal_today).forEach { (t, label) ->
+                Text(
+                    stringResource(label), style = UType.Strong.copy(fontSize = 13.sp, color = if (today == t) Color.White else U.c.muted),
+                    modifier = Modifier.clip(CircleShape).background(if (today == t) U.c.accent else Color.Transparent)
+                        .clickable { today = t }.padding(horizontal = 14.dp, vertical = 6.dp),
+                )
+            }
+        }
+        Spacer(Modifier.height(14.dp))
         Row(Modifier.fillMaxWidth()) {
-            Stat(Icons.Rounded.Explore, "%,d".format(day.cells), stringResource(R.string.stat_cells), U.c.sky, Modifier.weight(1f))
-            Stat(Icons.AutoMirrored.Rounded.DirectionsWalk, distance(day.meters, imperial), stringResource(R.string.stat_walked), U.c.sage, Modifier.weight(1f))
-            Stat(Icons.Rounded.Inventory2, day.caches.toString(), stringResource(R.string.stat_caches), U.c.gold, Modifier.weight(1f))
-            Stat(Icons.Rounded.Map, lands.toString(), stringResource(R.string.stat_sectors), U.c.accent, Modifier.weight(1f))
+            if (today) {
+                Stat(Icons.AutoMirrored.Rounded.DirectionsWalk, distance(day.meters, imperial), stringResource(R.string.stat_walked), U.c.sage, Modifier.weight(1f))
+                Stat(Icons.Rounded.GridView, "%,d".format(day.cells), stringResource(R.string.stat_cells), U.c.sky, Modifier.weight(1f))
+                Stat(Icons.Rounded.Inventory2, day.caches.toString(), stringResource(R.string.stat_caches), U.c.gold, Modifier.weight(1f))
+                Stat(Icons.Rounded.Explore, lands.toString(), stringResource(R.string.stat_sectors), U.c.accent, Modifier.weight(1f))
+            } else {
+                Stat(Icons.AutoMirrored.Rounded.DirectionsWalk, distance(data.facts.km * 1000, imperial), stringResource(R.string.stat_walked), U.c.sage, Modifier.weight(1f))
+                Stat(Icons.Rounded.GridView, "%,d".format(data.cells), stringResource(R.string.stat_cells), U.c.sky, Modifier.weight(1f))
+                Stat(Icons.Rounded.Inventory2, data.facts.caches.toString(), stringResource(R.string.stat_caches), U.c.gold, Modifier.weight(1f))
+                Stat(Icons.Rounded.Flare, data.facts.beacons.toString(), stringResource(R.string.stat_beacons), U.c.rose, Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+/** A way into one of the walker's books, with its picture and how much of it is filled. */
+@Composable
+private fun Door(@androidx.annotation.DrawableRes art: Int, title: String, have: Int, of: Int, modifier: Modifier, onClick: () -> Unit) {
+    Column(
+        modifier.frame().clickable(onClick = onClick).padding(10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        app.fogwalk.ui.ArtImage(art, Modifier.size(54.dp))
+        Spacer(Modifier.height(6.dp))
+        Text(title, style = UType.Strong.copy(fontSize = 14.sp), maxLines = 1)
+        Text("$have / $of", style = UType.Small)
+        Spacer(Modifier.height(6.dp))
+        Bar(have.toFloat() / of.coerceAtLeast(1), Modifier.height(5.dp))
+    }
+}
+
+/** The arms of every land, in a sheet of their own. */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun ArmsSheet(data: GameData, onClose: () -> Unit) {
+    androidx.compose.material3.ModalBottomSheet(
+        onDismissRequest = onClose, containerColor = U.c.bg,
+        sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true),
+    ) {
+        Column(Modifier.fillMaxWidth().navigationBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 16.dp)) {
+            Text(stringResource(R.string.arms_title, data.arms.size, Arms.COUNT), style = UType.Title.copy(fontSize = 22.sp))
+            Spacer(Modifier.height(12.dp))
+            ArmsCard(data)
         }
     }
 }
@@ -213,7 +273,7 @@ private fun percent(share: Double): String = if (share < 0.01) "<1%" else "${(sh
 @Composable
 private fun Stat(icon: ImageVector, value: String, label: String, color: Color, modifier: Modifier) {
     Column(modifier) {
-        Icon(icon, null, Modifier.size(18.dp), tint = color)
+        GameIcon(icon, null, Modifier.size(18.dp), tint = color)
         Spacer(Modifier.height(4.dp))
         Text(value, style = UType.Number.copy(fontSize = 18.sp), maxLines = 1)
         Text(label, style = UType.Small, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -283,7 +343,7 @@ private fun ArmsCard(data: GameData) {
                         Modifier.weight(1f).clip(U.RSm).background(if (raised) U.c.accentSoft else U.c.surface2).padding(vertical = 8.dp, horizontal = 2.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        Icon(armIcon(arm), null, Modifier.size(22.dp), tint = if (raised) U.c.accent else U.c.faint.copy(alpha = 0.5f))
+                        GameIcon(armIcon(arm), null, Modifier.size(22.dp), tint = if (raised) U.c.accent else U.c.faint.copy(alpha = 0.5f))
                         Spacer(Modifier.height(4.dp))
                         Text(
                             c.armName(arm), style = UType.Small.copy(fontSize = 11.sp, color = if (raised) U.c.ink else U.c.faint, textAlign = TextAlign.Center),
@@ -313,7 +373,7 @@ private fun DeedsSummary(data: GameData, go: Go) {
             val (color, soft) = badgeColor(b)
             Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(40.dp).clip(CircleShape).background(soft), contentAlignment = Alignment.Center) {
-                    Icon(badgeIcon(b), null, Modifier.size(20.dp), tint = color)
+                    GameIcon(badgeIcon(b), null, Modifier.size(20.dp), tint = color)
                 }
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {

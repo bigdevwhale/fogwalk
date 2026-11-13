@@ -234,4 +234,81 @@ object Shop {
 
     /** The lantern widens the reveal circle by this much. */
     const val LANTERN_FACTOR = 1.6
+
+    /**
+     * An altar from the merchant (#51), for those whose gold has nothing left to buy. Dear on purpose, and
+     * dearer with each one in a week: a ring of three costs 1500 + 3000 + 6000, and the azure shrine stays
+     * the usual way to get them.
+     */
+    const val ALTAR = 1500
+    const val ALTARS_A_WEEK = 3
+
+    /** The price of the week's altar after [bought] of them, or null once the week's are sold. */
+    fun altarPrice(bought: Int): Int? = if (bought >= ALTARS_A_WEEK) null else ALTAR shl bought
+
+    /** The scroll of wandering may be read again the same day (#46), each time at twice the price. */
+    fun rerollPrice(read: Int): Int = REROLL shl read.coerceIn(0, 10)
+
+    /** How many times the scroll was read on [day]. */
+    fun rerollsOn(day: Long, ledger: List<app.fogwalk.data.Entry>, zone: java.time.ZoneId): Int = ledger.count {
+        it.ref.startsWith("buy:reroll:") && java.time.Instant.ofEpochMilli(it.at).atZone(zone).toLocalDate().toEpochDay() == day
+    }
+
+    /** Altars bought from the merchant in [week]. */
+    fun altarsBought(week: Long, ledger: List<app.fogwalk.data.Entry>): Int = ledger.count { it.ref.startsWith("buy:altar:$week:") }
+}
+
+/**
+ * Who walks the map in the walker's place (#41): the gilt token, or a companion bought for good. Looks only;
+ * owned ones sit in [app.fogwalk.data.Settings.owned] as [key], next to the fog styles.
+ */
+object Companions {
+    data class Companion(val id: String, val price: Int)
+
+    const val TOKEN = "token"
+
+    val all = listOf(
+        Companion(TOKEN, 0),
+        Companion("hedgehog", 400),
+        Companion("cat", 600),
+        Companion("fox", 800),
+        Companion("owl", 1200),
+        Companion("elder", 2000),
+        Companion("granny", 3000),
+    )
+
+    fun key(id: String) = "pal:$id"
+}
+
+/**
+ * A monument raised on a charted land, gold with no end to spend it on (#50): each level costs twice the
+ * last, with no ceiling, and the stone grows grander on the map. Worth nothing but the sight of it. The
+ * levels live in the ledger as purchases, so they ride along in a backup.
+ */
+object Monuments {
+    const val PRICE = 1000
+
+    /** The price of raising a monument from [level] to the next. */
+    fun price(level: Int): Int = PRICE shl level.coerceIn(0, 20)
+
+    fun item(sector: Long, level: Int) = "monument:$sector:$level"
+
+    /** Each land's monument level, from its purchases. */
+    fun levels(ledger: List<app.fogwalk.data.Entry>): Map<Long, Int> {
+        val out = HashMap<Long, Int>()
+        for (e in ledger) {
+            if (!e.ref.startsWith("buy:monument:")) continue
+            val sector = e.ref.split(":").getOrNull(2)?.toLongOrNull() ?: continue
+            out[sector] = (out[sector] ?: 0) + 1
+        }
+        return out
+    }
+
+    /** Which of the four looks a monument of [level] wears: a standing stone, an obelisk, a column, a tower. */
+    fun tier(level: Int): Int = when {
+        level <= 1 -> 1
+        level <= 3 -> 2
+        level <= 6 -> 3
+        else -> 4
+    }
 }

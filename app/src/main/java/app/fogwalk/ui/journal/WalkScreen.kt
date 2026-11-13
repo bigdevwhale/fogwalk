@@ -1,10 +1,20 @@
 package app.fogwalk.ui.journal
 
+import app.fogwalk.ui.GameIcon
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.RangeSlider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.res.pluralStringResource
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlin.math.roundToInt
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -112,23 +122,26 @@ fun WalkScreen(id: Long, data: GameData, onBack: () -> Unit, onRace: (Long) -> U
                 val container = context.container
                 container.scope.launch { container.settings.update { it.copy(pinned = if (id in it.pinned) it.pinned - id else it.pinned + id) } }
             }) {
-                Icon(
+                GameIcon(
                     if (pinned) Icons.Rounded.Star else Icons.Rounded.StarBorder,
                     stringResource(if (pinned) R.string.walk_unpin else R.string.walk_pin),
                     tint = if (pinned) U.c.gold else U.c.muted,
                 )
             }
             if (w != null && !ongoing) IconButton(onClick = { deleting = true }) {
-                Icon(Icons.Rounded.DeleteOutline, stringResource(R.string.walk_delete), tint = U.c.muted)
+                GameIcon(Icons.Rounded.DeleteOutline, stringResource(R.string.walk_delete), tint = U.c.muted)
             }
         }
         if (w == null) return@Column
-        val route = rememberRoute(id)
+        var version by remember { mutableIntStateOf(0) }
+        val route = rememberRoute(id, version)
+        /** The stretch picked to bring the mist back over (#46), as route point indices; null while not picking. */
+        var cut by remember { mutableStateOf<ClosedFloatingPointRange<Float>?>(null) }
         Column(
             Modifier.fillMaxSize().navigationBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp).padding(bottom = 24.dp),
         ) {
             Box(Modifier.fillMaxWidth().height(380.dp).clip(U.RMd).border(1.dp, U.c.gilt.copy(alpha = 0.55f), U.RMd).background(U.c.surface2)) {
-                if (route != null && route.size >= 2) RouteMap(route)
+                if (route != null && route.size >= 2) RouteMap(route, cut?.let { it.start.roundToInt()..it.endInclusive.roundToInt() })
                 else if (route != null) Text(
                     stringResource(R.string.walk_no_route), style = UType.Muted,
                     modifier = Modifier.padding(20.dp),
@@ -173,9 +186,78 @@ fun WalkScreen(id: Long, data: GameData, onBack: () -> Unit, onRace: (Long) -> U
                         Text(stringResource(R.string.race_challenge_text), style = UType.Small, modifier = Modifier.padding(horizontal = 4.dp))
                     }
                 }
+                Spacer(Modifier.height(12.dp))
+                val picked = cut
+                if (picked == null) Text(
+                    stringResource(R.string.refog_open), style = UType.Button.copy(color = U.c.muted),
+                    modifier = Modifier.clip(U.RSm).clickable { cut = (route.lastIndex / 3f)..(route.lastIndex * 2 / 3f) }.padding(horizontal = 4.dp, vertical = 6.dp),
+                ) else RefogCard(id, route, picked, data, onChange = { cut = it }, onDone = {
+                    cut = null
+                    version++
+                })
             }
         }
     }
+}
+
+/**
+ * Bringing the mist back over a stretch a GPS glitch drew (#46): the slider picks it on the route, the map
+ * shows it in flame, and the cells first charted in that time go back under the mist.
+ */
+@Composable
+private fun RefogCard(
+    walk: Long, route: List<Waypoint>, picked: ClosedFloatingPointRange<Float>, data: GameData,
+    onChange: (ClosedFloatingPointRange<Float>?) -> Unit, onDone: () -> Unit,
+) {
+    val context = LocalContext.current
+    val container = context.container
+    val time = timeFormat()
+    val a = picked.start.roundToInt().coerceIn(0, route.lastIndex)
+    val b = picked.endInclusive.roundToInt().coerceIn(0, route.lastIndex)
+    // Each cell carries the time of the step that charted it, the same as the step's end on the route.
+    val from = route[a].at + 1
+    val to = route[b].at
+    val cells by produceState<Int?>(null, from, to) {
+        value = null
+        delay(250)
+        value = if (b > a) container.explorer.cellsBetween(from, to) else 0
+    }
+    var asking by remember { mutableStateOf(false) }
+    UCard {
+        Text(stringResource(R.string.refog_title), style = UType.Strong)
+        Spacer(Modifier.height(2.dp))
+        Text(stringResource(R.string.refog_hint), style = UType.Muted)
+        Spacer(Modifier.height(8.dp))
+        RangeSlider(
+            value = picked, onValueChange = onChange, valueRange = 0f..route.lastIndex.toFloat(),
+            colors = SliderDefaults.colors(thumbColor = U.c.flame, activeTrackColor = U.c.flame, inactiveTrackColor = U.c.line),
+        )
+        val zone = data.zone
+        Text(
+            time.format(Instant.ofEpochMilli(route[a].at).atZone(zone)) + " – " + time.format(Instant.ofEpochMilli(route[b].at).atZone(zone)) +
+                " · " + (cells?.let { pluralStringResource(R.plurals.cells, it, it) } ?: "…"),
+            style = UType.Eyebrow,
+        )
+        Spacer(Modifier.height(12.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            PrimaryButton(stringResource(R.string.refog_do), { asking = true }, Modifier.weight(1f), enabled = (cells ?: 0) > 0, color = U.c.danger)
+            PrimaryButton(stringResource(R.string.cancel), { onChange(null) }, Modifier.weight(1f), color = U.c.ink)
+        }
+    }
+    if (asking) ConfirmDialog(
+        stringResource(R.string.refog_q), pluralStringResource(R.plurals.refog_text, cells ?: 0, cells ?: 0), stringResource(R.string.refog_do),
+        onConfirm = {
+            asking = false
+            container.scope.launch {
+                val n = container.explorer.refog(walk, from, to)
+                withContext(Dispatchers.Main) {
+                    android.widget.Toast.makeText(context, context.resources.getQuantityString(R.plurals.refog_done, n, n), android.widget.Toast.LENGTH_SHORT).show()
+                    onDone()
+                }
+            }
+        },
+        onDismiss = { asking = false }, danger = true,
+    )
 }
 
 @Composable
@@ -198,7 +280,7 @@ internal fun pace(ms: Long, meters: Double, imperial: Boolean): String {
 /** An osmdroid map in the atlas colours, fitted to the route. */
 @android.annotation.SuppressLint("ClickableViewAccessibility")
 @Composable
-private fun RouteMap(route: List<Waypoint>) {
+private fun RouteMap(route: List<Waypoint>, cut: IntRange?) {
     val context = LocalContext.current
     val density = LocalDensity.current.density
     val dark = U.c.dark
@@ -206,6 +288,9 @@ private fun RouteMap(route: List<Waypoint>) {
     val start = U.c.sage.toArgb()
     val end = U.c.gold.toArgb()
     val paper = U.c.surface.toArgb()
+    val flame = U.c.flame.toArgb()
+    val overlay = remember(route) { RouteOverlay(route.map { GeoPoint(it.lat, it.lon) }, density, ink, start, end, paper, flame) }
+    overlay.cut = cut
     val map = remember {
         MapView(context).apply {
             setTileSource(TileSourceFactory.MAPNIK)
@@ -218,11 +303,17 @@ private fun RouteMap(route: List<Waypoint>) {
             isVerticalMapRepetitionEnabled = false
             overlayManager.tilesOverlay.setColorFilter(if (dark) nightTiles() else softTiles())
             overlayManager.tilesOverlay.loadingBackgroundColor = if (dark) 0xFF1E1810.toInt() else 0xFFE8DCBE.toInt()
-            overlays.add(RouteOverlay(route.map { GeoPoint(it.lat, it.lon) }, density, ink, start, end, paper))
             val zoom = app.fogwalk.ui.map.OneFingerZoom(this)
             setOnTouchListener { _, e -> zoom.onTouch(e) }
         }
     }
+    // A shorter route after the mist came back gets a fresh line.
+    DisposableEffect(overlay) {
+        map.overlays.add(overlay)
+        map.invalidate()
+        onDispose { map.overlays.remove(overlay) }
+    }
+    LaunchedEffect(cut) { map.invalidate() }
     LaunchedEffect(route) {
         // osmdroid ignores where it is asked to look until it has been laid out.
         while (map.width == 0) delay(50)
@@ -248,7 +339,10 @@ private class RouteOverlay(
     private val start: Int,
     private val end: Int,
     private val paper: Int,
+    private val flame: Int,
 ) : Overlay() {
+    /** Route point indices picked to bring the mist back over, drawn in flame. */
+    var cut: IntRange? = null
     private val line = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeCap = Paint.Cap.ROUND
@@ -272,6 +366,16 @@ private class RouteOverlay(
         line.color = ink
         line.strokeWidth = 4.5f * density
         c.drawPath(path, line)
+        cut?.takeIf { it.last > it.first }?.let { r ->
+            path.reset()
+            for (i in r.first.coerceAtLeast(0)..r.last.coerceAtMost(points.lastIndex)) {
+                proj.toPixels(points[i], px)
+                if (i == r.first) path.moveTo(px.x.toFloat(), px.y.toFloat()) else path.lineTo(px.x.toFloat(), px.y.toFloat())
+            }
+            line.color = flame
+            line.strokeWidth = 6.5f * density
+            c.drawPath(path, line)
+        }
         marker(c, proj, points.first(), start)
         marker(c, proj, points.last(), end)
     }

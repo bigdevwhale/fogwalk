@@ -54,26 +54,26 @@ data class Palette(
 val LightPalette = Palette(
     bg = Color(0xFFEFE3C8),
     surface = Color(0xFFFBF4E2),
-    surface2 = Color(0xFFF4EAD2),
-    line = Color(0xFFDCC9A0),
+    surface2 = Color(0xFFE6D3AA),
+    line = Color(0xFFC9AE7C),
     ink = Color(0xFF2B1D10),
     muted = Color(0xFF6E5A42),
     faint = Color(0xFFA48F6D),
     accent = Color(0xFF1E6B50),
-    accentSoft = Color(0xFFD7E6D3),
+    accentSoft = Color(0xFFC4DBBE),
     onAccent = Color(0xFFFBF4E2),
     gold = Color(0xFFAE7A1C),
-    goldSoft = Color(0xFFF3E1B4),
+    goldSoft = Color(0xFFEDCF8F),
     sage = Color(0xFF55813C),
-    sageSoft = Color(0xFFE1EBCB),
+    sageSoft = Color(0xFFD2E2B6),
     sky = Color(0xFF2F6596),
-    skySoft = Color(0xFFDCE6EE),
+    skySoft = Color(0xFFC9DAE8),
     violet = Color(0xFF6E3F9E),
-    violetSoft = Color(0xFFE9DDF0),
+    violetSoft = Color(0xFFDDCBEA),
     rose = Color(0xFF9E3A55),
-    roseSoft = Color(0xFFF2DCDD),
+    roseSoft = Color(0xFFEACACC),
     flame = Color(0xFFB4441E),
-    flameSoft = Color(0xFFF5DCC6),
+    flameSoft = Color(0xFFEFC9A8),
     danger = Color(0xFFA8322A),
     gilt = Color(0xFFC9A24E),
     dark = false,
@@ -130,9 +130,9 @@ object U {
     val c: Palette @Composable get() = LocalPalette.current
 
     val RXl = RoundedCornerShape(22.dp)
-    val RLg = RoundedCornerShape(18.dp)
-    val RMd = RoundedCornerShape(14.dp)
-    val RSm = RoundedCornerShape(10.dp)
+    val RLg = RoundedCornerShape(14.dp)
+    val RMd = RoundedCornerShape(11.dp)
+    val RSm = RoundedCornerShape(8.dp)
 }
 
 object UType {

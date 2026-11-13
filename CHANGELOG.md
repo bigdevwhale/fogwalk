@@ -8,6 +8,37 @@ then close it like any HTML comment. The release notes carry it, and the chat bo
 
 All notable changes to Fogwalk. Versions follow [semantic versioning](https://semver.org/).
 
+## [1.10.0] - 2026-11-13
+### Added
+- **Bring the mist back:** pick a stretch of a journey on its route, and what a GPS glitch charted there goes back under the mist (#46).
+- **Altars in the shop,** for gold with nothing left to buy: 1500, then 3000, then 6000, three a week (#51).
+- **The grappling hook as gear:** five levels, 30 m farther each, and a second and third throw a day (#46).
+- **A chest you can't reach** can be taken off the map until Monday; walk up to it and it still opens (#46).
+- **A shrine reached is shown big,** like a chest, with everything it gave (#52).
+- **Companions:** a hedgehog, a cat, a fox, an owl, a wanderer or a granny can walk the map in your place, bought for good in the shop (#41).
+- **Monuments** on lands you have charted a quarter of: each level costs twice the last, with no ceiling, and the stone grows from a standing stone to a tower on the map (#50).
+- **A story for the mist:** three painted chapters open the game: the Wayfarers' Atlas, the Mist of Forgetting that makes the world forget, and the walker who brings it back step by step. The screens speak of it too: lands are remembered, the Chronicle counts what is restored to the Atlas, the quests hang on the Guild's board. Walkers who began before it see the story once on their next launch, without the permission pages; it can be read again from the settings.
+### Changed
+- **Everything painted anew:** relics, chests, shrines, the shop's wares and the game's own icons (tabs, deeds, arms, figures) are hand-painted pictures now, one set with the companions. Controls stay plain.
+- **The shop, room by room:** a painted banner over each room (looks, charms, maps, gear, monuments, tavern), wares as tiles, and a sheet with the whole story and the price to buy.
+- **Quests, two boards:** a notice board over today's errands and the week's, the oath folded into a card that opens its vows and stakes in a sheet.
+- **The map as an old atlas:** browned edges with mist drifting along them, a painted compass rose that turns with the map and sets north up on a tap, and parchment under its panels.
+- **Panels of the atlas:** cards are old paper with a gilt edge, a fine inner rule and gold corners instead of plain white; the map's buttons and the open tab are brass medallions; the tab bar sits on paper under a double gilt rule; the shop's rooms are painted signs.
+- **A race's start and finish are pennants,** and the shadow walks as your companion in smoke, so neither passes for a second walker. A tap on either flag opens the race's card, with a way to call it off, and the route leaves out GPS leaps no walker could make.
+- **Settings, shorter:** four cards of painted lines with a word each (reminders, look, steps, more), the theme, language and units as one-tap choices, the backup, the story and the community in one card, and the app's details in small print at the foot.
+- **The chronicle, lighter:** the walker's title over an old atlas, one card of figures with all time and today, three doors to deeds, relics and arms, and the lands and journeys folded to the first few.
+- **The scroll of wandering** can be read again the same day, each time at twice the price (#46).
+- **The map turns only on a plain twist** of two fingers, not with a pinch (#45).
+- **The boots' next level** gives both distances, the chest's and the shrine's (#48).
+### Fixed
+- **A GPS glitch no longer charts the streets and opens the chests along it** (#53): fixes running off faster than any walker are left behind even when the satellites claim a stroll, and while the pedometer hears steps nothing faster than a runner counts.
+<!-- tg
+У тумана появилась история: Туман Забвения стирает мир из памяти, и только шаги странника возвращают его в Атлас. Те, кто уже играет, увидят её при следующем запуске.
+Игра нарисована заново: реликвии, сундуки, святилища и значки, а Карта, Лавка, Квесты, Летопись и Настройки стали проще и похожи на страницы старого атласа.
+По карте может шагать спутник — ёжик, кот, лис, сова, странник или бабушка, а на освобождённых землях можно ставить памятники.
+Сбой GPS больше не открывает туман и сундуки вдоль ложного пути, а если такое уже случилось, туман на отрезке можно вернуть.
+-->
+
 ## [1.9.0] - 2026-11-08
 ### Added
 - **Delete a journey** from the chronicle: its route and record go, the cells it cleared, its finds and coins stay (#43).

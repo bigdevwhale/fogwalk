@@ -1,5 +1,9 @@
 package app.fogwalk.ui.quests
 
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import app.fogwalk.ui.GameIcon
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -71,20 +75,59 @@ fun QuestsTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
     val imperial = data.settings.units == Units.IMPERIAL
     val now = LocalDateTime.now(data.zone)
     val left = java.time.Duration.between(now, now.toLocalDate().plusDays(1).atStartOfDay())
+    var week by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     Column(
-        Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp).padding(bottom = 24.dp),
+        Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 12.dp).padding(bottom = 24.dp),
     ) {
-        Spacer(Modifier.height(18.dp))
-        Text(stringResource(R.string.tab_quests), style = UType.Title)
-        Spacer(Modifier.height(4.dp))
-        Text(stringResource(R.string.quests_reset, left.toHours().toInt(), (left.toMinutes() % 60).toInt()), style = UType.Sub)
+        // The notice board: what is asked of the walker, when it changes, and the streak at a glance.
+        app.fogwalk.ui.components.Banner(R.drawable.banner_quests, Modifier.padding(top = 8.dp)) {
+            val cream = Color(0xFFFFF6E0)
+            Column(Modifier.align(Alignment.CenterStart).padding(start = 18.dp, end = 110.dp)) {
+                Text(stringResource(R.string.quests_board).uppercase(), style = UType.Eyebrow.copy(color = cream.copy(alpha = 0.9f)))
+                Text(stringResource(R.string.tab_quests), style = UType.Title.copy(color = cream))
+                Spacer(Modifier.height(2.dp))
+                Text(stringResource(R.string.quests_reset, left.toHours().toInt(), (left.toMinutes() % 60).toInt()), style = UType.Small.copy(color = cream.copy(alpha = 0.9f), fontSize = 13.sp))
+            }
+            Row(
+                Modifier.align(Alignment.TopEnd).padding(10.dp).clip(CircleShape).background(U.c.surface.copy(alpha = 0.92f)).padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                GameIcon(Icons.Rounded.LocalFireDepartment, null, Modifier.size(18.dp), tint = if (data.streak.todayDone) U.c.flame else U.c.faint)
+                Spacer(Modifier.width(4.dp))
+                Text(data.streak.current.toString(), style = UType.Strong.copy(color = U.c.flame))
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        // Today's errands, or the week's: one board at a time.
+        Row(Modifier.clip(CircleShape).background(U.c.surface2).padding(3.dp)) {
+            val weekDot = (data.claimable(data.weekly)) || data.oathKept
+            listOf(false to R.string.quests_today, true to R.string.quests_week).forEach { (w, label) ->
+                Row(
+                    Modifier.clip(CircleShape).background(if (week == w) U.c.accent else Color.Transparent).clickable { week = w }.padding(horizontal = 18.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(stringResource(label), style = UType.Strong.copy(fontSize = 14.sp, color = if (week == w) Color.White else U.c.muted))
+                    if (w && weekDot && !week) {
+                        Spacer(Modifier.width(6.dp))
+                        Box(Modifier.size(7.dp).clip(CircleShape).background(U.c.flame))
+                    }
+                }
+            }
+        }
+
+        if (week) {
+            SectionTitle(stringResource(R.string.quests_week_quest))
+            QuestCard(data.weekly, data, imperial, weekly = true)
+            SectionTitle(stringResource(R.string.oath_title))
+            OathCard(data, imperial)
+            Spacer(Modifier.height(10.dp))
+            Text(stringResource(R.string.caches_refill), style = UType.Muted, modifier = Modifier.padding(horizontal = 4.dp))
+            return@Column
+        }
 
         StreakCard(data)
 
-        SectionTitle(stringResource(R.string.oath_title))
-        OathCard(data, imperial)
-
-        SectionTitle(stringResource(R.string.quests_today))
+        SectionTitle(stringResource(R.string.quests_daily))
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             data.quests.forEach { q ->
                 val shrine = data.settings.shrines.takeIf { it.day == data.today }?.let { sd ->
@@ -99,11 +142,6 @@ fun QuestsTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
                 } else null)
             }
         }
-
-        SectionTitle(stringResource(R.string.quests_week))
-        QuestCard(data.weekly, data, imperial, weekly = true)
-        Spacer(Modifier.height(10.dp))
-        Text(stringResource(R.string.caches_refill), style = UType.Muted, modifier = Modifier.padding(horizontal = 4.dp))
     }
 }
 
@@ -115,7 +153,7 @@ private fun StreakCard(data: GameData) {
     UCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(56.dp).clip(CircleShape).background(if (st.todayDone) U.c.flameSoft else U.c.surface2), contentAlignment = Alignment.Center) {
-                Icon(Icons.Rounded.LocalFireDepartment, null, Modifier.size(32.dp), tint = if (st.current > 0) U.c.flame else U.c.faint)
+                GameIcon(Icons.Rounded.LocalFireDepartment, null, Modifier.size(32.dp), tint = if (st.current > 0) U.c.flame else U.c.faint)
             }
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
@@ -142,8 +180,8 @@ private fun StreakCard(data: GameData) {
                         contentAlignment = Alignment.Center,
                     ) {
                         when {
-                            on -> Icon(Icons.Rounded.Check, null, Modifier.size(18.dp), tint = Color.White)
-                            shielded -> Icon(Icons.Rounded.Shield, null, Modifier.size(16.dp), tint = U.c.sky)
+                            on -> GameIcon(Icons.Rounded.Check, null, Modifier.size(18.dp), tint = Color.White)
+                            shielded -> GameIcon(Icons.Rounded.Shield, null, Modifier.size(16.dp), tint = U.c.sky)
                         }
                     }
                     Spacer(Modifier.height(4.dp))
@@ -153,7 +191,7 @@ private fun StreakCard(data: GameData) {
         }
         Spacer(Modifier.height(12.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Rounded.Shield, null, Modifier.size(16.dp), tint = U.c.sky)
+            GameIcon(Icons.Rounded.Shield, null, Modifier.size(16.dp), tint = U.c.sky)
             Spacer(Modifier.width(6.dp))
             Text(
                 pluralStringResource(R.plurals.shields, data.settings.shields, data.settings.shields) + " · " + stringResource(R.string.best_streak, st.best),
@@ -179,8 +217,8 @@ private fun QuestCard(q: Quest, data: GameData, imperial: Boolean, weekly: Boole
     }
     UCard(onClick = onShow) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(44.dp).clip(CircleShape).background(soft), contentAlignment = Alignment.Center) {
-                Icon(icon, null, Modifier.size(22.dp), tint = color)
+            Box(Modifier.size(52.dp).clip(CircleShape).background(soft), contentAlignment = Alignment.Center) {
+                GameIcon(icon, null, Modifier.size(34.dp), tint = if (claimed) U.c.faint else color)
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
@@ -201,7 +239,7 @@ private fun QuestCard(q: Quest, data: GameData, imperial: Boolean, weekly: Boole
             Spacer(Modifier.width(8.dp))
             when {
                 claimed -> Box(Modifier.size(36.dp).clip(CircleShape).background(U.c.accentSoft), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Rounded.Check, stringResource(R.string.done), Modifier.size(20.dp), tint = U.c.accent)
+                    GameIcon(Icons.Rounded.Check, stringResource(R.string.done), Modifier.size(20.dp), tint = U.c.accent)
                 }
                 done -> Text(
                     stringResource(R.string.claim),

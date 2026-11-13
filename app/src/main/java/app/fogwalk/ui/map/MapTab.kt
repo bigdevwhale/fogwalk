@@ -1,5 +1,10 @@
 package app.fogwalk.ui.map
 
+import app.fogwalk.ui.components.medallion
+import app.fogwalk.ui.components.frame
+import app.fogwalk.ui.GameIcon
+import androidx.compose.animation.core.animateFloat
+import app.fogwalk.ui.components.parchment
 import android.Manifest
 import android.annotation.SuppressLint
 import android.graphics.ColorMatrix
@@ -64,6 +69,8 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -135,7 +142,6 @@ import org.osmdroid.views.MapView
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import kotlin.math.abs
-import org.osmdroid.views.overlay.gestures.RotationGestureOverlay
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Navigation
@@ -182,6 +188,7 @@ fun MapTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
             container.fog, density,
             onPick = { pick = it },
             onLongPress = if (BuildConfig.DEBUG) { lat, lon -> explorer.simulateTo(lat, lon) } else null,
+            sprite = Sprites(context.applicationContext)::get,
         )
     }
     val dark = U.c.dark
@@ -196,8 +203,8 @@ fun MapTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
             isHorizontalMapRepetitionEnabled = false
             isVerticalMapRepetitionEnabled = false
             setScrollableAreaLimitLatitude(MapView.getTileSystem().maxLatitude, MapView.getTileSystem().minLatitude, 0)
-            // Two fingers turn the map (#37); the compass button sets north back up.
-            overlays.add(RotationGestureOverlay(this).apply { isEnabled = true })
+            // Two fingers turn the map once they plainly twist, not with a pinch (#37, #45); the compass button sets north back up.
+            overlays.add(TwistRotation(this))
             overlays.add(overlay)
             val start = live.fix
             if (start != null) {
@@ -239,7 +246,7 @@ fun MapTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
     // A race's route, loaded once per raced walk.
     val dao = container.db.dao()
     val raceRoute by produceState<List<Waypoint>?>(null, s.race?.walk) {
-        value = s.race?.walk?.let { w -> withContext(Dispatchers.IO) { dao.waypoints(w) } }
+        value = s.race?.walk?.let { w -> withContext(Dispatchers.IO) { Races.clean(dao.waypoints(w), { it.lat }, { it.lon }, { it.at }) } }
     }
     val raceView = remember(raceRoute, s.race) {
         val r = s.race
@@ -259,7 +266,7 @@ fun MapTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
     overlay.scene = Scene(
         fix = live.fix, trail = live.trail,
         shrines = shrines?.shrines.orEmpty(), shrineChosen = shrines?.chosen, shrineReached = data.todayRow.beacon, ring = s.ring,
-        week = data.week, opened = data.opened, radar = s.radarUntil > data.now,
+        week = data.week, opened = data.opened + s.dismissed, radar = s.radarUntil > data.now,
         style = s.fog, density = s.fogDensity, rarityColors = rarityColors, accent = accent, gold = gold, shadow = shadowInk,
         picked = (pick as? Pick.OfLand)?.sector,
         senseM = Gear.senseM(s.gear), rumor = data.rumor?.key, treasure = s.treasure, race = raceView,
@@ -268,6 +275,7 @@ fun MapTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
             is Pick.OfShrine -> shrines?.of(p.kind)?.takeIf { !data.todayRow.beacon }?.let { Triple(it.lat, it.lon, Gear.shrineM(s.gear)) }
             else -> null
         },
+        companion = s.companion, monuments = data.monuments,
     )
     LaunchedEffect(Unit) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
@@ -322,7 +330,8 @@ fun MapTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
             val t = when (e) {
                 is GameEvent.NewSector -> Toast(System.nanoTime(), Icons.Rounded.TravelExplore, sectorText.format(c.sectorName(e.sector)), accentC)
                 is GameEvent.Milestone -> Toast(System.nanoTime(), Icons.Rounded.TravelExplore, milestoneText.format(c.sectorName(e.sector), (e.share * 100).toInt(), e.coins), goldC)
-                is GameEvent.Beacon -> Toast(System.nanoTime(), Icons.Rounded.Flare, shrineReached(context, e.kind, e.gift), flame)
+                // Shown big instead, like a chest (#52).
+                is GameEvent.Beacon -> null
                 is GameEvent.RingClosed -> Toast(System.nanoTime(), Icons.Rounded.ChangeHistory, ringText.format(e.cells), accentC)
                 is GameEvent.Opened -> null
                 is GameEvent.Near -> null
@@ -344,6 +353,8 @@ fun MapTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
 
     Box(Modifier.fillMaxSize()) {
         AndroidView({ mapView }, Modifier.fillMaxSize())
+        // The map as an old atlas: its edges browned and drifting with mist. Drawn only, so every touch reaches the map.
+        AtlasEdges(U.c.dark)
 
         Column(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 12.dp, vertical = 8.dp)) {
             TopHud(data) { go.tab(Tab.TREASURY) }
@@ -363,10 +374,10 @@ fun MapTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
             toasts.forEach { t ->
                 AnimatedVisibility(true, enter = fadeIn() + slideInVertically(), exit = fadeOut() + slideOutVertically()) {
                     Row(
-                        Modifier.padding(bottom = 6.dp).shadow(6.dp, U.RMd).clip(U.RMd).background(U.c.surface).border(1.dp, U.c.gilt, U.RMd).padding(horizontal = 14.dp, vertical = 10.dp),
+                        Modifier.padding(bottom = 6.dp).frame(elevation = 6.dp).padding(horizontal = 14.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(t.icon, null, Modifier.size(20.dp), tint = t.color)
+                        GameIcon(t.icon, null, Modifier.size(20.dp), tint = t.color)
                         Spacer(Modifier.width(10.dp))
                         Text(t.text, style = UType.Body.copy(fontSize = 14.sp))
                     }
@@ -376,13 +387,12 @@ fun MapTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
 
         Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(12.dp)) {
             Column(Modifier.align(Alignment.End), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                // North up again, shown only while the map is turned.
-                if (abs(((turned % 360) + 360) % 360) > 0.5f && abs(((turned % 360) + 360) % 360 - 360) > 0.5f) {
-                    Box(
-                        Modifier.size(48.dp).shadow(6.dp, CircleShape).clip(CircleShape).background(U.c.surface).border(1.5.dp, U.c.gilt, CircleShape)
-                            .clickable { mapView.mapOrientation = 0f; turned = 0f },
-                        contentAlignment = Alignment.Center,
-                    ) { Icon(Icons.Rounded.Navigation, stringResource(R.string.north_up), Modifier.size(23.dp).rotate(turned), tint = U.c.flame) }
+                // The atlas's compass rose, always there and turning with the map; a tap sets north back up.
+                Box(
+                    Modifier.size(56.dp).clip(CircleShape).clickable { mapView.mapOrientation = 0f; turned = 0f },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    app.fogwalk.ui.ArtImage(R.drawable.ui_compass, Modifier.size(54.dp).rotate(turned))
                 }
                 // Zoom with one hand (#38).
                 RoundButton(Icons.Rounded.Add, U.c.ink, stringResource(R.string.zoom_in)) { mapView.controller.zoomIn() }
@@ -396,7 +406,7 @@ fun MapTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
                 }
             }
             Spacer(Modifier.height(10.dp))
-            pick?.let { p -> PickCard(p, data, imperial) { pick = null } }
+            pick?.let { p -> PickCard(p, data, imperial, raceView) { pick = null } }
             Text(
                 stringResource(R.string.osm_credit), style = UType.Small.copy(fontSize = 10.sp, color = U.c.muted),
                 modifier = Modifier.padding(start = 4.dp, bottom = 4.dp).clip(CircleShape).background(U.c.surface.copy(alpha = 0.7f)).padding(horizontal = 6.dp, vertical = 1.dp),
@@ -417,6 +427,36 @@ fun MapTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
     }
 }
 
+/** Browned corners and two banks of mist drifting slowly along the edges of the screen, like the margins of an old map. */
+@Composable
+private fun AtlasEdges(dark: Boolean) {
+    val drift = androidx.compose.animation.core.rememberInfiniteTransition(label = "mist")
+    val t by drift.animateFloat(
+        0f, 1f,
+        androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(24_000, easing = androidx.compose.animation.core.LinearEasing), androidx.compose.animation.core.RepeatMode.Reverse),
+        label = "t",
+    )
+    val sepia = if (dark) Color(0xFF0E0A06) else Color(0xFF5A3E1E)
+    val mist = if (dark) Color(0xFF8A8C92) else Color(0xFFF4EEDF)
+    androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+        val w = size.width
+        val h = size.height
+        // The vignette: clear in the middle, browning toward the corners.
+        drawRect(
+            Brush.radialGradient(
+                0.55f to Color.Transparent, 1f to sepia.copy(alpha = if (dark) 0.55f else 0.32f),
+                center = center, radius = kotlin.math.hypot(w, h) / 2,
+            ),
+        )
+        // Mist along the left and right margins, slowly changing places.
+        for ((x, y, k) in listOf(Triple(-0.05f + 0.06f * t, 0.30f + 0.10f * t, 1f), Triple(1.05f - 0.06f * t, 0.70f - 0.12f * t, 0.85f))) {
+            val c = Offset(w * x, h * y)
+            val r = w * 0.55f * k
+            drawCircle(Brush.radialGradient(listOf(mist.copy(alpha = 0.38f), Color.Transparent), c, r), r, c)
+        }
+    }
+}
+
 @Composable
 private fun TopHud(data: GameData, onCoins: () -> Unit) {
     val c = content()
@@ -424,7 +464,7 @@ private fun TopHud(data: GameData, onCoins: () -> Unit) {
     val need = Levels.need(data.level)
     Row(verticalAlignment = Alignment.CenterVertically) {
         Row(
-            Modifier.weight(1f).shadow(6.dp, U.RMd).clip(U.RMd).background(U.c.surface).border(1.dp, U.c.gilt.copy(alpha = 0.7f), U.RMd).padding(horizontal = 10.dp, vertical = 8.dp),
+            Modifier.weight(1f).frame(elevation = 6.dp).padding(horizontal = 10.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             ProgressRing(into.toFloat() / need, Modifier.size(40.dp), stroke = 4.dp) {
@@ -450,11 +490,11 @@ private fun TopHud(data: GameData, onCoins: () -> Unit) {
 @Composable
 fun Pill(icon: ImageVector, text: String, color: Color, spark: Boolean = false, onClick: (() -> Unit)? = null) {
     Row(
-        Modifier.shadow(4.dp, CircleShape).clip(CircleShape).background(U.c.surface).border(1.dp, U.c.gilt.copy(alpha = 0.7f), CircleShape)
+        Modifier.shadow(4.dp, CircleShape).clip(CircleShape).background(U.c.surface).parchment(0.5f).border(1.5.dp, U.c.gilt, CircleShape)
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier).padding(horizontal = 10.dp, vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (spark) CoinIcon(Modifier.size(15.dp)) else Icon(icon, null, Modifier.size(16.dp), tint = color)
+        if (spark) CoinIcon(Modifier.size(15.dp)) else GameIcon(icon, null, Modifier.size(16.dp), tint = color)
         Spacer(Modifier.width(5.dp))
         Text(text, style = UType.Strong.copy(fontSize = 13.sp), maxLines = 1, softWrap = false)
     }
@@ -486,13 +526,13 @@ fun CoinIcon(modifier: Modifier = Modifier, color: Color = U.c.gold) {
 @Composable
 private fun RoundButton(icon: ImageVector, tint: Color, label: String, onClick: () -> Unit) {
     Box(
-        Modifier.size(48.dp).shadow(6.dp, CircleShape).clip(CircleShape).background(U.c.surface).border(1.5.dp, U.c.gilt, CircleShape).clickable(onClick = onClick),
+        Modifier.size(50.dp).medallion().clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
-    ) { Icon(icon, label, Modifier.size(23.dp), tint = tint) }
+    ) { GameIcon(icon, label, Modifier.size(22.dp), tint = if (tint == U.c.ink) Color(0xFF4A3420) else tint) }
 }
 
 @Composable
-private fun PickCard(p: Pick, data: GameData, imperial: Boolean, onClose: () -> Unit) {
+private fun PickCard(p: Pick, data: GameData, imperial: Boolean, race: RaceView?, onClose: () -> Unit) {
     val c = content()
     val context = LocalContext.current
     val fix = context.container.explorer.live.collectAsStateWithLifecycle().value.fix?.takeIf { it.time > 0 }
@@ -502,6 +542,7 @@ private fun PickCard(p: Pick, data: GameData, imperial: Boolean, onClose: () -> 
         is Pick.OfShrine -> shrines?.of(p.kind)?.let { it.lat to it.lon }
         is Pick.OfLand -> null
         Pick.OfTreasure -> data.settings.treasure?.let { it.cLat to it.cLon }
+        Pick.OfRace -> race?.route?.first()
     }
     val meters = if (fix != null && target != null) Grid.distance(fix.lat, fix.lon, target.first, target.second) else null
     val (color, soft) = when (p) {
@@ -510,9 +551,10 @@ private fun PickCard(p: Pick, data: GameData, imperial: Boolean, onClose: () -> 
         // A land wears its arms, in colour once its banner is raised.
         is Pick.OfLand -> if (data.share(p.sector) >= Sectors.CHARTED) U.c.accent to U.c.accentSoft else U.c.muted to U.c.surface2
         Pick.OfTreasure -> U.c.gold to U.c.goldSoft
+        Pick.OfRace -> U.c.sage to U.c.sageSoft
     }
     Row(
-        Modifier.fillMaxWidth().padding(bottom = 8.dp).shadow(8.dp, U.RMd).clip(U.RMd).background(U.c.surface).border(1.dp, U.c.gilt, U.RMd).padding(14.dp),
+        Modifier.fillMaxWidth().padding(bottom = 8.dp).frame(elevation = 8.dp).padding(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.size(44.dp).clip(CircleShape).background(soft), contentAlignment = Alignment.Center) {
@@ -521,8 +563,16 @@ private fun PickCard(p: Pick, data: GameData, imperial: Boolean, onClose: () -> 
                 is Pick.OfShrine -> Icons.Rounded.Flare
                 is Pick.OfLand -> app.fogwalk.ui.armIcon(app.fogwalk.domain.Arms.of(p.sector))
                 Pick.OfTreasure -> Icons.Rounded.Map
+                Pick.OfRace -> Icons.Rounded.Timer
             }
-            Icon(icon, (p as? Pick.OfLand)?.let { c.armName(app.fogwalk.domain.Arms.of(it.sector)) }, Modifier.size(22.dp), tint = color)
+            val art = when (p) {
+                is Pick.OfCache -> app.fogwalk.ui.Art.chest(if (p.sensed) null else p.cache.rarity)
+                is Pick.OfShrine -> app.fogwalk.ui.Art.shrine(p.kind)
+                Pick.OfTreasure -> data.settings.treasure?.let { app.fogwalk.ui.Art.maps[it.tier] }
+                is Pick.OfLand, Pick.OfRace -> null
+            }
+            if (art != null) app.fogwalk.ui.ArtImage(art, Modifier.size(38.dp))
+            else GameIcon(icon, (p as? Pick.OfLand)?.let { c.armName(app.fogwalk.domain.Arms.of(it.sector)) }, Modifier.size(22.dp), tint = color)
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
@@ -532,6 +582,7 @@ private fun PickCard(p: Pick, data: GameData, imperial: Boolean, onClose: () -> 
                     is Pick.OfShrine -> shrineName(context, p.kind)
                     is Pick.OfLand -> c.sectorName(p.sector)
                     Pick.OfTreasure -> stringResource(R.string.treasure_one)
+                    Pick.OfRace -> stringResource(R.string.race_title)
                 },
                 style = UType.Strong,
             )
@@ -544,6 +595,7 @@ private fun PickCard(p: Pick, data: GameData, imperial: Boolean, onClose: () -> 
                     else -> stringResource(R.string.shrine_others)
                 }
                 Pick.OfTreasure -> stringResource(R.string.treasure_hint)
+                Pick.OfRace -> stringResource(if (race?.started == 0L) R.string.race_challenge_text else R.string.race_on)
                 is Pick.OfLand -> {
                     val share = data.share(p.sector)
                     val next = Sectors.milestones.firstOrNull { share < it.first }
@@ -555,7 +607,25 @@ private fun PickCard(p: Pick, data: GameData, imperial: Boolean, onClose: () -> 
                 }
             }
             Text((meters?.let { distance(it, imperial) + " · " } ?: "") + hint, style = UType.Muted)
+            if (p is Pick.OfLand) MonumentLine(p.sector, data)
+            if (p is Pick.OfRace) {
+                Spacer(Modifier.height(8.dp))
+                Chip(stringResource(R.string.race_cancel), U.c.surface2) {
+                    context.container.explorer.cancelRace()
+                    onClose()
+                }
+            }
             if (p is Pick.OfCache && meters != null) HookLine(p.cache, meters, data)
+            // A chest behind a fence or on a building site can go off the map till Monday (#46).
+            if (p is Pick.OfCache) {
+                val gone = stringResource(R.string.cache_dismissed)
+                Spacer(Modifier.height(8.dp))
+                Chip(stringResource(R.string.cache_dismiss), U.c.surface2) {
+                    context.container.explorer.dismiss(p.cache)
+                    android.widget.Toast.makeText(context, gone, android.widget.Toast.LENGTH_SHORT).show()
+                    onClose()
+                }
+            }
             if (p is Pick.OfShrine && shrines != null && !data.todayRow.beacon) {
                 val explorer = context.container.explorer
                 Spacer(Modifier.height(8.dp))
@@ -566,7 +636,7 @@ private fun PickCard(p: Pick, data: GameData, imperial: Boolean, onClose: () -> 
                 } else Chip(stringResource(R.string.shrine_choose), shrineColor(p.kind).copy(alpha = 0.18f)) { explorer.choose(p.kind) }
             }
         }
-        Icon(Icons.Rounded.Close, stringResource(R.string.close), Modifier.size(22.dp).clip(CircleShape).clickable(onClick = onClose), tint = U.c.faint)
+        GameIcon(Icons.Rounded.Close, stringResource(R.string.close), Modifier.size(22.dp).clip(CircleShape).clickable(onClick = onClose), tint = U.c.faint)
     }
 }
 
@@ -579,14 +649,58 @@ private fun Chip(text: String, background: Color, onClick: () -> Unit) {
     )
 }
 
+/** A charted land's monument (#50): raised, or raised a level higher, for gold. */
+@Composable
+fun MonumentLine(sector: Long, data: GameData) {
+    if (data.share(sector) < Sectors.CHARTED) return
+    val context = LocalContext.current
+    val container = context.container
+    val level = data.monuments[sector] ?: 0
+    val price = app.fogwalk.domain.Monuments.price(level)
+    var asking by remember { mutableStateOf(false) }
+    Spacer(Modifier.height(8.dp))
+    if (level > 0) {
+        Text(stringResource(R.string.monument_level, level), style = UType.Small)
+        Spacer(Modifier.height(6.dp))
+    }
+    Row(
+        Modifier.clip(CircleShape).background(U.c.goldSoft).clickable { asking = true }.padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(stringResource(if (level == 0) R.string.monument_raise else R.string.monument_up), style = UType.Strong.copy(fontSize = 14.sp))
+        Spacer(Modifier.width(8.dp))
+        CoinIcon(Modifier.size(13.dp), if (data.coins >= price) U.c.gold else U.c.faint)
+        Spacer(Modifier.width(4.dp))
+        Text("%,d".format(price), style = UType.Strong.copy(fontSize = 14.sp, color = if (data.coins >= price) U.c.gold else U.c.faint))
+    }
+    if (asking) {
+        val short = stringResource(R.string.not_enough)
+        ConfirmDialog(
+            title = stringResource(if (level == 0) R.string.monument_raise_q else R.string.monument_up_q, content().sectorName(sector)),
+            text = stringResource(R.string.monument_text, level + 1, price, data.coins),
+            confirm = stringResource(R.string.buy),
+            onConfirm = {
+                asking = false
+                container.scope.launch {
+                    if (container.explorer.raiseMonument(sector) == Bought.NO_GOLD) withContext(Dispatchers.Main) {
+                        android.widget.Toast.makeText(context, short, android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
+            },
+            onDismiss = { asking = false },
+        )
+    }
+}
+
 /** The grappling hook, offered for a chest out of reach but within the throw. */
 @Composable
 private fun HookLine(cache: app.fogwalk.domain.Cache, meters: Double, data: GameData) {
     val context = LocalContext.current
     val container = context.container
     val beyond = meters - Gear.openM(data.settings.gear)
-    if (beyond <= 0 || beyond > Hook.RANGE_M) return
-    val used = data.ledger.any { it.ref.startsWith("buy:${Hook.ref(data.today)}:") }
+    if (beyond <= 0 || beyond > Hook.range(data.settings.gear)) return
+    val throws = Hook.throws(data.settings.gear)
+    val used = data.ledger.count { it.ref.startsWith("buy:${Hook.ref(data.today)}:") } >= throws
     val price = Hook.price(beyond)
     var asking by remember { mutableStateOf(false) }
     Spacer(Modifier.height(8.dp))
@@ -609,7 +723,7 @@ private fun HookLine(cache: app.fogwalk.domain.Cache, meters: Double, data: Game
         val far = stringResource(R.string.hook_far)
         ConfirmDialog(
             title = stringResource(R.string.hook_title),
-            text = stringResource(R.string.hook_text, price, data.coins),
+            text = pluralStringResource(R.plurals.hook_text, throws, price, data.coins, throws),
             confirm = stringResource(R.string.hook_throw),
             onConfirm = {
                 asking = false
@@ -637,7 +751,7 @@ private fun BottomPanel(
     val live by container.explorer.live.collectAsStateWithLifecycle()
     val s = data.settings
     Column(
-        Modifier.fillMaxWidth().shadow(10.dp, U.RLg).clip(U.RLg).background(U.c.surface).border(1.5.dp, U.c.gilt, U.RLg)
+        Modifier.fillMaxWidth().frame(U.RLg, elevation = 10.dp)
             .animateContentSize().padding(horizontal = 12.dp, vertical = 10.dp),
     ) {
         if (!permitted) {
@@ -672,7 +786,7 @@ private fun BottomPanel(
         if (live.tooFast) {
             Spacer(Modifier.height(8.dp))
             Row(Modifier.fillMaxWidth().clip(U.RSm).background(U.c.flameSoft).padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.Speed, null, Modifier.size(18.dp), tint = U.c.flame)
+                GameIcon(Icons.Rounded.Speed, null, Modifier.size(18.dp), tint = U.c.flame)
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.too_fast), style = UType.Muted.copy(color = U.c.ink))
             }
@@ -884,15 +998,15 @@ private fun VentureChip(v: Venture, selected: Boolean, modifier: Modifier, onCli
     ) {
         Box(Modifier.size(44.dp)) {
             Box(Modifier.size(38.dp).align(Alignment.Center).clip(CircleShape).background(v.soft), contentAlignment = Alignment.Center) {
-                Icon(v.icon, v.title, Modifier.size(20.dp), tint = v.color)
+                GameIcon(v.icon, v.title, Modifier.size(20.dp), tint = v.color)
             }
             if (v.bearing != null || v.done) {
                 Box(
                     Modifier.size(19.dp).align(Alignment.BottomEnd).shadow(2.dp, CircleShape).clip(CircleShape).background(U.c.surface),
                     contentAlignment = Alignment.Center,
                 ) {
-                    if (v.bearing != null) Icon(Icons.Rounded.Navigation, null, Modifier.size(14.dp).rotate(v.bearing.toFloat()), tint = v.color)
-                    else Icon(Icons.Rounded.Check, null, Modifier.size(14.dp), tint = v.color)
+                    if (v.bearing != null) GameIcon(Icons.Rounded.Navigation, null, Modifier.size(14.dp).rotate(v.bearing.toFloat()), tint = v.color)
+                    else GameIcon(Icons.Rounded.Check, null, Modifier.size(14.dp), tint = v.color)
                 }
             }
         }
@@ -921,17 +1035,17 @@ private fun VentureRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.size(38.dp).clip(CircleShape).background(soft), contentAlignment = Alignment.Center) {
-            Icon(icon, null, Modifier.size(20.dp), tint = color)
+            GameIcon(icon, null, Modifier.size(20.dp), tint = color)
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(title, style = UType.Strong.copy(fontSize = 15.sp))
             Text(text, style = UType.Muted, maxLines = lines, overflow = TextOverflow.Ellipsis)
         }
-        if (bearing != null) Icon(Icons.Rounded.Navigation, null, Modifier.size(26.dp).rotate(bearing.toFloat()), tint = color)
+        if (bearing != null) GameIcon(Icons.Rounded.Navigation, null, Modifier.size(26.dp).rotate(bearing.toFloat()), tint = color)
         if (onClose != null) {
             Spacer(Modifier.width(6.dp))
-            Icon(Icons.Rounded.Close, closeLabel, Modifier.size(22.dp).clip(CircleShape).clickable(onClick = onClose), tint = U.c.faint)
+            GameIcon(Icons.Rounded.Close, closeLabel, Modifier.size(22.dp).clip(CircleShape).clickable(onClick = onClose), tint = U.c.faint)
         }
     }
 }

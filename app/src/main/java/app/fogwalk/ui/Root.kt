@@ -1,5 +1,9 @@
 package app.fogwalk.ui
 
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.drawBehind
+import app.fogwalk.ui.components.medallion
+import app.fogwalk.ui.components.parchment
 import android.Manifest
 import android.os.Build
 import androidx.activity.compose.BackHandler
@@ -26,6 +30,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Flare
+import app.fogwalk.domain.ShrineKind
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Storefront
 import androidx.compose.material.icons.rounded.Map
@@ -70,6 +76,7 @@ import app.fogwalk.ui.components.rememberNow
 import app.fogwalk.ui.journal.JournalTab
 import app.fogwalk.ui.map.MapTab
 import app.fogwalk.ui.onboarding.OnboardingScreen
+import app.fogwalk.ui.onboarding.StoryScreen
 import app.fogwalk.ui.quests.QuestsTab
 import app.fogwalk.ui.settings.SettingsScreen
 import app.fogwalk.ui.theme.Sans
@@ -123,6 +130,11 @@ fun FogwalkRoot(openRoute: MutableStateFlow<String?>, settings: Settings) {
         }
     }
 
+    // The story of the Mist, once: for walkers who began before it was told, and for anyone who asks to read it again.
+    LaunchedEffect(settings.onboarded, settings.storySeen) {
+        if (settings.onboarded && !settings.storySeen && nav.currentDestination?.route != "story") nav.navigate("story") { launchSingleTop = true }
+    }
+
     val requested by openRoute.collectAsStateWithLifecycle()
     LaunchedEffect(requested, settings.onboarded) {
         if (requested == null || !settings.onboarded) return@LaunchedEffect
@@ -158,6 +170,12 @@ fun FogwalkRoot(openRoute: MutableStateFlow<String?>, settings: Settings) {
         composable("welcome") {
             OnboardingScreen { nav.navigate("main") { popUpTo("welcome") { inclusive = true } } }
         }
+        composable("story") {
+            StoryScreen {
+                container.scope.launch { container.settings.update { it.copy(storySeen = true) } }
+                nav.popBackStack()
+            }
+        }
         composable("main") { MainTabs(tab, { tab = it }, go, data, focus) }
         composable("settings") { SettingsScreen(settings, onBack = { go.back() }) }
         composable("deeds") { app.fogwalk.ui.journal.DeedsScreen(data, onBack = { go.back() }) }
@@ -173,7 +191,7 @@ fun FogwalkRoot(openRoute: MutableStateFlow<String?>, settings: Settings) {
         }
     }
 
-    if (settings.onboarded && days != null) Celebrations(data)
+    if (settings.onboarded && settings.storySeen && days != null) Celebrations(data)
 }
 
 /** Chests, new badges, a new level and finished relic sets, each shown once. */
@@ -188,6 +206,10 @@ private fun Celebrations(data: GameData) {
     val race = data.ledger.lastOrNull { it.ref.startsWith("race:") && it.ref !in s.seenBadges }
     val starUps = data.ledger.filter { it.ref.startsWith("star:") && it.ref !in s.seenBadges }
     val banners = data.ledger.filter { it.ref.startsWith("arms:") && it.ref !in s.seenBadges }
+    // The shrine just reached, shown big like a chest (#52): "day|KIND|gift".
+    val shrine = s.shrineNews.split("|").takeIf { it.size == 3 }?.let { p ->
+        runCatching { ShrineKind.valueOf(p[1]) }.getOrNull()?.let { it to (p[2].toIntOrNull() ?: -1) }
+    }
     when {
         race != null -> {
             val won = race.ref.endsWith(":w")
@@ -218,6 +240,18 @@ private fun Celebrations(data: GameData) {
         }
         chest != null -> ChestDialog(chest, data.relics, data.finds.count { it.relic.isNotEmpty() && it.relic == chest.relic && it.at <= chest.at }) {
             container.scope.launch { container.db.dao().markSeen(chest.key) }
+        }
+        shrine != null -> {
+            val (kind, gift) = shrine
+            val context = LocalContext.current
+            val color = shrineColor(kind)
+            CelebrateDialog(
+                data = data,
+                icon = Icons.Rounded.Flare, art = Art.shrine(kind), color = color, soft = color.copy(alpha = 0.18f),
+                eyebrow = stringResource(R.string.beacon_reached),
+                title = shrineName(context, kind),
+                text = shrineWon(context, kind, gift, s.gear),
+            ) { container.scope.launch { container.settings.update { it.copy(shrineNews = "") } } }
         }
         newSet != null -> {
             val (coins, _) = Relics.setReward(newSet)
@@ -295,9 +329,13 @@ private fun MainTabs(tab: Tab, onTab: (Tab) -> Unit, go: Go, data: GameData, foc
                 Tab.JOURNAL -> JournalTab(data, go, focus)
             }
         }
-        HorizontalDivider(color = U.c.line)
+        // The tab bar as the foot of an atlas page: old paper under a double gilt rule.
+        val gilt = U.c.gilt
         Row(
-            Modifier.fillMaxWidth().background(U.c.surface).navigationBarsPadding().height(66.dp).padding(horizontal = 8.dp),
+            Modifier.fillMaxWidth().background(U.c.surface).parchment(0.5f).drawBehind {
+                drawLine(gilt, androidx.compose.ui.geometry.Offset(0f, 0f), androidx.compose.ui.geometry.Offset(size.width, 0f), 2.dp.toPx())
+                drawLine(gilt.copy(alpha = 0.5f), androidx.compose.ui.geometry.Offset(0f, 4.dp.toPx()), androidx.compose.ui.geometry.Offset(size.width, 4.dp.toPx()), 0.8.dp.toPx())
+            }.navigationBarsPadding().height(70.dp).padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             NavItem(Icons.Rounded.Map, stringResource(R.string.tab_map), tab == Tab.MAP) { onTab(Tab.MAP) }
@@ -310,22 +348,27 @@ private fun MainTabs(tab: Tab, onTab: (Tab) -> Unit, go: Go, data: GameData, foc
 
 @Composable
 private fun RowScope.NavItem(icon: ImageVector, label: String, selected: Boolean, dot: Boolean = false, onClick: () -> Unit) {
-    val color = if (selected) U.c.accent else U.c.faint
     Column(
         Modifier
             .weight(1f)
-            .clip(RoundedCornerShape(14.dp))
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick)
-            .padding(vertical = 6.dp),
+            .padding(vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box {
+            // The open tab rises in a brass medallion; the others wait, a little faded.
             Box(
-                Modifier.clip(RoundedCornerShape(50)).background(if (selected) U.c.accentSoft else Color.Transparent).padding(horizontal = 18.dp, vertical = 4.dp),
-            ) { Icon(icon, null, Modifier.size(22.dp), tint = color) }
-            if (dot) Box(Modifier.align(Alignment.TopEnd).offset((-12).dp, 2.dp).size(9.dp).clip(CircleShape).background(U.c.flame))
+                Modifier.size(if (selected) 46.dp else 38.dp).offset(y = if (selected) (-4).dp else 0.dp)
+                    .then(if (selected) Modifier.medallion(elevation = 4.dp, bright = true) else Modifier),
+                contentAlignment = Alignment.Center,
+            ) { GameIcon(icon, null, Modifier.size(if (selected) 30.dp else 28.dp), tint = if (selected) U.c.gold else U.c.faint) }
+            if (dot) Box(Modifier.align(Alignment.TopEnd).size(10.dp).clip(CircleShape).background(U.c.flame).border(1.5.dp, U.c.surface, CircleShape))
         }
-        Spacer(Modifier.height(3.dp))
-        Text(label, fontFamily = Sans, fontSize = 11.5.sp, color = color, maxLines = 1)
+        Text(
+            label, fontFamily = Sans, fontSize = 11.5.sp, maxLines = 1,
+            color = if (selected) U.c.gold else U.c.muted,
+            fontWeight = if (selected) androidx.compose.ui.text.font.FontWeight.SemiBold else null,
+            modifier = Modifier.offset(y = if (selected) (-2).dp else 0.dp),
+        )
     }
 }

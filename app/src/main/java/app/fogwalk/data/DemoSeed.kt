@@ -98,7 +98,7 @@ object DemoSeed {
         dao.grant(Entry("buy:style:parchment:0", System.currentTimeMillis() - 86_400_000, -200, 0))
         settings.update {
             it.copy(
-                onboarded = true, levelSeen = level, lastLat = here.first, lastLon = here.second,
+                onboarded = true, storySeen = true, levelSeen = level, lastLat = here.first, lastLon = here.second,
                 owned = it.owned + "parchment", shields = 1,
                 seenBadges = app.fogwalk.domain.Badges.all.map { b -> b.id }.toSet() + app.fogwalk.domain.Relics.sets.map { s -> "set:$s" } +
                     app.fogwalk.domain.Relics.sets.flatMap { s -> (1..app.fogwalk.domain.Relics.MAX_STARS).map { n -> app.fogwalk.domain.Relics.starRef(s, n) } } +

@@ -25,6 +25,7 @@ import app.fogwalk.domain.TreasureMap
 import app.fogwalk.domain.Treasures
 import app.fogwalk.domain.pickRelic
 import app.fogwalk.domain.Levels
+import app.fogwalk.domain.Monuments
 import app.fogwalk.domain.Rarity
 import app.fogwalk.domain.Relics
 import app.fogwalk.domain.Seasons
@@ -270,7 +271,7 @@ class Explorer(
                     foundHere++
                     if (c.rarity >= Rarity.RARE) rareHere++
                 }
-            } else if (c.key !in nearNotified) {
+            } else if (c.key !in nearNotified && c.key !in s.dismissed) {
                 nearNotified += c.key
                 _events.tryEmit(GameEvent.Near(c, m.toInt()))
             }
@@ -431,10 +432,11 @@ class Explorer(
         val dao = db.dao()
         val now = System.currentTimeMillis()
         val day = today()
-        if (dao.ledger().any { it.ref.startsWith("buy:${Hook.ref(day)}:") }) return@withContext Bought.BUSY
+        val gear = settings.now().gear
+        if (dao.ledger().count { it.ref.startsWith("buy:${Hook.ref(day)}:") } >= Hook.throws(gear)) return@withContext Bought.BUSY
         if (dao.findKeys(c.key).contains(c.key)) return@withContext Bought.BUSY
-        val beyond = Grid.distance(fix.lat, fix.lon, c.lat, c.lon) - Gear.openM(settings.now().gear)
-        if (beyond > Hook.RANGE_M) return@withContext Bought.FAR
+        val beyond = Grid.distance(fix.lat, fix.lon, c.lat, c.lon) - Gear.openM(gear)
+        if (beyond > Hook.range(gear)) return@withContext Bought.FAR
         if (!buy(Hook.ref(day), Hook.price(beyond))) return@withContext Bought.NO_GOLD
         if (open(c, now)) {
             val row = dao.day(day) ?: Day(day)
@@ -487,8 +489,87 @@ class Explorer(
             }
             ShrineKind.AZURE -> if (dao.grant(Entry(ref, at, 0, 0)) != -1L) settings.update { it.copy(altars = it.altars + 1) }
         }
-        settings.update { it.copy(shrines = it.shrines.copy(chosen = sh.kind)) }
+        // The news waits to be shown big, like a chest's (#52), even if the app was closed when it came.
+        settings.update { it.copy(shrines = it.shrines.copy(chosen = sh.kind), shrineNews = "$day|${sh.kind.name}|$gift") }
         _events.tryEmit(GameEvent.Beacon(sh.kind, gift))
+    }
+
+    /** Reads the scroll of wandering: today's shrines move elsewhere, each reading in a day dearer than the last (#46). */
+    suspend fun rerollShrines(): Bought = withContext(worker) {
+        val fix = _live.value.fix?.takeIf { it.time > 0 } ?: return@withContext Bought.NO_FIX
+        val day = today()
+        val dao = db.dao()
+        if (settings.now().shrines.day != day || dao.day(day)?.beacon == true) return@withContext Bought.BUSY
+        val ledger = dao.ledger()
+        val read = Shop.rerollsOn(day, ledger, zone())
+        if (!buy("reroll", Shop.rerollPrice(read))) return@withContext Bought.NO_GOLD
+        val level = Levels.level(Wallet.xp(fog.size, dao.finds(), ledger))
+        val shrines = Beacons.place(day, read + 1, fix.lat, fix.lon, level) { a, b -> fog.exploredAround(a, b, 120.0) }
+        settings.update { it.copy(shrines = ShrineDay(day, shrines), rerollDay = day) }
+        Bought.OK
+    }
+
+    /** Buys an altar into the satchel (#51); the week's next one costs twice as much. */
+    suspend fun buyAltar(): Bought = withContext(worker) {
+        val week = Caches.week(today())
+        val price = Shop.altarPrice(Shop.altarsBought(week, db.dao().ledger())) ?: return@withContext Bought.BUSY
+        if (!buy("altar:$week", price)) return@withContext Bought.NO_GOLD
+        settings.update { it.copy(altars = it.altars + 1) }
+        Bought.OK
+    }
+
+    /** Raises the monument on [sector] a level (#50); only a land charted enough to fly its banner takes one. */
+    suspend fun raiseMonument(sector: Long): Bought = withContext(worker) {
+        if (fog.sectorShare(sector) < Sectors.CHARTED) return@withContext Bought.NOTHING
+        val level = Monuments.levels(db.dao().ledger())[sector] ?: 0
+        if (!buy(Monuments.item(sector, level + 1), Monuments.price(level))) return@withContext Bought.NO_GOLD
+        Bought.OK
+    }
+
+    /** Takes a chest that can't be reached off the map until the week's chests change (#46). Walked up to, it still opens. */
+    fun dismiss(c: Cache) {
+        scope.launch(worker) {
+            val week = c.key.split(":").getOrNull(1) ?: return@launch
+            settings.update { s -> s.copy(dismissed = s.dismissed.filterTo(HashSet()) { it.startsWith("c:$week:") } + c.key) }
+        }
+    }
+
+    /** How many cells were first charted between [from] and [to]. */
+    suspend fun cellsBetween(from: Long, to: Long): Int = withContext(worker) { db.dao().countCellsBetween(from, to) }
+
+    /**
+     * Brings the mist back over what was charted between [from] and [to] (#46): a stretch a GPS glitch drew.
+     * Its cells go, and with them its part of [walkId]'s route, distance and count; chests opened on it stay.
+     * Returns how many cells were taken back.
+     */
+    suspend fun refog(walkId: Long, from: Long, to: Long): Int = withContext(worker) {
+        ready.await()
+        val dao = db.dao()
+        val ids = dao.cellsBetween(from, to)
+        if (ids.isNotEmpty()) {
+            dao.deleteCellsBetween(from, to)
+            fog.removeAll(ids)
+        }
+        // The route loses the stretch, and the journey its metres: a straight line joins what is left.
+        val route = dao.waypoints(walkId)
+        var meters = 0.0
+        for (i in 1 until route.size) {
+            if (route[i].at in from..to) meters += Grid.distance(route[i - 1].lat, route[i - 1].lon, route[i].lat, route[i].lon)
+        }
+        dao.deleteWaypointsBetween(walkId, from, to)
+        val w = walk?.takeIf { it.id == walkId } ?: dao.walks().firstOrNull { it.id == walkId }
+        if (w != null) {
+            val next = w.copy(cells = (w.cells - ids.size).coerceAtLeast(0), meters = (w.meters - meters).coerceAtLeast(0.0))
+            dao.upsertWalk(next)
+            if (walk?.id == walkId) {
+                walk = next
+                _live.update { it.copy(walk = next) }
+            }
+        }
+        val dayNo = Instant.ofEpochMilli(from).atZone(zone()).toLocalDate().toEpochDay()
+        dao.day(dayNo)?.let { d -> dao.upsertDay(d.copy(cells = (d.cells - ids.size).coerceAtLeast(0), meters = (d.meters - meters).coerceAtLeast(0.0))) }
+        if (ids.isNotEmpty()) fog.changed()
+        ids.size
     }
 
     /** Sets out for one of the day's shrines, so the others don't wake on the way; null lets any of them. */
@@ -581,7 +662,8 @@ class Explorer(
 
     private suspend fun route(walk: Long): List<Waypoint> {
         raceRoute?.takeIf { it.first == walk }?.let { return it.second }
-        return db.dao().waypoints(walk).also { raceRoute = walk to it }
+        // The same route the map draws: without the GPS leaps.
+        return Races.clean(db.dao().waypoints(walk), { it.lat }, { it.lon }, { it.at }).also { raceRoute = walk to it }
     }
 
     /** Starts the race at the route's first point, follows the walker along it, and settles it at the last. */
@@ -686,7 +768,7 @@ class Explorer(
         val fix = _live.value.fix?.takeIf { it.time > 0 } ?: return@withContext Bought.NO_FIX
         val week = Caches.week(today())
         if (settings.now().rumor?.week == week) return@withContext Bought.BUSY
-        val opened = db.dao().findKeys("c:$week:").toSet()
+        val opened = db.dao().findKeys("c:$week:").toSet() + settings.now().dismissed
         val rumor = Rumors.hear(fix.lat, fix.lon, week, opened) ?: return@withContext Bought.NOTHING
         if (!buy("rumor:$week", Rumors.PRICE)) return@withContext Bought.NO_GOLD
         settings.update { it.copy(rumor = rumor) }

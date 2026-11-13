@@ -56,6 +56,8 @@ class GameData(
     /** Charges of the arms raised over charted lands. */
     val arms: Set<Int> = Arms.raised(sectors.first, sectors.second)
     val claimed: Set<String> = ledger.mapTo(HashSet()) { it.ref }
+    /** Monuments raised on lands, by level. */
+    val monuments: Map<Long, Int> = app.fogwalk.domain.Monuments.levels(ledger)
     val opened: Set<String> = finds.filter { it.key.startsWith("c:$week:") }.mapTo(HashSet()) { it.key }
     /** Chests proper: finds from treasure maps and oaths aside. */
     private val chests = finds.filter { it.key.startsWith("c:") }

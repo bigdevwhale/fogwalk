@@ -1,5 +1,6 @@
 package app.fogwalk.ui.components
 
+import app.fogwalk.ui.GameIcon
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -74,9 +75,7 @@ fun UCard(modifier: Modifier = Modifier, onClick: (() -> Unit)? = null, padding:
     Column(
         modifier
             .fillMaxWidth()
-            .clip(U.RMd)
-            .background(U.c.surface)
-            .border(1.dp, U.c.gilt.copy(alpha = 0.55f), U.RMd)
+            .frame()
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(padding),
         content = content,
@@ -103,7 +102,11 @@ fun PrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifi
         ),
     ) {
         if (icon != null) {
-            Icon(icon, null, Modifier.size(20.dp))
+            // The painting on a little paper disc, so it shows on the button's colour; a plain glyph where there is none.
+            val art = app.fogwalk.ui.paintedOf(icon)
+            if (art != null) Box(Modifier.size(30.dp).clip(CircleShape).background(U.c.surface), contentAlignment = Alignment.Center) {
+                app.fogwalk.ui.ArtImage(art, Modifier.size(24.dp))
+            } else androidx.compose.material3.Icon(icon, null, Modifier.size(20.dp))
             Spacer(Modifier.width(8.dp))
         }
         Text(text, style = UType.Button)
@@ -124,7 +127,7 @@ fun SoftButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier,
         horizontalArrangement = Arrangement.Center,
     ) {
         if (icon != null) {
-            Icon(icon, null, Modifier.size(19.dp), tint = color)
+            GameIcon(icon, null, Modifier.size(19.dp), tint = color)
             Spacer(Modifier.width(8.dp))
         }
         Text(text, style = UType.Button, color = color, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -188,7 +191,7 @@ private val RoundedSm = androidx.compose.foundation.shape.RoundedCornerShape(9.d
 @Composable
 fun IconDisc(icon: ImageVector, size: Dp = 44.dp, color: Color = U.c.accent, soft: Color = U.c.accentSoft) {
     Box(Modifier.size(size).clip(CircleShape).background(soft), contentAlignment = Alignment.Center) {
-        Icon(icon, null, Modifier.size(size * 0.5f), tint = color)
+        GameIcon(icon, null, Modifier.size(size * 0.5f), tint = color)
     }
 }
 
@@ -200,7 +203,7 @@ fun TopBar(title: String, onBack: (() -> Unit)?, actions: @Composable RowScope.(
     ) {
         if (onBack != null) {
             IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.back), tint = U.c.ink)
+                GameIcon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.back), tint = U.c.ink)
             }
         } else Spacer(Modifier.width(14.dp))
         Text(title, style = UType.Strong.copy(fontSize = 19.sp), modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -225,7 +228,7 @@ fun InfoRow(icon: ImageVector, label: String, value: String, tint: Color = U.c.a
             Spacer(Modifier.height(2.dp))
             Text(value, style = UType.Strong)
         }
-        if (onClick != null) Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = U.c.faint)
+        if (onClick != null) GameIcon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = U.c.faint)
     }
 }
 
@@ -336,6 +339,8 @@ fun CelebrateDialog(
     data: app.fogwalk.ui.GameData? = null,
     /** Whether it can be sent as a postcard: not for a deed or relic still to come. */
     share: Boolean = true,
+    /** A painted picture to show in place of [icon]. */
+    art: Int? = null,
     onDismiss: () -> Unit,
 ) {
     var sharing by remember { mutableStateOf(false) }
@@ -346,7 +351,9 @@ fun CelebrateDialog(
                 Modifier.fillMaxWidth().clip(U.RLg).background(U.c.bg).padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                IconDisc(icon, 84.dp, color, soft)
+                if (art != null) Box(Modifier.size(84.dp).clip(CircleShape).background(soft), contentAlignment = Alignment.Center) {
+                    app.fogwalk.ui.ArtImage(art, Modifier.size(70.dp))
+                } else IconDisc(icon, 84.dp, color, soft)
                 Spacer(Modifier.height(18.dp))
                 Text(eyebrow.uppercase(), style = UType.Eyebrow.copy(color = color))
                 Spacer(Modifier.height(6.dp))

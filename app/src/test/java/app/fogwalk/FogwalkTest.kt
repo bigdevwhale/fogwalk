@@ -260,6 +260,68 @@ class FogwalkTest {
     }
 
     @Test
+    fun aGlitchThatClaimsAStrollRevealsNothing() {
+        // #53: a jammed receiver's fixes race off at 20 m/s while its Doppler says walking pace.
+        val glitch = noisyWalk(120, 20.0, 4.0, spikes = false, network = false, doppler = true).map { it.copy(speed = 1.3f) }
+        val (meters, _, _) = run(glitch)
+        assertTrue("counted $meters m of a glitch", meters < 60)
+        // Slower, under a car's speed, but faster than anyone runs while the pedometer hears steps.
+        val drift = noisyWalk(180, 6.5, 4.0, spikes = false, network = false, doppler = false)
+        val (heard, _, _) = run(drift, stepsEvery = 2)
+        assertTrue("counted $heard m of a drift on foot", heard < 60)
+    }
+
+    @Test
+    fun theMistComesBackOverWhatIsTakenAway() {
+        val fog = app.fogwalk.domain.FogStore()
+        val keys = LongArray(400) { Grid.cell(55.75 + it * 0.0002, 37.6) }
+        keys.forEach { fog.add(it) }
+        val sector = Grid.sector(keys[0])
+        val before = fog.count(sector, Grid.SECTOR_Z)
+        val area = fog.areaM2
+        val gone = keys.copyOfRange(100, 300)
+        fog.removeAll(gone)
+        assertEquals(keys.toSet().size - gone.toSet().size, fog.size)
+        gone.forEach { assertTrue(it !in fog) }
+        assertTrue(keys[0] in fog && keys[399] in fog)
+        assertTrue(fog.areaM2 < area)
+        assertTrue(fog.count(sector, Grid.SECTOR_Z) <= before)
+        // The rebuilt store still takes new cells.
+        assertTrue(fog.add(gone[0]))
+    }
+
+    @Test
+    fun goldHasPlacesToGo() {
+        // #51: altars, dearer with each one in a week, three at most.
+        assertEquals(listOf(1500, 3000, 6000, null), (0..3).map { app.fogwalk.domain.Shop.altarPrice(it) })
+        // #46: the scroll doubles with each reading in a day.
+        assertEquals(listOf(25, 50, 100, 200), (0..3).map { app.fogwalk.domain.Shop.rerollPrice(it) })
+        // #46: the hook as gear throws farther, and more often from its second and fourth level.
+        val hook = app.fogwalk.domain.Hook
+        assertEquals(listOf(1, 1, 2, 2, 3, 3), (0..5).map { hook.throws(mapOf("hook" to it)) })
+        assertEquals(120.0, hook.range(emptyMap()), 0.0)
+        assertEquals(270.0, hook.range(mapOf("hook" to 5)), 0.0)
+        // #50: monuments double with each level and are counted per land from the ledger.
+        val m = app.fogwalk.domain.Monuments
+        assertEquals(listOf(1000, 2000, 4000, 8000), (0..3).map { m.price(it) })
+        val ledger = listOf(
+            app.fogwalk.data.Entry("buy:${m.item(42, 1)}:1", 1, -1000), app.fogwalk.data.Entry("buy:${m.item(42, 2)}:2", 2, -2000),
+            app.fogwalk.data.Entry("buy:${m.item(7, 1)}:3", 3, -1000), app.fogwalk.data.Entry("buy:altar:1:4", 4, -1500),
+        )
+        assertEquals(mapOf(42L to 2, 7L to 1), m.levels(ledger))
+        assertEquals(listOf(1, 2, 2, 3, 3, 3, 4), (1..7).map { m.tier(it) })
+        // Every companion but the token has its figure.
+        app.fogwalk.domain.Companions.all.filter { it.price > 0 }.forEach { assertTrue(it.id, "companion_${it.id}" in app.fogwalk.ui.map.Sprites.ids) }
+    }
+
+    @Test
+    fun aRunWithStepsStillCounts() {
+        val (meters, fast, _) = run(noisyWalk(600, 3.5, 6.0, spikes = true, network = false, doppler = true), stepsEvery = 2)
+        assertTrue("ran $meters m", meters in 1800.0..2400.0)
+        assertEquals(0, fast)
+    }
+
+    @Test
     fun oathsAreSizedToTheWeekAndCountOnlyAfterTheVow() {
         val monday = 20_374L // a Monday: weeks start where (day + 3) % 7 == 0
         assertEquals(0, Math.floorMod(monday + 3, 7L).toInt())
@@ -383,6 +445,21 @@ class FogwalkTest {
         assertEquals(13, Races.advance(route, 0, walked))
         // Jumping straight to the finish from the start doesn't count.
         assertEquals(0, Races.advance(route, 0, listOf(route.last())))
+    }
+
+    @Test
+    fun aRaceRouteDropsGpsLeaps() {
+        // A walk east at 1 m/s, a point every 10 s, with two leaps of 400 m lasting a few seconds each.
+        data class P(val lat: Double, val lon: Double, val at: Long)
+        val walk = (0..20).map { i -> Grid.offset(55.75, 37.6, i * 10.0, 90.0).let { P(it.first, it.second, i * 10_000L) } }
+        val leap1 = Grid.offset(55.75, 37.6, 400.0, 0.0).let { P(it.first, it.second, 55_000L) }
+        val leap2 = Grid.offset(55.75, 37.6, 400.0, 180.0).let { P(it.first, it.second, 125_000L) }
+        val raw = (walk + leap1 + leap2).sortedBy { it.at }
+        val clean = Races.clean(raw, { it.lat }, { it.lon }, { it.at })
+        assertEquals(walk, clean)
+        // A pause with the GPS lost keeps the far point: 300 m in five minutes is a walk.
+        val far = Grid.offset(55.75, 37.6, 500.0, 90.0).let { P(it.first, it.second, 500_000L) }
+        assertEquals(far, Races.clean(walk + far, { it.lat }, { it.lon }, { it.at }).last())
     }
 
     @Test

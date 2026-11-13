@@ -1,5 +1,6 @@
 package app.fogwalk.ui.share
 
+import app.fogwalk.ui.GameIcon
 import android.content.ClipData
 import android.content.Context
 import android.content.Intent
@@ -30,6 +31,7 @@ import androidx.compose.material.icons.automirrored.rounded.DirectionsWalk
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.Explore
+import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.Flare
 import androidx.compose.material.icons.rounded.Inventory2
 import androidx.compose.material.icons.rounded.LightMode
@@ -153,7 +155,7 @@ fun PostcardDialog(card: Postcard, data: GameData?, onDismiss: () -> Unit) {
         ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.postcard), style = UType.Title.copy(fontSize = 22.sp, color = Color(0xFFF1E4C6)), modifier = Modifier.weight(1f))
-                IconButton(onClick = onDismiss) { Icon(Icons.Rounded.Close, stringResource(R.string.close), tint = Color(0xFFC2AE8A)) }
+                IconButton(onClick = onDismiss) { GameIcon(Icons.Rounded.Close, stringResource(R.string.close), tint = Color(0xFFC2AE8A)) }
             }
             Spacer(Modifier.height(6.dp))
             BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -204,7 +206,7 @@ fun PostcardDialog(card: Postcard, data: GameData?, onDismiss: () -> Unit) {
                     },
                 horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.Rounded.Share, null, Modifier.size(20.dp), tint = app.onAccent)
+                GameIcon(Icons.Rounded.Share, null, Modifier.size(20.dp), tint = app.onAccent)
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.share), style = UType.Button.copy(color = app.onAccent))
             }
@@ -221,7 +223,7 @@ private fun Toggle(icon: ImageVector, label: String, on: Boolean, onClick: () ->
             .clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(icon, null, Modifier.size(18.dp), tint = if (on) Color(0xFFE9B949) else Color(0xFF85745A))
+        GameIcon(icon, null, Modifier.size(18.dp), tint = if (on) Color(0xFFE9B949) else Color(0xFF85745A))
         Spacer(Modifier.width(6.dp))
         Text(label, style = UType.Strong.copy(fontSize = 14.sp, color = if (on) Color(0xFFF1E4C6) else Color(0xFF85745A)))
     }
@@ -257,7 +259,7 @@ private fun Face(card: Postcard, data: GameData?, withMap: Boolean, from: Palett
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.Explore, null, Modifier.size(15.dp), tint = p.gold)
+                GameIcon(Icons.Rounded.Explore, null, Modifier.size(15.dp), tint = p.gold)
                 Spacer(Modifier.width(7.dp))
                 Text("FOGWALK", style = UType.Eyebrow.copy(fontSize = 13.sp, letterSpacing = 0.32.em, color = p.gold))
             }
@@ -372,7 +374,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.ProgressFace(data: Ga
     Row(Modifier.fillMaxWidth()) {
         Stat(Icons.Rounded.Flare, data.facts.beacons.toString(), stringResource(R.string.stat_beacons), p.rose, Modifier.weight(1f))
         Stat(Icons.Rounded.LocalFireDepartment, data.streak.best.toString(), stringResource(R.string.stat_best_streak), p.flame, Modifier.weight(1f))
-        Stat(Icons.Rounded.Explore, "%,d".format(data.cells), stringResource(R.string.stat_cells), p.sky, Modifier.weight(1f))
+        Stat(Icons.Rounded.GridView, "%,d".format(data.cells), stringResource(R.string.stat_cells), p.sky, Modifier.weight(1f))
     }
     if (!(withMap && shown != null)) Spacer(Modifier.weight(0.5f))
 }
@@ -438,7 +440,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.HonorFace(card: Postc
             drawCircle(p.gilt, size.minDimension * 0.27f, style = Stroke(1.6.dp.toPx()))
         }
         Box(Modifier.size(112.dp).clip(CircleShape).background(soft), contentAlignment = Alignment.Center) {
-            Icon(card.icon, null, Modifier.size(56.dp), tint = color)
+            GameIcon(card.icon, null, Modifier.size(56.dp), tint = color)
         }
     }
     Spacer(Modifier.height(18.dp))
@@ -460,7 +462,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.HonorFace(card: Postc
 private fun Stat(icon: ImageVector?, value: String, label: String, color: Color, modifier: Modifier) {
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         if (icon != null) {
-            Icon(icon, null, Modifier.size(16.dp), tint = color)
+            GameIcon(icon, null, Modifier.size(16.dp), tint = color)
             Spacer(Modifier.height(3.dp))
         }
         Text(value, style = UType.Number.copy(fontSize = 18.sp, color = if (icon == null) color else U.c.ink), maxLines = 1)
@@ -604,6 +606,6 @@ private fun DrawScope.compass(c: Offset, r: Float, p: Palette) {
 /** The share button the screens put in their top bars. */
 @Composable
 fun ShareButton(onClick: () -> Unit) {
-    IconButton(onClick = onClick) { Icon(Icons.Rounded.Share, stringResource(R.string.share), tint = U.c.muted) }
+    IconButton(onClick = onClick) { GameIcon(Icons.Rounded.Share, stringResource(R.string.share), tint = U.c.muted) }
 }
 

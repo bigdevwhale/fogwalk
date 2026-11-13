@@ -43,6 +43,8 @@ sealed interface Pick {
     data class OfShrine(val kind: ShrineKind) : Pick
     data class OfLand(val sector: Long) : Pick
     data object OfTreasure : Pick
+    /** The shadow race's route, by its start or finish flag. */
+    data object OfRace : Pick
 }
 
 /** A race in progress, ready to draw: the route, when the old walk passed each point, and how far along each is. */
@@ -87,6 +89,10 @@ class Scene(
     val race: RaceView?,
     /** How near the walker must come to the tapped chest or shrine: lat, lon and metres. */
     val reach: Triple<Double, Double, Double>? = null,
+    /** Who walks in the walker's place (#41); the token draws as before. */
+    val companion: String = app.fogwalk.domain.Companions.TOKEN,
+    /** Monuments on lands, by level. */
+    val monuments: Map<Long, Int> = emptyMap(),
 )
 
 /**
@@ -100,7 +106,13 @@ class WorldOverlay(
     private val density: Float,
     private val onPick: (Pick?) -> Unit,
     private val onLongPress: ((Double, Double) -> Unit)?,
+    /** The painted figures by name (a companion or a monument tier), null when there is none. */
+    private val sprite: (String) -> Bitmap? = { null },
 ) : Overlay() {
+    /** How far the map is turned, so figures can stand upright on it. */
+    private var turn = 0f
+    private val spritePaint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
+    private val spriteDst = RectF()
     @Volatile
     var scene: Scene? = null
 
@@ -168,10 +180,12 @@ class WorldOverlay(
         ay = (se.y - nw.y) / (my1 - my0)
         by = nw.y - ay * my0
 
+        turn = mv.mapOrientation
         drawFog(c, s, w, h, mv.mapOrientation)
         drawLands(c, s, w, h, mx0, mx1, my0, my1)
         hits.clear()
         val t = System.currentTimeMillis()
+        drawMonuments(c, s, mx0, mx1, my0, my1)
         drawTreasure(c, s)
         drawTrail(c, s)
         drawRace(c, s, t)
@@ -404,27 +418,56 @@ class WorldOverlay(
             stroke.strokeWidth = 5 * d
             c.drawPath(path, stroke)
         }
-        fun dot(p: Pair<Double, Double>, color: Int) {
+        // Start and finish as little pennants on poles: round marks were taken for a second walker.
+        fun flag(p: Pair<Double, Double>, color: Int) {
+            val x = sx(p.second)
+            val y = sy(p.first)
+            c.save()
+            c.rotate(-turn, x, y)
             fill.shader = null
-            fill.color = 0xFFFFFFFF.toInt()
-            c.drawCircle(sx(p.second), sy(p.first), 8 * d, fill)
+            fill.color = 0x55000000
+            c.drawOval(RectF(x - 5 * d, y - 2 * d, x + 5 * d, y + 2 * d), fill)
+            stroke.pathEffect = null
+            stroke.strokeWidth = 2.2f * d
+            stroke.color = 0xFF4A3420.toInt()
+            stroke.alpha = 255
+            c.drawLine(x, y, x, y - 26 * d, stroke)
+            path.reset()
+            path.moveTo(x, y - 26 * d)
+            path.lineTo(x + 15 * d, y - 21 * d)
+            path.lineTo(x, y - 15 * d)
+            path.close()
             fill.color = color
-            c.drawCircle(sx(p.second), sy(p.first), 5.5f * d, fill)
+            c.drawPath(path, fill)
+            stroke.strokeWidth = 1.2f * d
+            c.drawPath(path, stroke)
+            c.restore()
         }
-        dot(r.route.first(), 0xFF5E8C4A.toInt())
-        dot(r.route.last(), s.gold)
+        flag(r.route.first(), 0xFF5E8C4A.toInt())
+        flag(r.route.last(), s.gold)
+        // Either flag opens the race's card; the flag's cloth sits above its foot.
+        for ((lat, lon) in listOf(r.route.first(), r.route.last())) hits += Pick.OfRace to floatArrayOf(sx(lon), sy(lat) - 18 * d)
         if (r.started > 0) {
             val (lat, lon) = Races.pointAt(r.route, r.along, r.shadowM(now))
             val x = sx(lon)
             val y = sy(lat)
-            // The shadow: the walker's token in smoke.
+            // The shadow: the walker's own figure in smoke.
             glow.shader = RadialGradient(x, y, 26 * d, intArrayOf(withAlpha(s.shadow, 153), withAlpha(s.shadow, 0)), null, Shader.TileMode.CLAMP)
             c.drawCircle(x, y, 26 * d, glow)
             glow.shader = null
-            fill.color = 0xCC3C3946.toInt()
-            c.drawCircle(x, y, 11 * d, fill)
-            fill.color = 0x99D8D4E0.toInt()
-            c.drawCircle(x, y, 6 * d, fill)
+            val pal = s.companion.takeIf { it != app.fogwalk.domain.Companions.TOKEN }?.let { sprite("companion_$it") }
+            if (pal != null) {
+                spritePaint.colorFilter = android.graphics.ColorMatrixColorFilter(android.graphics.ColorMatrix().apply { setSaturation(0f) })
+                spritePaint.alpha = 150
+                drawSprite(c, pal, x, y, 46 * d, centred = true)
+                spritePaint.colorFilter = null
+                spritePaint.alpha = 255
+            } else {
+                fill.color = 0xCC3C3946.toInt()
+                c.drawCircle(x, y, 11 * d, fill)
+                fill.color = 0x99D8D4E0.toInt()
+                c.drawCircle(x, y, 6 * d, fill)
+            }
         }
     }
 
@@ -534,11 +577,11 @@ class WorldOverlay(
             val phase = ((t + cache.key.hashCode()) % 1600) / 1600.0
             val pulse = (0.5 + 0.5 * sin(phase * 2 * PI)).toFloat()
             if (revealed || told) {
-                drawGem(c, x, y, color, Math.floorMod(t + cache.key.hashCode(), 3000L) / 3000f, cache.rarity)
+                drawGem(c, x, y, color, Math.floorMod(t + cache.key.hashCode(), 3000L) / 3000f, cache.rarity, sprite("chest_${cache.rarity.ordinal}"))
                 hits += Pick.OfCache(cache, false) to floatArrayOf(x, y)
             } else if (!near) {
                 // The stone shows where a chest lies in the mist, not what it holds.
-                drawGem(c, x, y, UNKNOWN, Math.floorMod(t + cache.key.hashCode(), 3000L) / 3000f, Rarity.COMMON)
+                drawGem(c, x, y, UNKNOWN, Math.floorMod(t + cache.key.hashCode(), 3000L) / 3000f, Rarity.COMMON, sprite("chest_unknown"))
                 hits += Pick.OfCache(cache, true) to floatArrayOf(x, y)
             } else {
                 // Felt, not seen: a shimmer with a question mark, the stone or no stone.
@@ -556,13 +599,19 @@ class WorldOverlay(
         }
     }
 
-    private fun drawGem(c: Canvas, x: Float, y: Float, color: Int, pulse: Float, rarity: Rarity) {
+    private fun drawGem(c: Canvas, x: Float, y: Float, color: Int, pulse: Float, rarity: Rarity, art: Bitmap? = null) {
         val d = density
         val size = (10 + rarity.ordinal * 1.5f) * d
         // A halo in the chest's rarity, breathing.
         glow.shader = RadialGradient(x, y, size * 3f, intArrayOf(withAlpha(color, (110 + 90 * pulse).toInt()), withAlpha(color, 0)), null, Shader.TileMode.CLAMP)
         c.drawCircle(x, y, size * 3f, glow)
         glow.shader = null
+        // The painted chest, standing up on a turned map.
+        if (art != null) {
+            drawSprite(c, art, x, y, size * 2.6f, centred = true)
+            if (rarity.ordinal >= 2) motes(c, x, y, size, pulse)
+            return
+        }
         // A wooden chest bound in bands of its rarity, with a gold lock.
         val body = RectF(x - size, y - size * 0.3f, x + size, y + size * 0.8f)
         val lid = RectF(x - size, y - size * 0.95f, x + size, y - size * 0.15f)
@@ -589,13 +638,16 @@ class WorldOverlay(
         c.drawRoundRect(RectF(x - size * 0.2f, y - size * 0.32f, x + size * 0.2f, y + size * 0.2f), 2 * d, 2 * d, fill)
         fill.color = 0xFF3A2410.toInt()
         c.drawCircle(x, y - size * 0.08f, size * 0.07f, fill)
-        if (rarity.ordinal >= 2) {
-            // Epic and legendary chests throw off motes of light.
-            fill.color = 0xFFFFF3C4.toInt()
-            for (i in 0 until 3) {
-                val a = (pulse + i / 3f) * 2 * PI
-                c.drawCircle(x + (size * 1.4f * kotlin.math.cos(a)).toFloat(), y - size * 0.4f + (size * 0.9f * sin(a * 1.3)).toFloat(), 1.6f * d, fill)
-            }
+        if (rarity.ordinal >= 2) motes(c, x, y, size, pulse)
+    }
+
+    /** Epic and legendary chests throw off motes of light. */
+    private fun motes(c: Canvas, x: Float, y: Float, size: Float, pulse: Float) {
+        fill.shader = null
+        fill.color = 0xFFFFF3C4.toInt()
+        for (i in 0 until 3) {
+            val a = (pulse + i / 3f) * 2 * PI
+            c.drawCircle(x + (size * 1.4f * kotlin.math.cos(a)).toFloat(), y - size * 0.4f + (size * 0.9f * sin(a * 1.3)).toFloat(), 1.6f * density, fill)
         }
     }
 
@@ -633,6 +685,17 @@ class WorldOverlay(
         glow.shader = RadialGradient(x, y - 14 * d, 34 * d, intArrayOf(withAlpha(color, 190), withAlpha(color, 0)), null, Shader.TileMode.CLAMP)
         c.drawCircle(x, y - 14 * d, 34 * d, glow)
         glow.shader = null
+        // The painted shrine on its stone, bobbing a little; greyed when another was chosen.
+        val art = sprite("shrine_${sh.kind.name}")
+        if (art != null) {
+            val bob = (sin(t / 500.0) * 1.5 * d).toFloat()
+            spritePaint.colorFilter = if (color == 0xFF9C9488.toInt()) android.graphics.ColorMatrixColorFilter(android.graphics.ColorMatrix().apply { setSaturation(0f) }) else null
+            drawSprite(c, art, x, y + 4 * d + bob, 44 * d)
+            spritePaint.colorFilter = null
+            c.restore()
+            hits += Pick.OfShrine(sh.kind) to floatArrayOf(x, y - 16 * d)
+            return
+        }
         // Stone plinth.
         fill.shader = null
         fill.color = 0xFF6B6259.toInt()
@@ -693,6 +756,21 @@ class WorldOverlay(
             c.restore()
             glow.shader = null
         }
+        // A companion walks in the walker's place, centred on the spot like the token, facing the way it goes (#41).
+        val pal = s.companion.takeIf { it != app.fogwalk.domain.Companions.TOKEN }?.let { sprite("companion_$it") }
+        if (pal != null) {
+            val tall = 50 * d
+            c.save()
+            c.rotate(-turn, x, y)
+            fill.shader = null
+            fill.color = 0x44000000
+            c.drawOval(RectF(x - 11 * d, y + tall / 2 - 3.5f * d, x + 11 * d, y + tall / 2 + 3.5f * d), fill)
+            c.restore()
+            // Heading left on the screen, it turns to face left.
+            val heading = ((f.bearing ?: 90f) + turn + 360f) % 360f
+            drawSprite(c, pal, x, y, tall, flip = heading > 180f, centred = true)
+            return
+        }
         // The traveller: a gilt token with an emerald heart.
         fill.shader = null
         fill.color = 0x50000000
@@ -703,6 +781,57 @@ class WorldOverlay(
         c.drawCircle(x, y, 9 * d, fill)
         fill.color = s.accent
         c.drawCircle(x, y, 6.5f * d, fill)
+    }
+
+    /**
+     * [b] standing upright on the screen, [height] px tall, mirrored if [flip]: its base at ([x], [y]), or
+     * its middle there when [centred].
+     */
+    private fun drawSprite(c: Canvas, b: Bitmap, x: Float, y: Float, height: Float, flip: Boolean = false, centred: Boolean = false) {
+        val width = height * b.width / b.height
+        c.save()
+        // The canvas turns with the map; the figure turns back to stand up.
+        c.rotate(-turn, x, y)
+        if (flip) c.scale(-1f, 1f, x, y)
+        val bottom = if (centred) y + height / 2 else y
+        spriteDst.set(x - width / 2, bottom - height, x + width / 2, bottom)
+        c.drawBitmap(b, null, spriteDst, spritePaint)
+        c.restore()
+    }
+
+    /** Monuments raised on lands (#50), at each land's heart, grander with their level, with the level beneath. */
+    private fun drawMonuments(c: Canvas, s: Scene, mx0: Double, mx1: Double, my0: Double, my1: Double) {
+        if (s.monuments.isEmpty()) return
+        val n = 1 shl Grid.SECTOR_Z
+        val sidePx = (ax / n).toFloat()
+        val d = density
+        // Too far out the lands are specks; a monument would only clutter.
+        if (sidePx < 36 * d) return
+        for ((sector, level) in s.monuments) {
+            val gx = (Grid.x(sector) + 0.5) / n
+            val gy = (Grid.y(sector) + 0.5) / n
+            if (gx < mx0 - 0.5 / n || gx > mx1 + 0.5 / n || gy < my0 - 0.5 / n || gy > my1 + 0.5 / n) continue
+            val x = (ax * gx + bx).toFloat()
+            val y = (ay * gy + by).toFloat()
+            val tier = app.fogwalk.domain.Monuments.tier(level)
+            val b = sprite("monument_$tier") ?: continue
+            val height = min(sidePx * 0.6f, (34 + tier * 8) * d)
+            fill.shader = null
+            fill.color = 0x40000000
+            c.drawOval(RectF(x - height * 0.3f, y - height * 0.06f, x + height * 0.3f, y + height * 0.06f), fill)
+            drawSprite(c, b, x, y, height)
+            c.save()
+            c.rotate(-turn, x, y)
+            text.textSize = 11 * d
+            val label = level.toString()
+            val bw = max(18 * d, text.measureText(label) + 10 * d)
+            fill.color = s.gold
+            c.drawRoundRect(RectF(x - bw / 2, y + 3 * d, x + bw / 2, y + 18 * d), 8 * d, 8 * d, fill)
+            text.color = 0xFFFFFFFF.toInt()
+            c.drawText(label, x, y + 14.5f * d, text)
+            c.restore()
+            hits += Pick.OfLand(sector) to floatArrayOf(x, y - height / 2)
+        }
     }
 
     override fun onSingleTapConfirmed(e: MotionEvent, mapView: MapView): Boolean {

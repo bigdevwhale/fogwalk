@@ -1,5 +1,6 @@
 package app.fogwalk.ui.onboarding
 
+import app.fogwalk.ui.GameIcon
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -88,15 +89,16 @@ fun OnboardingScreen(onDone: () -> Unit) {
     val container = context.container
     // The last page asks about the pedometer, on phones that have one.
     val pedometer = container.steps.available
-    val pages = if (pedometer) 4 else 3
+    // Three pages of the story come first: why the mist is there and why it is worth walking it back.
+    val pages = STORY + if (pedometer) 4 else 3
     val pager = rememberPagerState { pages }
     val scope = rememberCoroutineScope()
     fun finish(steps: Boolean = false) {
-        container.scope.launch { container.settings.update { it.copy(onboarded = true, steps = steps) } }
+        container.scope.launch { container.settings.update { it.copy(onboarded = true, storySeen = true, steps = steps) } }
         onDone()
     }
     fun afterLocation() {
-        if (pedometer) scope.launch { pager.animateScrollToPage(3) } else finish()
+        if (pedometer) scope.launch { pager.animateScrollToPage(STORY + 3) } else finish()
     }
     val askLocation = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { afterLocation() }
     val askSteps = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { finish(steps = it) }
@@ -108,7 +110,11 @@ fun OnboardingScreen(onDone: () -> Unit) {
     ) {
         HorizontalPager(pager, Modifier.weight(1f)) { page ->
             Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center) {
-                when (page) {
+                if (page < STORY) {
+                    StoryPage(page)
+                    return@Column
+                }
+                when (page - STORY) {
                     0 -> {
                         Framed { Atlas(Modifier.fillMaxWidth().aspectRatio(1.05f)) }
                         Spacer(Modifier.height(26.dp))
@@ -136,7 +142,7 @@ fun OnboardingScreen(onDone: () -> Unit) {
                             Box(
                                 Modifier.size(160.dp).clip(CircleShape).background(U.c.sageSoft).border(2.dp, U.c.gilt, CircleShape),
                                 contentAlignment = Alignment.Center,
-                            ) { Icon(Icons.AutoMirrored.Rounded.DirectionsWalk, null, Modifier.size(84.dp), tint = U.c.sage) }
+                            ) { GameIcon(Icons.AutoMirrored.Rounded.DirectionsWalk, null, Modifier.size(84.dp), tint = U.c.sage) }
                         }
                         Spacer(Modifier.height(26.dp))
                         Text(stringResource(R.string.ob4_title), style = UType.Display)
@@ -155,9 +161,9 @@ fun OnboardingScreen(onDone: () -> Unit) {
                 )
             }
         }
-        if (pager.currentPage < 2) {
+        if (pager.currentPage < STORY + 2) {
             PrimaryButton(stringResource(R.string.next), { scope.launch { pager.animateScrollToPage(pager.currentPage + 1) } }, Modifier.fillMaxWidth(), icon = Icons.AutoMirrored.Rounded.ArrowForward)
-        } else if (pager.currentPage == 2) {
+        } else if (pager.currentPage == STORY + 2) {
             PrimaryButton(stringResource(R.string.allow_location), {
                 askLocation.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
             }, Modifier.fillMaxWidth(), icon = Icons.Rounded.MyLocation)
@@ -175,6 +181,60 @@ fun OnboardingScreen(onDone: () -> Unit) {
     }
 }
 
+private const val STORY = 3
+
+/** The story alone: for a walker who began before it was told, or who asked to read it again. */
+@Composable
+fun StoryScreen(onDone: () -> Unit) {
+    val pager = rememberPagerState { STORY }
+    val scope = rememberCoroutineScope()
+    androidx.activity.compose.BackHandler(onBack = onDone)
+    Column(
+        Modifier.fillMaxSize()
+            .background(Brush.radialGradient(listOf(U.c.surface, U.c.bg), radius = 1800f))
+            .statusBarsPadding().navigationBarsPadding().padding(22.dp),
+    ) {
+        HorizontalPager(pager, Modifier.weight(1f)) { page ->
+            Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center) { StoryPage(page) }
+        }
+        Row(Modifier.fillMaxWidth().padding(vertical = 14.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+            repeat(STORY) { i ->
+                val on = i == pager.currentPage
+                Box(Modifier.padding(5.dp).size(if (on) 12.dp else 8.dp).rotate(45f).background(if (on) U.c.gold else U.c.line))
+            }
+        }
+        val last = pager.currentPage == STORY - 1
+        if (last) PrimaryButton(stringResource(R.string.start_walk), onDone, Modifier.fillMaxWidth(), icon = Icons.AutoMirrored.Rounded.DirectionsWalk)
+        else PrimaryButton(stringResource(R.string.next), { scope.launch { pager.animateScrollToPage(pager.currentPage + 1) } }, Modifier.fillMaxWidth(), icon = Icons.AutoMirrored.Rounded.ArrowForward)
+        // Skipping is always there, kept in place on the last page so the button does not jump.
+        TextButton(onClick = onDone, Modifier.align(Alignment.CenterHorizontally).graphicsLayer(alpha = if (last) 0f else 1f), enabled = !last) {
+            Text(stringResource(R.string.story_skip), color = U.c.muted, style = UType.Button)
+        }
+    }
+}
+
+/** A page of the story: a painting in the gilt frame, a title and a few lines under it. */
+@Composable
+private fun StoryPage(i: Int) {
+    val (art, title, text) = when (i) {
+        0 -> Triple(R.drawable.story_atlas, R.string.story1_title, R.string.story1_text)
+        1 -> Triple(R.drawable.story_mist, R.string.story2_title, R.string.story2_text)
+        else -> Triple(R.drawable.story_walker, R.string.story3_title, R.string.story3_text)
+    }
+    Framed {
+        androidx.compose.foundation.Image(
+            androidx.compose.ui.res.painterResource(art), null,
+            Modifier.fillMaxWidth().aspectRatio(1.1f), contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+        )
+    }
+    Spacer(Modifier.height(22.dp))
+    Text(stringResource(R.string.story_eyebrow, i + 1).uppercase(), style = UType.Eyebrow.copy(color = U.c.gold))
+    Spacer(Modifier.height(6.dp))
+    Text(stringResource(title), style = UType.Display)
+    Spacer(Modifier.height(10.dp))
+    Text(stringResource(text), style = UType.Sub)
+}
+
 /** A gilt double frame, like a map hung in a hall. */
 @Composable
 private fun Framed(content: @Composable () -> Unit) {
@@ -190,7 +250,7 @@ private fun Feature(icon: ImageVector, color: Color, soft: Color, title: String,
         Box(
             Modifier.size(48.dp).clip(CircleShape).background(soft).border(1.5.dp, U.c.gilt, CircleShape),
             contentAlignment = Alignment.Center,
-        ) { Icon(icon, null, Modifier.size(24.dp), tint = color) }
+        ) { GameIcon(icon, null, Modifier.size(24.dp), tint = color) }
         Spacer(Modifier.width(14.dp))
         Column {
             Text(title, style = UType.Strong.copy(fontFamily = app.fogwalk.ui.theme.Rune))

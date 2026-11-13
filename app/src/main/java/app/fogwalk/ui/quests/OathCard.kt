@@ -1,5 +1,6 @@
 package app.fogwalk.ui.quests
 
+import app.fogwalk.ui.GameIcon
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -84,7 +86,7 @@ private fun Sworn(o: Oath, data: GameData, imperial: Boolean) {
     UCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(44.dp).clip(CircleShape).background(U.c.roseSoft), contentAlignment = Alignment.Center) {
-                Icon(Icons.Rounded.Handshake, null, Modifier.size(22.dp), tint = U.c.rose)
+                GameIcon(Icons.Rounded.Handshake, null, Modifier.size(22.dp), tint = U.c.rose)
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
@@ -123,7 +125,7 @@ private fun Kept(o: Oath, find: Find) {
     UCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(44.dp).clip(CircleShape).background(U.c.roseSoft), contentAlignment = Alignment.Center) {
-                Icon(Icons.Rounded.Handshake, null, Modifier.size(22.dp), tint = U.c.rose)
+                GameIcon(Icons.Rounded.Handshake, null, Modifier.size(22.dp), tint = U.c.rose)
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
@@ -132,7 +134,7 @@ private fun Kept(o: Oath, find: Find) {
             }
             Spacer(Modifier.width(8.dp))
             Box(Modifier.size(36.dp).clip(CircleShape).background(U.c.roseSoft), contentAlignment = Alignment.Center) {
-                Icon(Icons.Rounded.Check, stringResource(R.string.oath_kept), Modifier.size(20.dp), tint = U.c.rose)
+                GameIcon(Icons.Rounded.Check, stringResource(R.string.oath_kept), Modifier.size(20.dp), tint = U.c.rose)
             }
         }
         Spacer(Modifier.height(10.dp))
@@ -143,8 +145,39 @@ private fun Kept(o: Oath, find: Find) {
     }
 }
 
+/** No oath yet this week: a short card, and the vows and stakes in a sheet of their own. */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 private fun Offers(data: GameData) {
+    var open by rememberSaveable { mutableStateOf(false) }
+    UCard(onClick = { open = true }) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(52.dp).clip(CircleShape).background(U.c.roseSoft), contentAlignment = Alignment.Center) {
+                GameIcon(Icons.Rounded.Handshake, null, Modifier.size(34.dp), tint = U.c.rose)
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.oath_teaser), style = UType.Strong.copy(fontSize = 15.sp))
+                Text(stringResource(R.string.oath_teaser_text), style = UType.Small)
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        PrimaryButton(stringResource(R.string.oath_choose), { open = true }, Modifier.fillMaxWidth(), color = U.c.rose)
+    }
+    if (open) androidx.compose.material3.ModalBottomSheet(
+        onDismissRequest = { open = false }, containerColor = U.c.bg,
+        sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true),
+    ) {
+        Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 12.dp).padding(bottom = 16.dp)) {
+            Text(stringResource(R.string.oath_title), style = UType.Title.copy(fontSize = 22.sp), modifier = Modifier.padding(horizontal = 6.dp))
+            Spacer(Modifier.height(8.dp))
+            OfferPicker(data) { open = false }
+        }
+    }
+}
+
+@Composable
+private fun OfferPicker(data: GameData, onSworn: () -> Unit) {
     val context = LocalContext.current
     val c = content()
     var pick by rememberSaveable { mutableIntStateOf(1) }
@@ -205,6 +238,7 @@ private fun Offers(data: GameData) {
             text = stringResource(R.string.oath_swear_text, c.oath(chosen), stake),
             confirm = stringResource(R.string.oath_swear),
             onConfirm = {
+                onSworn()
                 val container = context.container
                 container.scope.launch {
                     if (container.explorer.swear(chosen, stake) == Bought.NO_GOLD) {

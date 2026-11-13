@@ -1,5 +1,6 @@
 package app.fogwalk.ui.journal
 
+import app.fogwalk.ui.GameIcon
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -84,7 +85,7 @@ fun RelicsScreen(data: GameData, onBack: () -> Unit) {
         val next = Relics.toNextStar(count)
         CelebrateDialog(
             data = data, share = count > 0,
-            icon = relicIcon(r.id), color = color, soft = soft,
+            icon = relicIcon(r.id), art = app.fogwalk.ui.Art.relics[r.id], color = color, soft = soft,
             eyebrow = c.rarity(r.rarity) + " · " + c.setName(r.set),
             title = c.relicName(r.id) + "  " + stars(Relics.stars(count)),
             text = c.relicLore(r.id) + "\n\n" + stringResource(R.string.relic_found_times, count) + "\n" +
@@ -108,7 +109,7 @@ private fun SetCard(set: String, data: GameData, onRelic: (Relic) -> Unit) {
     UCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(40.dp).clip(CircleShape).background(soft), contentAlignment = Alignment.Center) {
-                Icon(setIcon(set), null, Modifier.size(20.dp), tint = color)
+                GameIcon(setIcon(set), null, Modifier.size(20.dp), tint = color)
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
@@ -164,8 +165,8 @@ private fun RelicTile(r: Relic, data: GameData, modifier: Modifier, onClick: () 
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         // Every tile keeps room for an icon, two lines of name and the stars, so the grid stays even.
-        Box(Modifier.size(26.dp), contentAlignment = Alignment.Center) {
-            if (owned) Icon(relicIcon(r.id), null, Modifier.size(26.dp), tint = color)
+        Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+            if (owned) app.fogwalk.ui.Art.relics[r.id]?.let { app.fogwalk.ui.ArtImage(it, Modifier.size(40.dp)) } ?: GameIcon(relicIcon(r.id), null, Modifier.size(26.dp), tint = color)
             else Text("?", style = UType.Strong.copy(fontSize = 20.sp, color = U.c.faint))
         }
         Spacer(Modifier.height(6.dp))
@@ -198,7 +199,7 @@ internal fun RelicsSummary(data: GameData, onOpen: () -> Unit) {
             val (color, soft) = rarityColor(Relics.setRarity(set))
             Row(Modifier.fillMaxWidth().padding(bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(32.dp).clip(CircleShape).background(soft), contentAlignment = Alignment.Center) {
-                    Icon(setIcon(set), null, Modifier.size(17.dp), tint = color)
+                    GameIcon(setIcon(set), null, Modifier.size(17.dp), tint = color)
                 }
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {

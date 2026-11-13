@@ -1,5 +1,20 @@
 package app.fogwalk.ui.settings
 
+import app.fogwalk.ui.GameIcon
+import androidx.compose.material.icons.automirrored.rounded.MenuBook
+import androidx.compose.material.icons.automirrored.rounded.DirectionsWalk
+import androidx.compose.material.icons.rounded.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.PaddingValues
 import android.Manifest
 import android.content.Intent
 import android.net.Uri
@@ -114,116 +129,123 @@ fun SettingsScreen(settings: Settings, onBack: () -> Unit) {
     }
     val import = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> pendingImport = uri }
 
+    var community by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().background(U.c.bg).statusBarsPadding()) {
         TopBar(stringResource(R.string.settings), onBack)
-        Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 18.dp).navigationBarsPadding().padding(bottom = 24.dp)) {
+        Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 12.dp).navigationBarsPadding().padding(bottom = 24.dp)) {
             if (!canNotify) {
                 Spacer(Modifier.height(8.dp))
                 UCard(onClick = { if (Build.VERSION.SDK_INT >= 33) askPermission.launch(Manifest.permission.POST_NOTIFICATIONS) }) {
                     Text(stringResource(R.string.perm_title), style = UType.Strong.copy(color = U.c.accent))
-                    Spacer(Modifier.height(4.dp))
-                    Text(stringResource(R.string.perm_text), style = UType.Muted)
+                    Text(stringResource(R.string.perm_text), style = UType.Small)
                 }
             }
 
+            // Reminders: when the game may call, and what keeps a walk alive with the screen off.
             SectionTitle(stringResource(R.string.set_notifications))
-            UCard {
-                SwitchRow(stringResource(R.string.set_remind), stringResource(R.string.set_remind_text), settings.remind) { v -> update { it.copy(remind = v) } }
-                if (settings.remind) {
-                    Spacer(Modifier.height(6.dp))
-                    val time = LocalTime.of(settings.remindAt / 60, settings.remindAt % 60)
-                    Text(
-                        stringResource(R.string.set_remind_at, timeFormat().format(time)),
-                        style = UType.Button.copy(color = U.c.accent),
-                        modifier = Modifier.clickable { pickTime = true }.padding(vertical = 6.dp),
-                    )
+            UCard(padding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)) {
+                Line(Icons.Rounded.Notifications, stringResource(R.string.set_remind), stringResource(R.string.set_remind_text)) {
+                    Toggle(settings.remind) { v -> update { it.copy(remind = v) } }
                 }
-                Divider()
-                SwitchRow(stringResource(R.string.set_nearby), stringResource(R.string.set_nearby_text), settings.nearbyAlerts) { v -> update { it.copy(nearbyAlerts = v) } }
-            }
-            Spacer(Modifier.height(10.dp))
-            UCard(onClick = {
-                context.startActivity(Intent(AndroidSettings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)))
-            }) {
-                Text(stringResource(R.string.autostart_title), style = UType.Strong)
-                Spacer(Modifier.height(2.dp))
-                Text(stringResource(R.string.autostart_text), style = UType.Muted)
+                if (settings.remind) {
+                    val time = LocalTime.of(settings.remindAt / 60, settings.remindAt % 60)
+                    Line(null, stringResource(R.string.set_remind_time), null, onClick = { pickTime = true }) {
+                        Text(timeFormat().format(time), style = UType.Strong.copy(color = U.c.accent))
+                        Chevron()
+                    }
+                }
+                Rule()
+                Line(Icons.Rounded.Inventory2, stringResource(R.string.set_nearby), stringResource(R.string.set_nearby_text)) {
+                    Toggle(settings.nearbyAlerts) { v -> update { it.copy(nearbyAlerts = v) } }
+                }
+                Rule()
+                Line(Icons.Rounded.Bedtime, stringResource(R.string.autostart_title), stringResource(R.string.autostart_text), onClick = {
+                    context.startActivity(Intent(AndroidSettings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)))
+                }) { Chevron() }
             }
 
-            SectionTitle(stringResource(R.string.set_fog))
-            UCard {
-                Text(stringResource(R.string.set_fog_density), style = UType.Strong)
-                Text(stringResource(R.string.set_fog_density_text), style = UType.Muted)
+            // How the game looks: three short choices and the fog's density.
+            SectionTitle(stringResource(R.string.set_look))
+            UCard(padding = PaddingValues(horizontal = 14.dp, vertical = 12.dp)) {
+                Choice(Icons.Rounded.LightMode, stringResource(R.string.set_appearance), listOf(
+                    stringResource(R.string.choice_auto) to (settings.theme == ThemeMode.SYSTEM),
+                    stringResource(R.string.theme_light) to (settings.theme == ThemeMode.LIGHT),
+                    stringResource(R.string.theme_dark) to (settings.theme == ThemeMode.DARK),
+                )) { i -> update { it.copy(theme = listOf(ThemeMode.SYSTEM, ThemeMode.LIGHT, ThemeMode.DARK)[i]) } }
+                Spacer(Modifier.height(14.dp))
+                val current = Language.current()
+                Choice(Icons.Rounded.Public, stringResource(R.string.language), listOf(
+                    stringResource(R.string.choice_auto) to (current == Language.SYSTEM),
+                    "Русский" to (current == Language.RU),
+                    "English" to (current == Language.EN),
+                )) { i -> Language.set(listOf(Language.SYSTEM, Language.RU, Language.EN)[i]) }
+                Spacer(Modifier.height(14.dp))
+                Choice(Icons.Rounded.Route, stringResource(R.string.set_units), listOf(
+                    stringResource(R.string.units_metric) to (settings.units == Units.METRIC),
+                    stringResource(R.string.units_imperial) to (settings.units == Units.IMPERIAL),
+                )) { i -> update { it.copy(units = if (i == 0) Units.METRIC else Units.IMPERIAL) } }
+                Spacer(Modifier.height(14.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    GameIcon(Icons.Rounded.Cloud, null, Modifier.size(26.dp))
+                    Spacer(Modifier.width(10.dp))
+                    Text(stringResource(R.string.set_fog_density), style = UType.Strong, modifier = Modifier.weight(1f))
+                    Text("${(density * 100).toInt()}%", style = UType.Small)
+                }
                 Slider(
                     value = density, onValueChange = { density = it }, valueRange = 0.6f..1f,
                     onValueChangeFinished = { update { it.copy(fogDensity = density) } },
-                    colors = SliderDefaults.colors(thumbColor = U.c.accent, activeTrackColor = U.c.accent, inactiveTrackColor = U.c.accentSoft),
+                    colors = SliderDefaults.colors(thumbColor = U.c.accent, activeTrackColor = U.c.accent, inactiveTrackColor = U.c.surface2),
                 )
             }
 
-            SectionTitle(stringResource(R.string.set_units))
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Chip(stringResource(R.string.units_metric), settings.units == Units.METRIC, { update { it.copy(units = Units.METRIC) } })
-                Chip(stringResource(R.string.units_imperial), settings.units == Units.IMPERIAL, { update { it.copy(units = Units.IMPERIAL) } })
-            }
-
+            // Steps and the phone's touch.
             SectionTitle(stringResource(R.string.set_feel))
-            UCard {
-                SwitchRow(stringResource(R.string.set_haptics), stringResource(R.string.set_haptics_text), settings.haptics) { v -> update { it.copy(haptics = v) } }
+            UCard(padding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)) {
+                Line(Icons.Rounded.Bolt, stringResource(R.string.set_haptics), stringResource(R.string.set_haptics_text)) {
+                    Toggle(settings.haptics) { v -> update { it.copy(haptics = v) } }
+                }
                 if (container.steps.available) {
-                    Divider()
-                    SwitchRow(stringResource(R.string.set_steps), stringResource(R.string.set_steps_text), settings.steps && canCount) { v ->
-                        if (v && !canCount && Build.VERSION.SDK_INT >= 29) askSteps.launch(Manifest.permission.ACTIVITY_RECOGNITION)
-                        else update { it.copy(steps = v) }
+                    Rule()
+                    Line(Icons.AutoMirrored.Rounded.DirectionsWalk, stringResource(R.string.set_steps), stringResource(R.string.set_steps_text)) {
+                        Toggle(settings.steps && canCount) { v ->
+                            if (v && !canCount && Build.VERSION.SDK_INT >= 29) askSteps.launch(Manifest.permission.ACTIVITY_RECOGNITION)
+                            else update { it.copy(steps = v) }
+                        }
                     }
                 }
                 if (container.health.available || container.health.installable) {
-                    Divider()
+                    Rule()
                     HealthSource(settings)
                 }
             }
 
-            SectionTitle(stringResource(R.string.set_appearance))
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Chip(stringResource(R.string.theme_system), settings.theme == ThemeMode.SYSTEM, { update { it.copy(theme = ThemeMode.SYSTEM) } })
-                Chip(stringResource(R.string.theme_light), settings.theme == ThemeMode.LIGHT, { update { it.copy(theme = ThemeMode.LIGHT) } })
-                Chip(stringResource(R.string.theme_dark), settings.theme == ThemeMode.DARK, { update { it.copy(theme = ThemeMode.DARK) } })
+            // The rest: the backup, the story, the people who make the game.
+            SectionTitle(stringResource(R.string.set_more))
+            UCard(padding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)) {
+                Line(Icons.Rounded.Map, stringResource(R.string.backup_save), stringResource(R.string.backup_save_text), onClick = {
+                    export.launch("fogwalk-${LocalDate.now()}.json")
+                }) { Chevron() }
+                Rule()
+                Line(Icons.Rounded.Backpack, stringResource(R.string.backup_load), stringResource(R.string.backup_load_text), onClick = {
+                    import.launch(arrayOf("application/json", "text/plain", "application/octet-stream"))
+                }) { Chevron() }
+                Rule()
+                Line(Icons.AutoMirrored.Rounded.MenuBook, stringResource(R.string.story_again), null, onClick = { update { it.copy(storySeen = false) } }) { Chevron() }
+                Rule()
+                Line(Icons.Rounded.RecordVoiceOver, stringResource(R.string.community_title), stringResource(R.string.community_row), onClick = { community = true }) { Chevron() }
             }
 
-            SectionTitle(stringResource(R.string.language))
-            val current = Language.current()
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Chip(stringResource(R.string.lang_system), current == Language.SYSTEM, { Language.set(Language.SYSTEM) })
-                Chip("English", current == Language.EN, { Language.set(Language.EN) })
-                Chip("Русский", current == Language.RU, { Language.set(Language.RU) })
-            }
-
-            SectionTitle(stringResource(R.string.backup))
-            UCard {
-                Text(stringResource(R.string.backup_text), style = UType.Muted)
-                Spacer(Modifier.height(8.dp))
-                Row {
-                    TextButton(onClick = { export.launch("fogwalk-${LocalDate.now()}.json") }) {
-                        Text(stringResource(R.string.backup_export), color = U.c.accent, style = UType.Button)
-                    }
-                    TextButton(onClick = { import.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) }) {
-                        Text(stringResource(R.string.backup_import), color = U.c.accent, style = UType.Button)
-                    }
-                }
-            }
-
-            CommunityLinks()
-
-            SectionTitle(stringResource(R.string.about))
-            UCard {
-                Text(stringResource(R.string.about_text), style = UType.Sub)
-                Spacer(Modifier.height(8.dp))
-                Text(stringResource(R.string.about_map), style = UType.Small)
-                Spacer(Modifier.height(8.dp))
-                Text(stringResource(R.string.about_version, BuildConfig.VERSION_NAME), style = UType.Small)
-            }
+            // Who we are, in small print at the foot.
+            Spacer(Modifier.height(18.dp))
+            Text(
+                stringResource(R.string.about_footer, BuildConfig.VERSION_NAME) + "\n" + stringResource(R.string.about_map),
+                style = UType.Small.copy(fontSize = 12.sp, lineHeight = 17.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+            )
         }
     }
+
+    if (community) CommunitySheet { community = false }
 
     if (pickTime) TimeDialog(settings.remindAt, onDismiss = { pickTime = false }) { m -> update { it.copy(remindAt = m) } }
 
@@ -274,8 +296,8 @@ private fun HealthSource(settings: Settings) {
             runCatching { context.startActivity(health.storeIntent()) }
         }
     }
-    SwitchRow(stringResource(R.string.set_health), stringResource(R.string.set_health_text), on && allowed != false) { v ->
-        if (!v) use(false) else if (on && allowed == true) Unit else pick()
+    Line(Icons.Rounded.Speed, stringResource(R.string.set_health), stringResource(R.string.set_health_text)) {
+        Toggle(on && allowed != false) { v -> if (!v) use(false) else if (on && allowed == true) Unit else pick() }
     }
     if (on && allowed == false) {
         Spacer(Modifier.height(4.dp))
@@ -288,17 +310,63 @@ private fun HealthSource(settings: Settings) {
     }
 }
 
+/** The community's links in a sheet of their own. */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
-private fun Divider() = HorizontalDivider(Modifier.padding(vertical = 10.dp), color = U.c.line)
+private fun CommunitySheet(onClose: () -> Unit) {
+    androidx.compose.material3.ModalBottomSheet(
+        onDismissRequest = onClose, containerColor = U.c.bg,
+        sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true),
+    ) {
+        Column(Modifier.navigationBarsPadding().padding(horizontal = 12.dp).padding(bottom = 16.dp)) { CommunityLinks() }
+    }
+}
+
+/** A fine rule between the lines of a card. */
+@Composable
+private fun Rule() = HorizontalDivider(Modifier.padding(start = 40.dp), color = U.c.line.copy(alpha = 0.7f))
+
+/** A line of a settings card: a painted icon, a name with a short word under it, and what it holds at the end. */
+@Composable
+private fun Line(icon: ImageVector?, title: String, sub: String?, onClick: (() -> Unit)? = null, end: @Composable RowScope.() -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier).padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.width(40.dp)) { if (icon != null) GameIcon(icon, null, Modifier.size(26.dp)) }
+        Column(Modifier.weight(1f)) {
+            Text(title, style = UType.Strong.copy(fontSize = 15.sp))
+            if (sub != null) Text(sub, style = UType.Small.copy(fontSize = 13.sp, lineHeight = 17.sp))
+        }
+        Spacer(Modifier.width(8.dp))
+        end()
+    }
+}
 
 @Composable
-private fun SwitchRow(title: String, text: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-            Text(title, style = UType.Strong)
-            Spacer(Modifier.height(2.dp))
-            Text(text, style = UType.Muted)
+private fun Toggle(checked: Boolean, onChange: (Boolean) -> Unit) =
+    Switch(checked = checked, onCheckedChange = onChange, colors = SwitchDefaults.colors(checkedTrackColor = U.c.accent))
+
+@Composable
+private fun Chevron() = Text("›", style = UType.Strong.copy(fontSize = 22.sp, color = U.c.accent), modifier = Modifier.padding(start = 6.dp))
+
+/** A setting with a few short answers: its name, and the answers side by side, the chosen one filled. */
+@Composable
+private fun Choice(icon: ImageVector, title: String, options: List<Pair<String, Boolean>>, onPick: (Int) -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        GameIcon(icon, null, Modifier.size(26.dp))
+        Spacer(Modifier.width(10.dp))
+        Text(title, style = UType.Strong)
+    }
+    Spacer(Modifier.height(8.dp))
+    Row(Modifier.fillMaxWidth().clip(CircleShape).background(U.c.surface2).padding(3.dp)) {
+        options.forEachIndexed { i, (label, on) ->
+            Text(
+                label, maxLines = 1,
+                style = UType.Strong.copy(fontSize = 14.sp, color = if (on) U.c.onAccent else U.c.muted, textAlign = androidx.compose.ui.text.style.TextAlign.Center),
+                modifier = Modifier.weight(1f).clip(CircleShape).background(if (on) U.c.accent else Color.Transparent)
+                    .clickable { onPick(i) }.padding(vertical = 8.dp),
+            )
         }
-        Switch(checked = checked, onCheckedChange = onChange, colors = SwitchDefaults.colors(checkedTrackColor = U.c.accent))
     }
 }

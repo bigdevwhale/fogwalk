@@ -1,5 +1,6 @@
 package app.fogwalk.ui.journal
 
+import app.fogwalk.ui.GameIcon
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -70,7 +71,7 @@ fun DeedsScreen(data: GameData, onBack: () -> Unit) {
                 UCard {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.size(42.dp).clip(CircleShape).background(soft), contentAlignment = Alignment.Center) {
-                            Icon(groupIcon(g.id), null, Modifier.size(22.dp), tint = color)
+                            GameIcon(groupIcon(g.id), null, Modifier.size(22.dp), tint = color)
                         }
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
@@ -100,7 +101,7 @@ fun DeedsScreen(data: GameData, onBack: () -> Unit) {
                                         .border(1.5.dp, if (on) U.c.gilt else U.c.line, CircleShape),
                                     contentAlignment = Alignment.Center,
                                 ) {
-                                    Icon(groupIcon(g.id), null, Modifier.size(20.dp), tint = if (on) color else U.c.faint.copy(alpha = 0.5f))
+                                    GameIcon(groupIcon(g.id), null, Modifier.size(20.dp), tint = if (on) color else U.c.faint.copy(alpha = 0.5f))
                                 }
                                 Spacer(Modifier.height(4.dp))
                                 Text(

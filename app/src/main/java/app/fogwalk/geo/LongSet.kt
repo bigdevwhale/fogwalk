@@ -37,6 +37,11 @@ class LongSet(capacity: Int = 1024) {
         for (i in indices()) action(keyAt(i))
     }
 
+    fun clear() {
+        used.fill(false)
+        size = 0
+    }
+
     fun indices(): IntArray {
         val out = IntArray(size)
         var n = 0
@@ -88,6 +93,11 @@ class LongIntMap(capacity: Int = 256) {
         values[i] = by
         size++
         return by
+    }
+
+    fun clear() {
+        used.fill(false)
+        size = 0
     }
 
     inline fun forEach(action: (Long, Int) -> Unit) {
