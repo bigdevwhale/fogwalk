@@ -1,7 +1,9 @@
 name: Google Play
 
-# Uploads the AAB of a GitHub release to Google Play.
-# Runs after every successful Release workflow, or by hand for any tag.
+# Uploads the AAB of a GitHub release to Google Play, with "What's new" taken
+# from the release notes: en-US from the visible text, ru-RU from the hidden
+# <!-- tg ... --> block. If the tag is already released on the track, only the
+# notes are updated. Runs after every successful Release workflow, or by hand.
 # Auth is keyless (Workload Identity Federation) – no service account JSON.
 
 on:
@@ -34,12 +36,13 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
-      - name: Download AAB from the release
+      - name: Download AAB and notes from the release
         id: rel
         run: |
           TAG="${{ github.event.inputs.tag }}"
           [ -n "$TAG" ] || TAG=$(gh release view -R "$GITHUB_REPOSITORY" --json tagName -q .tagName)
           gh release download "$TAG" -R "$GITHUB_REPOSITORY" -p '*.aab' -D dist
+          gh release view "$TAG" -R "$GITHUB_REPOSITORY" --json body -q .body > dist/notes.md
           ls -l dist
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "aab=$(ls dist/*.aab | head -1)" >> "$GITHUB_OUTPUT"
@@ -49,13 +52,80 @@ jobs:
         with:
           workload_identity_provider: projects/250995438720/locations/global/workloadIdentityPools/github/providers/github
           service_account: play-publisher@intense-context-514611-h3.iam.gserviceaccount.com
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/androidpublisher
+          create_credentials_file: false
 
       - name: Upload to Google Play
-        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5  # v1.1.5
-        with:
-          serviceAccountJson: ${{ steps.auth.outputs.credentials_file_path }}
-          packageName: app.fogwalk
-          releaseFiles: ${{ steps.rel.outputs.aab }}
-          releaseName: ${{ steps.rel.outputs.tag }}
-          tracks: ${{ github.event.inputs.track || 'production' }}
-          status: completed
+        env:
+          TOKEN: ${{ steps.auth.outputs.access_token }}
+          PKG: app.fogwalk
+          TAG: ${{ steps.rel.outputs.tag }}
+          AAB: ${{ steps.rel.outputs.aab }}
+          TRACK: ${{ github.event.inputs.track || 'production' }}
+        shell: python3 {0}
+        run: |
+          import json, os, re, sys, urllib.request, urllib.error
+
+          TOKEN, PKG, TAG, AAB, TRACK = (os.environ[k] for k in ("TOKEN", "PKG", "TAG", "AAB", "TRACK"))
+          API = "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/" + PKG
+          UPLOAD = "https://androidpublisher.googleapis.com/upload/androidpublisher/v3/applications/" + PKG
+
+          def call(method, url, body=None, data=None, ctype="application/json"):
+              if body is not None:
+                  data = json.dumps(body).encode()
+              req = urllib.request.Request(url, data=data, method=method,
+                                           headers={"Authorization": "Bearer " + TOKEN, "Content-Type": ctype})
+              try:
+                  with urllib.request.urlopen(req, timeout=900) as r:
+                      text = r.read()
+                      return json.loads(text) if text else {}
+              except urllib.error.HTTPError as e:
+                  sys.exit(f"{method} {url.split('?')[0]} -> {e.code}: {e.read().decode()}")
+
+          def cut(text, limit=500):
+              text = text.strip()
+              if len(text) <= limit:
+                  return text
+              return text[:limit - 1].rsplit(" ", 1)[0].rstrip(" ,;:") + "…"
+
+          body = open("dist/notes.md", encoding="utf-8").read()
+          tg = re.search(r"<!--\s*tg\s*\n(.*?)-->", body, re.S)
+          lines = []
+          for line in re.sub(r"<!--.*?-->", "", body, flags=re.S).splitlines():
+              line = line.strip()
+              if not line or line.startswith("#") or line.startswith("**Full Changelog"):
+                  continue
+              line = re.sub(r"^[-*]\s+", "• ", line)
+              line = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", line)
+              line = re.sub(r"\s*\(#\d+\)", "", line)
+              line = re.sub(r"\*\*|__|`", "", line)
+              lines.append(line)
+          notes = []
+          if lines:
+              notes.append({"language": "en-US", "text": cut("\n".join(lines))})
+          if tg and tg.group(1).strip():
+              notes.append({"language": "ru-RU", "text": cut(tg.group(1))})
+          for n in notes:
+              print(f"--- {n['language']} ({len(n['text'])} chars)\n{n['text']}")
+
+          edit = call("POST", API + "/edits", {})["id"]
+          track = call("GET", f"{API}/edits/{edit}/tracks/{TRACK}")
+          releases = track.get("releases", [])
+          existing = [r for r in releases if r.get("name") == TAG]
+          if existing:
+              print(f"{TAG} is already on {TRACK}: updating the notes only")
+              if notes:
+                  existing[0]["releaseNotes"] = notes
+          else:
+              with open(AAB, "rb") as f:
+                  bundle = call("POST", f"{UPLOAD}/edits/{edit}/bundles?uploadType=media",
+                                data=f.read(), ctype="application/octet-stream")
+              print("Uploaded versionCode", bundle["versionCode"])
+              release = {"name": TAG, "versionCodes": [str(bundle["versionCode"])], "status": "completed"}
+              if notes:
+                  release["releaseNotes"] = notes
+              releases = [release]
+          call("PUT", f"{API}/edits/{edit}/tracks/{TRACK}", {"track": TRACK, "releases": releases})
+          call("POST", f"{API}/edits/{edit}:commit")
+          print("Committed edit", edit)
