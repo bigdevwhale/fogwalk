@@ -18,7 +18,7 @@
 
 **English** · [Русский](README.ru.md) · [Website](https://bigdevwhale.github.io/stillcraft/apps/fogwalk/) · [Changelog](CHANGELOG.md)
 
-<img src="docs/screenshots/overview.png" alt="Fogwalk on a phone: Prague's old town half revealed from the mist, the hoard of relics and the book of deeds" width="100%" />
+<img src="docs/screenshots/overview.png" alt="Fogwalk on a phone: the story of the Mist, Prague's old town half freed from the mist, and the shop with companions" width="100%" />
 
 </div>
 
@@ -34,6 +34,7 @@ Fogwalk turns the city into an old atlas lost in mist. Wherever you walk, the mi
 
 | | Feature | How it works |
 |---|---|---|
+| 📜 | **The story of the Mist** | Three painted chapters open the game: once the whole realm lived in the Great Atlas of the Wayfarers' Guild; then the Mist of Forgetting came and made the world forget; only one who walks can bring it back. Walkers from before 1.10 see it once; it can be read again from the settings. |
 | 🌫️ | **The mist** | The world is cut into cells about 20–40 m across. Walk, and everything within 40 m of your path is revealed for good, drawn as soft clearings in a cloudy mist over a sepia map. |
 | 🧭 | **Lands** | The realm is divided into named lands about a kilometre across, from *Whispering Hollow* to *Mossy Wharf*. Chart 5, 15, 25 and 40 % of a land for rewards. |
 | 🧰 | **Treasure chests** | Common, rare, epic and legendary chests are hidden all over the map and **refill every Monday**, even on streets you already know. Nearby ones glimmer through the mist as a "?". Walk within 30 m to open one. |
@@ -43,6 +44,8 @@ Fogwalk turns the city into an old atlas lost in mist. Wherever you walk, the mi
 | ❄️ | **Seasonal sets** | Four more sets, one per season: the Midwinter Hoard, Gifts of the Thaw, Midsummer Treasures, Harvest Relics. Their relics turn up only in their own season (turned around south of the equator); what stays hidden waits a year. |
 | ⭐ | **Relic stars** | A relic found again is not wasted: the 2nd, 4th, 8th, 16th and 32nd copy raise it to ★1…★5. Every time a whole set reaches a star, it pays again. Commons shine in a couple of months; a legendary at five stars is years of walking. |
 | 🛡️ | **Arms of the lands** | Every land bears one of 24 arms, the same for every walker: a tower, a bell, a lantern. Chart a quarter of a land to raise its banner; the first banner of each kind pays. A full roll of arms takes lands far from home. |
+| 🦔 | **Companions** | A hedgehog, a cat, a fox, an owl, a wanderer or a granny can walk the map in your place, turning the way you go. Looks only, bought for good from the merchant. |
+| 🗿 | **Monuments** | On a land freed by a quarter, raise a monument for gold: each level costs twice the last, with no ceiling, and the stone grows on the map from a standing stone to a tower. |
 | 📜 | **Quests** | Three new quests every dawn, a great quest every week. |
 | 🔥 | **Streaks** | Reveal 25 cells, walk 1 km or reach the shrine to keep the flame alive. A ward from the merchant guards a missed day. |
 | 🤝 | **Oath of the week** | Vow a goal for the rest of the week (easy, hard or heroic, sized to your own pace) and stake gold on it. Keep it, and the stake comes back with a relic and experience that grow with it. Break it, and the gold is gone. |
@@ -56,14 +59,14 @@ Fogwalk turns the city into an old atlas lost in mist. Wherever you walk, the mi
 
 <table>
   <tr>
-    <td><img src="docs/screenshots/map.png" alt="The map: charted streets of Prague's old town and the mist around them" /></td>
-    <td><img src="docs/screenshots/quests.png" alt="Quests and the streak" /></td>
-    <td><img src="docs/screenshots/onboarding.png" alt="Welcome: the realm is lost in mist" /></td>
+    <td><img src="docs/screenshots/map.png" alt="The map: freed streets of Prague's old town, the mist around them and a fox walking" /></td>
+    <td><img src="docs/screenshots/quests.png" alt="Quests on the Guild's board and the streak" /></td>
+    <td><img src="docs/screenshots/onboarding.png" alt="The story: walk the realm back, step by step" /></td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/hoard.png" alt="The hoard of relics" /></td>
-    <td><img src="docs/screenshots/merchant.png" alt="The merchant: mists of the realm" /></td>
-    <td><img src="docs/screenshots/chronicle.png" alt="Chronicle: charted area, days on the road and lands" /></td>
+    <td><img src="docs/screenshots/hoard.png" alt="Relics in ten sets" /></td>
+    <td><img src="docs/screenshots/merchant.png" alt="The shop: companions and mists for the map" /></td>
+    <td><img src="docs/screenshots/chronicle.png" alt="Chronicle: ground restored to the Atlas, days on the road and the three books" /></td>
     <td><img src="docs/screenshots/deeds.png" alt="The book of deeds" /></td>
   </tr>
 </table>

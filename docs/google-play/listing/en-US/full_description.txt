@@ -1,0 +1,58 @@
+Most of us walk the same three routes for years. There are streets two blocks away we have never seen.
+
+Fogwalk turns your city into a kingdom lost to the Mist of Forgetting. Once every street lived in the Great Atlas of the Wayfarers' Guild; then the mist came and made the world forget. Only one who walks can bring it back: wherever you go, the mist parts for good and the place returns to the Atlas. Week by week your neighbourhood fills in, then the next one, and the grey patches start to itch.
+
+Free, no ads, no account.
+
+🌫️ THE MIST
+Everything within 40 m of your path is freed for good, drawn as soft clearings over a hand-painted atlas map. The realm is divided into named lands about a kilometre across, from Whispering Hollow to Mossy Wharf, each with its own coat of arms. Free a quarter of a land and its banner rises again.
+
+🧰 TREASURE CHESTS
+Common, rare, epic and legendary chests are hidden all over the map and turn up anew every Monday, even on streets you know. Walk up to one to open it, or pull it in with a grappling hook.
+
+✨ SHRINES OF THE DAY
+Every day three shrines awaken where the mist is thickest: golden, grove and azure. Reach any one of them for the day's richest reward.
+
+🏺 60 RELICS
+Ten sets, from a brass compass to a dragon's scale, four of them found only in their own season. Copies raise a relic's stars; a full set earns a title and gold.
+
+📜 QUESTS, STREAKS AND OATHS
+• Quests of the day on the Guild's board, and a quest of the week
+• Keep your streak alive: reveal 25 cells, walk 1 km or 2,000 steps, or reach a shrine
+• Oath of the week: vow a goal, stake gold on it, and win it back with a relic
+
+🦔 COMPANIONS
+A hedgehog, a cat, a fox, an owl, a wanderer or a granny can walk the map in your place.
+
+🗿 MONUMENTS
+Raise a monument on a land you have freed, from a standing stone to a tower that grows with every level.
+
+🗺️ TREASURE MAPS, RUMOURS AND RACES
+Search a circle in the mist by warmer, colder; hear where the week's best chest lies; walk a past journey again while your shadow retraces it at the old pace.
+
+🪙 THE MERCHANT
+Gold from the road buys companions and new mists for the map, gear that improves in five steps, torches, seeing stones, wards of the streak and altars that lift the mist where you can't walk.
+
+🏅 209 DEEDS
+Walk 1 km… 1,000 km; open a chest… a thousand; a year-long streak; night and dawn journeys. Climb from Wanderer to Legend of the Realm.
+
+👣 JOURNEYS WITH THE SCREEN OFF
+Tap Set out and Fogwalk keeps charting in a quiet notification, with a call when a chest is close. A GPS glitch that runs off faster than any walker is left behind, and a stretch charted by mistake can be put back under the mist.
+
+📖 CHRONICLE
+Ground restored to the Atlas, lands and their arms, days on the road, steps from the phone or Health Connect, and every journey with its route.
+
+PRIVATE BY DESIGN
+No accounts, no servers, no analytics, no ads. Your path never leaves the phone. The only network traffic is map tiles from OpenStreetMap. Save your whole atlas to a file whenever you like.
+
+ALSO
+• English and Russian
+• Light and dark theme
+• Works without Google services
+• Free and open source (MIT)
+
+Tip: on Xiaomi, Huawei and some other phones, allow Autostart and remove battery limits so journeys with the screen off aren't cut short.
+
+Map data © OpenStreetMap contributors.
+
+Fogwalk is part of Stillcraft, a family of small, quiet apps without ads or accounts.

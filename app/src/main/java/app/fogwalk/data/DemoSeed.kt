@@ -116,12 +116,26 @@ object DemoSeed {
         val opened = dao.findKeys("c:$week:").toSet()
         val rumor = app.fogwalk.domain.Rumors.hear(lat, lon, week, opened)
         val raced = dao.walks().maxByOrNull { it.meters }?.id
+        // Monuments on the two lands charted furthest, a tower on the first; given, not bought, so the purse stays.
+        if (app.fogwalk.domain.Monuments.levels(dao.ledger()).isEmpty()) {
+            val (keys, counts) = fog.sectors()
+            val best = keys.indices.sortedByDescending { counts[it] }.map { keys[it] }
+                .filter { fog.sectorShare(it) >= app.fogwalk.domain.Sectors.CHARTED }.take(2)
+            val at = System.currentTimeMillis() - 3_600_000
+            best.forEachIndexed { i, sector ->
+                for (l in 1..(if (i == 0) 6 else 2)) dao.grant(Entry("buy:${app.fogwalk.domain.Monuments.item(sector, l)}:${at + l}", at + l, 0, 0))
+            }
+        }
+        // The fox walks the demo's map.
+        val fox = app.fogwalk.domain.Companions.key("fox")
         settings.update {
             it.copy(
                 treasure = it.treasure ?: app.fogwalk.domain.Treasures.place(System.currentTimeMillis(), 0, lat, lon) { a, b -> fog.exploredAround(a, b, 120.0) },
                 rumor = it.rumor?.takeIf { r -> r.week == week } ?: rumor,
                 race = it.race ?: raced?.let { w -> app.fogwalk.domain.Race(w, 0, 0) },
                 altars = maxOf(it.altars, 2),
+                owned = it.owned + fox,
+                companion = if (fox in it.owned) it.companion else "fox",
             )
         }
     }
