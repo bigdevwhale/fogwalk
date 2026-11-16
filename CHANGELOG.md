@@ -8,6 +8,15 @@ then close it like any HTML comment. The release notes carry it, and the chat bo
 
 All notable changes to Fogwalk. Versions follow [semantic versioning](https://semver.org/).
 
+## [1.10.1] - 2026-11-16
+### Changed
+- **How altars work, step by step:** the guide is four short pages, each with a drawing: where altars are needed, where to get them, how to set them along the edge and how to close the ring (#55).
+### Fixed
+- **A shrine's light stands upright on a turned map,** with the shrine itself, instead of tilting with the map; a tap on a shrine there finds it too (#61).
+<!-- tg
+Гайд по алтарям теперь в четыре коротких шага с картинками: где нужны алтари, где их взять, как расставить и как замкнуть круг.
+Если повернуть карту, свет святилищ больше не заваливается набок, а стоит ровно вместе с самим святилищем.
+-->
 ## [1.10.0] - 2026-11-13
 ### Added
 - **Bring the mist back:** pick a stretch of a journey on its route, and what a GPS glitch charted there goes back under the mist (#46).

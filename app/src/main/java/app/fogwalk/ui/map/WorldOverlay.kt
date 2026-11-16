@@ -668,7 +668,13 @@ class WorldOverlay(
         val x = sx(sh.lon)
         val y = sy(sh.lat)
         val d = density
+        // The canvas turns with the map; the light rises up the screen like the sprite stands (#61).
+        c.save()
+        c.rotate(-turn, x, y)
         c.saveLayerAlpha(x - 70 * d, y - 100 * d, x + 70 * d, y + 40 * d, (opacity * 255).toInt())
+        // Hit where the shrine stands on the screen: 16 dp above its foot, turned into the canvas.
+        val rad = Math.toRadians(turn.toDouble())
+        val hit = floatArrayOf(x - (16 * d * sin(rad)).toFloat(), y - (16 * d * kotlin.math.cos(rad)).toFloat())
         // Runic rings ripple out from the shrine.
         for (i in 0 until 3) {
             val p = (((t / 2400.0) + i / 3.0) % 1.0).toFloat()
@@ -690,10 +696,11 @@ class WorldOverlay(
         if (art != null) {
             val bob = (sin(t / 500.0) * 1.5 * d).toFloat()
             spritePaint.colorFilter = if (color == 0xFF9C9488.toInt()) android.graphics.ColorMatrixColorFilter(android.graphics.ColorMatrix().apply { setSaturation(0f) }) else null
-            drawSprite(c, art, x, y + 4 * d + bob, 44 * d)
+            drawSprite(c, art, x, y + 4 * d + bob, 44 * d, upright = true)
             spritePaint.colorFilter = null
             c.restore()
-            hits += Pick.OfShrine(sh.kind) to floatArrayOf(x, y - 16 * d)
+            c.restore()
+            hits += Pick.OfShrine(sh.kind) to hit
             return
         }
         // Stone plinth.
@@ -728,7 +735,8 @@ class WorldOverlay(
         path.close()
         c.drawPath(path, stroke)
         c.restore()
-        hits += Pick.OfShrine(sh.kind) to floatArrayOf(x, y - 16 * d)
+        c.restore()
+        hits += Pick.OfShrine(sh.kind) to hit
     }
 
     private fun drawWalker(c: Canvas, s: Scene) {
@@ -785,13 +793,13 @@ class WorldOverlay(
 
     /**
      * [b] standing upright on the screen, [height] px tall, mirrored if [flip]: its base at ([x], [y]), or
-     * its middle there when [centred].
+     * its middle there when [centred]. [upright] when the canvas is already turned back to the screen.
      */
-    private fun drawSprite(c: Canvas, b: Bitmap, x: Float, y: Float, height: Float, flip: Boolean = false, centred: Boolean = false) {
+    private fun drawSprite(c: Canvas, b: Bitmap, x: Float, y: Float, height: Float, flip: Boolean = false, centred: Boolean = false, upright: Boolean = false) {
         val width = height * b.width / b.height
         c.save()
         // The canvas turns with the map; the figure turns back to stand up.
-        c.rotate(-turn, x, y)
+        if (!upright) c.rotate(-turn, x, y)
         if (flip) c.scale(-1f, 1f, x, y)
         val bottom = if (centred) y + height / 2 else y
         spriteDst.set(x - width / 2, bottom - height, x + width / 2, bottom)

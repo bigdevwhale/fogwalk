@@ -956,20 +956,9 @@ private fun altars(data: GameData, imperial: Boolean, onFocus: (Double, Double) 
             }
             if (text != null) android.widget.Toast.makeText(context, text, android.widget.Toast.LENGTH_SHORT).show()
         }
-        // How it works, with an example and the limits: the line alone is too short to learn from (#28).
+        // How it works, a step to a page with a drawing each: the line alone is too short to learn from (#28, #55).
         var guide by remember { mutableStateOf(false) }
-        if (guide) androidx.compose.material3.AlertDialog(
-            onDismissRequest = { guide = false },
-            containerColor = U.c.bg,
-            title = { Text(stringResource(R.string.altars_guide_t), style = UType.Strong.copy(fontSize = 19.sp)) },
-            text = {
-                Text(
-                    stringResource(R.string.altars_guide, Altars.MIN, side, distance(app.fogwalk.explore.Explorer.ALTAR_ACCURACY.toDouble(), imperial)),
-                    style = UType.Sub, modifier = Modifier.verticalScroll(rememberScrollState()),
-                )
-            },
-            confirmButton = { androidx.compose.material3.TextButton(onClick = { guide = false }) { Text(stringResource(R.string.close), color = U.c.accent, style = UType.Button) } },
-        )
+        if (guide) AltarsGuide(Altars.MIN, side, distance(app.fogwalk.explore.Explorer.ALTAR_ACCURACY.toDouble(), imperial)) { guide = false }
         Row(Modifier.padding(start = 50.dp, top = 2.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Chip(stringResource(R.string.altars_how), U.c.surface2) { guide = true }
             if (s.altars > 0) Chip(stringResource(R.string.altar_place), azure.copy(alpha = 0.18f)) {
