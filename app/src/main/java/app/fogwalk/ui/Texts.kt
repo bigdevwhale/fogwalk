@@ -337,10 +337,10 @@ fun shrineReached(context: Context, kind: ShrineKind, gift: Int): String = shrin
 }
 
 /** Everything reaching a shrine of [kind] brought, for its big news (#52); [gift] is the grove's. */
-fun shrineWon(context: Context, kind: ShrineKind, gift: Int, gear: Map<String, Int>): String {
+fun shrineWon(context: Context, kind: ShrineKind, gift: Int, s: app.fogwalk.data.Settings): String {
     val coins = Beacons.COINS + if (kind == ShrineKind.GOLD) Beacons.GOLD_COINS else 0
     val xp = Beacons.XP + if (kind == ShrineKind.GROVE) Beacons.GROVE_XP else 0
-    val minutes = (app.fogwalk.domain.Gear.boostMs(gear) / 60_000).toInt()
+    val minutes = (app.fogwalk.domain.Bonds.boostMs(s) / 60_000).toInt()
     val extra = when (kind) {
         ShrineKind.GOLD -> null
         ShrineKind.GROVE -> when (gift) {

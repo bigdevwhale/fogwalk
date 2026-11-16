@@ -266,7 +266,9 @@ private fun offers(data: GameData, ware: Ware): List<Offer> {
                 val select = { container.scope.launch { container.settings.update { it.copy(companion = pal.id) } }; Unit }
                 out += Offer(
                     "pal:${pal.id}", companionName(pal.id), if (on) selected else if (has) owned else null,
-                    stringResource(R.string.shop_companion_details), if (has) null else pal.price,
+                    if (app.fogwalk.domain.Bonds.befriends(pal.id)) stringResource(R.string.shop_pal_details, app.fogwalk.ui.quests.palPerk(pal.id, app.fogwalk.domain.Bonds.MAX).orEmpty())
+                    else stringResource(R.string.shop_token_details),
+                    if (has) null else pal.price,
                     art = { m -> Sprites.ids["companion_${pal.id}"]?.let { ArtImage(it, m) } ?: Box(m, contentAlignment = Alignment.Center) { CompanionToken() } },
                     active = on, act = if (has && !on) choose to select else null,
                     buy = { buy("pal:${pal.id}", pal.price) { container.settings.update { it.copy(owned = it.owned + Companions.key(pal.id), companion = pal.id) } } },
@@ -287,7 +289,7 @@ private fun offers(data: GameData, ware: Ware): List<Offer> {
         }
         Ware.CHARMS -> {
             val now = System.currentTimeMillis()
-            val boost = Gear.boostMs(s.gear)
+            val boost = app.fogwalk.domain.Bonds.boostMs(s)
             val boostMin = (boost / 60_000).toInt()
             out += Offer(
                 "charm:torch", stringResource(R.string.lantern), null,
@@ -461,8 +463,10 @@ private fun Price(price: Int, affordable: Boolean) {
 
 /** A companion's name in the player's language. */
 @Composable
-private fun companionName(id: String): String = stringResource(
-    when (id) {
+fun companionName(id: String): String = stringResource(palNameRes(id))
+
+/** The string with a companion's name. */
+fun palNameRes(id: String): Int = when (id) {
         "hedgehog" -> R.string.pal_hedgehog
         "cat" -> R.string.pal_cat
         "fox" -> R.string.pal_fox
@@ -471,7 +475,6 @@ private fun companionName(id: String): String = stringResource(
         "granny" -> R.string.pal_granny
         else -> R.string.pal_token
     }
-)
 
 /** The gilt token with its emerald heart, as the map draws it. */
 @Composable

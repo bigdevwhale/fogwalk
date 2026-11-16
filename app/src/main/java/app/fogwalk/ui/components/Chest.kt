@@ -101,6 +101,7 @@ fun ChestDialog(find: Find, owned: Set<String>, copies: Int, onDismiss: () -> Un
                 val (eyebrow, title) = when {
                     find.key.startsWith("t:") -> stringResource(R.string.treasure_found) to stringResource(R.string.treasure_one)
                     find.key.startsWith("o:") -> stringResource(R.string.oath_kept) to stringResource(R.string.oath_title)
+                    find.key.startsWith("st:") || find.key.startsWith("rf:") -> stringResource(R.string.road_title) to stringResource(R.string.road_relic)
                     else -> stringResource(R.string.cache_opened) to stringResource(R.string.cache_of, c.rarity(rarity))
                 }
                 Text(eyebrow.uppercase(), style = UType.Eyebrow.copy(color = color))

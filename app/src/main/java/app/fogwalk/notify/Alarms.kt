@@ -99,9 +99,13 @@ object Alarms {
         val streak = Streaks.of(c.db.dao().days(), s.shielded, today)
         if (streak.todayDone) return
         val content = Content.of(context.resources.configuration.locales[0])
-        val (title, text) = if (streak.current > 0) {
+        var (title, text) = if (streak.current > 0) {
             context.getString(R.string.notif_streak_title, streak.current) to content.nudge(today, true)
         } else context.getString(R.string.notif_beacon_title) to content.nudge(today, false)
+        // Every other evening the companion asks for its walk instead.
+        if (app.fogwalk.domain.Bonds.befriends(s.companion) && today % 2 == 0L) {
+            text = context.getString(R.string.notif_pal, context.getString(app.fogwalk.ui.treasury.palNameRes(s.companion)))
+        }
         notify(context, ID_REMIND, title, text, "map")
     }
 

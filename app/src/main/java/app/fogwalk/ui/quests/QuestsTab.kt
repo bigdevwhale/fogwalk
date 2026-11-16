@@ -75,7 +75,8 @@ fun QuestsTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
     val imperial = data.settings.units == Units.IMPERIAL
     val now = LocalDateTime.now(data.zone)
     val left = java.time.Duration.between(now, now.toLocalDate().plusDays(1).atStartOfDay())
-    var week by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+    // 0: today's errands, 1: the week's, 2: on the road (the companion, the Great Road and the satchel).
+    var board by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(0) }
     Column(
         Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState()).padding(horizontal = 12.dp).padding(bottom = 24.dp),
     ) {
@@ -98,16 +99,20 @@ fun QuestsTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
             }
         }
         Spacer(Modifier.height(10.dp))
-        // Today's errands, or the week's: one board at a time.
+        // Today's errands, the week's, or the road: one board at a time.
         Row(Modifier.clip(CircleShape).background(U.c.surface2).padding(3.dp)) {
-            val weekDot = (data.claimable(data.weekly)) || data.oathKept
-            listOf(false to R.string.quests_today, true to R.string.quests_week).forEach { (w, label) ->
+            val dots = listOf(
+                data.quests.any { data.claimable(it) },
+                data.claimable(data.weekly) || data.oathKept,
+                data.giftReady || data.satchel.isNotEmpty(),
+            )
+            listOf(R.string.quests_today, R.string.quests_week, R.string.on_the_road).forEachIndexed { w, label ->
                 Row(
-                    Modifier.clip(CircleShape).background(if (week == w) U.c.accent else Color.Transparent).clickable { week = w }.padding(horizontal = 18.dp, vertical = 8.dp),
+                    Modifier.clip(CircleShape).background(if (board == w) U.c.accent else Color.Transparent).clickable { board = w }.padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(stringResource(label), style = UType.Strong.copy(fontSize = 14.sp, color = if (week == w) Color.White else U.c.muted))
-                    if (w && weekDot && !week) {
+                    Text(stringResource(label), style = UType.Strong.copy(fontSize = 14.sp, color = if (board == w) Color.White else U.c.muted))
+                    if (dots[w] && board != w) {
                         Spacer(Modifier.width(6.dp))
                         Box(Modifier.size(7.dp).clip(CircleShape).background(U.c.flame))
                     }
@@ -115,7 +120,18 @@ fun QuestsTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
             }
         }
 
-        if (week) {
+        if (board == 2) {
+            // What every walk counts toward, new ground or old.
+            Spacer(Modifier.height(14.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                RoadCard(data, go)
+                SatchelCard(data)
+                PalCard(data, go)
+            }
+            return@Column
+        }
+
+        if (board == 1) {
             SectionTitle(stringResource(R.string.quests_week_quest))
             QuestCard(data.weekly, data, imperial, weekly = true)
             SectionTitle(stringResource(R.string.oath_title))

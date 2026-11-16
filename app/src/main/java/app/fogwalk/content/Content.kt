@@ -34,6 +34,12 @@ interface Content {
     fun nudge(day: Long, streak: Boolean): String
     /** A line for the map's empty fog, rotating by [day]. */
     fun motto(day: Long): String
+    /** The name of the Great Road's station [i], see [app.fogwalk.domain.Road]; beyond the last ones are numbered. */
+    fun stationName(i: Int): String
+    /** The chapter of the story read at station [i]. */
+    fun stationLore(i: Int): String
+    /** What a kilometre of the road turned up, in one line: [kind] of [app.fogwalk.domain.Wayside.Kind], one of its variants. */
+    fun waysideFind(kind: app.fogwalk.domain.Wayside.Kind, variant: Int): String
 
     companion object {
         fun of(locale: Locale): Content = if (locale.language == "ru") ContentRu else ContentEn

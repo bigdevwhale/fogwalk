@@ -8,6 +8,18 @@ then close it like any HTML comment. The release notes carry it, and the chat bo
 
 All notable changes to Fogwalk. Versions follow [semantic versioning](https://semver.org/).
 
+## [1.11.0] - 2026-11-16
+### Added
+- **The Great Road:** every kilometre, on new streets or old, moves you along a painted road of 17 stations, each with a chapter of the story and a ward, an altar or a relic.
+- **The walker's satchel:** each kilometre turns up a find by the wayside: gold, a tale, a ward, sometimes a relic.
+- **Companions grow into friends:** five levels of friendship, each with its own gift, and a present every day you walk a kilometre together.
+- **On the road,** a new board in Quests for all of it.
+<!-- tg
+Великий Тракт: каждый пройденный километр, даже по знакомым улицам, ведёт вас по дороге из 17 станций с главами истории, оберегами, алтарями и реликвиями.
+Сумка путника: каждый километр у обочины что-то находится: золото, рассказы, обереги, а иногда реликвии.
+Спутники становятся друзьями: пять уровней дружбы со своим даром и подарок за каждый день, когда вы прошли вместе километр.
+Всё это в новой вкладке «В пути» в Квестах.
+-->
 ## [1.10.1] - 2026-11-16
 ### Changed
 - **How altars work, step by step:** the guide is four short pages, each with a drawing: where altars are needed, where to get them, how to set them along the edge and how to close the ring (#55).

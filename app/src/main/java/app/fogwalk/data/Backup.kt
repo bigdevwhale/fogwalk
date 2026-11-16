@@ -41,6 +41,7 @@ object Backup {
         if (s != null) o.put("kit", JSONObject()
             .put("owned", JSONArray(s.owned.toList())).put("fog", s.fog).put("fogDensity", s.fogDensity.toDouble()).put("companion", s.companion)
             .put("gear", JSONObject().apply { s.gear.forEach { (k, v) -> put(k, v) } })
+            .put("bond", JSONObject().apply { s.bond.forEach { (k, v) -> put(k, v) } })
             .put("shields", s.shields).put("shielded", JSONArray(s.shielded.toList())).put("altars", s.altars)
             .put("ring", JSONArray().apply { s.ring.forEach { (la, lo) -> put(la).put(lo) } }))
         return o.toString()
@@ -50,6 +51,7 @@ object Backup {
     fun mergeKit(mine: Settings, kit: JSONObject): Settings {
         val owned = kit.optJSONArray("owned")?.let { a -> (0 until a.length()).map { a.getString(it) } }.orEmpty()
         val gear = kit.optJSONObject("gear")?.let { g -> g.keys().asSequence().associateWith { g.getInt(it) } }.orEmpty()
+        val bond = kit.optJSONObject("bond")?.let { b -> b.keys().asSequence().associateWith { b.getDouble(it) } }.orEmpty()
         val shielded = kit.optJSONArray("shielded")?.let { a -> (0 until a.length()).map { a.getLong(it) } }.orEmpty()
         val ring = kit.optJSONArray("ring")?.let { a -> (0 until a.length() / 2).map { a.getDouble(it * 2) to a.getDouble(it * 2 + 1) } }.orEmpty()
         val fog = kit.optString("fog")
@@ -59,6 +61,7 @@ object Backup {
             fog = if (untouched && fog.isNotEmpty() && fog in mine.owned + owned) fog else mine.fog,
             fogDensity = if (untouched && kit.has("fogDensity")) kit.getDouble("fogDensity").toFloat() else mine.fogDensity,
             gear = (mine.gear.keys + gear.keys).associateWith { maxOf(mine.gear[it] ?: 0, gear[it] ?: 0) },
+            bond = (mine.bond.keys + bond.keys).associateWith { maxOf(mine.bond[it] ?: 0.0, bond[it] ?: 0.0) },
             shields = maxOf(mine.shields, kit.optInt("shields")),
             shielded = mine.shielded + shielded,
             altars = maxOf(mine.altars, kit.optInt("altars")),

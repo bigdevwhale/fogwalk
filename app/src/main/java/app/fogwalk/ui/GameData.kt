@@ -93,7 +93,30 @@ class GameData(
 
     fun done(q: Quest) = progress(q) >= q.target
     fun claimable(q: Quest) = done(q) && q.ref !in claimed
-    val toClaim: Int = (quests + weekly).count { claimable(it) }
+    /** Kilometres along the Great Road, and the stations reached on it. */
+    val roadKm: Double = app.fogwalk.domain.Road.km(days)
+    val stations: Int = app.fogwalk.domain.Road.reached(roadKm)
+    /** Stations reached whose chapter hasn't been read yet. */
+    val newStations: List<Int> = (0 until stations).filter { app.fogwalk.domain.Road.ref(it) !in claimed }
+    /** How far today took the walker, by journey or by steps. */
+    val todayRoadM: Double = app.fogwalk.domain.Road.meters(todayRow)
+    /** The road's finds waiting in the walker's satchel. */
+    val satchel: List<app.fogwalk.domain.Wayside.Find> = app.fogwalk.domain.Wayside.satchel(roadKm, claimed)
+
+    /** The companion on the map, its friendship and the metres behind it. */
+    val pal: String = settings.companion
+    val palMeters: Double = settings.bond[pal] ?: 0.0
+    val palLevel: Int = app.fogwalk.domain.Bonds.of(settings).second
+    /** Friendship levels reached and not yet celebrated. */
+    val newBond: List<Int> = if (!app.fogwalk.domain.Bonds.befriends(pal)) emptyList()
+        else (1..palLevel).filter { app.fogwalk.domain.Bonds.levelRef(pal, it) !in claimed }
+    /** The companion's present for today's walk is waiting. */
+    val giftReady: Boolean = app.fogwalk.domain.Bonds.befriends(pal) && todayRoadM >= app.fogwalk.domain.Bonds.GIFT_M &&
+        app.fogwalk.domain.Bonds.giftRef(today) !in claimed
+    /** The last day the walker went a kilometre, for the companion's mood; null if never. */
+    val lastWalkDay: Long? = days.lastOrNull { app.fogwalk.domain.Road.meters(it) >= app.fogwalk.domain.Bonds.GIFT_M }?.day
+
+    val toClaim: Int = (quests + weekly).count { claimable(it) } + (if (giftReady) 1 else 0) + (if (satchel.isNotEmpty()) 1 else 0)
 
     fun share(sector: Long): Double {
         val i = sectors.first.indexOf(sector)

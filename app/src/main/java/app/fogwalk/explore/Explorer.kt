@@ -11,6 +11,7 @@ import app.fogwalk.data.Waypoint
 import app.fogwalk.domain.Altars
 import app.fogwalk.domain.Arms
 import app.fogwalk.domain.Beacons
+import app.fogwalk.domain.Bonds
 import app.fogwalk.domain.Cache
 import app.fogwalk.domain.Caches
 import app.fogwalk.domain.FogStore
@@ -145,6 +146,8 @@ class Explorer(
     private val grantedSectors = HashSet<String>()
     private val nearNotified = HashSet<String>()
     private var lastSaved = 0L
+    /** Metres walked with each companion since they were last written down. */
+    private val pendingBond = HashMap<String, Double>()
     private var upkeepDay = Long.MIN_VALUE
     @Volatile
     private var simulatingUntil = 0L
@@ -219,7 +222,7 @@ class Explorer(
         val day = local.toLocalDate().toEpochDay()
         upkeep(day)
         val s = settings.now()
-        val radius = Gear.revealM(s.gear) * if (s.lanternUntil > f.time) Shop.LANTERN_FACTOR else 1.0
+        val radius = Bonds.revealM(s, local.hour) * if (s.lanternUntil > f.time) Shop.LANTERN_FACTOR else 1.0
 
         // The way from the last committed point, filled in so a walk leaves a continuous corridor.
         val points = ArrayList<Pair<Double, Double>>()
@@ -261,13 +264,13 @@ class Explorer(
         }
         var foundHere = 0
         var rareHere = 0
-        val reach = Gear.openM(s.gear) + min(f.accuracy.toDouble(), 20.0)
+        val reach = Bonds.openM(s) + min(f.accuracy.toDouble(), 20.0)
         for (c in Caches.near(step.lat, step.lon, NEAR_M + moved, week)) {
             if (c.key in opened) continue
             // Anywhere along the step counts, so a chest isn't missed between two fixes.
             val m = points.minOf { (la, lo) -> Grid.distance(la, lo, c.lat, c.lon) }
             if (m <= reach) {
-                if (open(c, f.time)) {
+                if (open(c, f.time, s)) {
                     foundHere++
                     if (c.rarity >= Rarity.RARE) rareHere++
                 }
@@ -286,7 +289,7 @@ class Explorer(
         val sd = settings.now().shrines
         val today = dao.day(day) ?: Day(day)
         if (sd.day == day && !today.beacon) {
-            val reachM = Gear.shrineM(s.gear) + min(f.accuracy.toDouble(), 20.0)
+            val reachM = Bonds.shrineM(s) + min(f.accuracy.toDouble(), 20.0)
             val hit = sd.shrines.filter { sd.chosen == null || it.kind == sd.chosen }
                 .firstOrNull { sh -> points.any { (la, lo) -> Grid.distance(la, lo, sh.lat, sh.lon) <= reachM } }
             if (hit != null) {
@@ -337,9 +340,16 @@ class Explorer(
         }
         if (fresh.isNotEmpty()) fog.changed()
 
+        // The companion on the map walks every metre with the walker.
+        if (moved > 0 && Bonds.befriends(s.companion)) pendingBond[s.companion] = (pendingBond[s.companion] ?: 0.0) + moved
+
         if (f.time - lastSaved > 60_000) {
             lastSaved = f.time
-            settings.update { it.copy(lastLat = step.lat, lastLon = step.lon) }
+            val walked = HashMap(pendingBond)
+            pendingBond.clear()
+            settings.update { st ->
+                st.copy(lastLat = step.lat, lastLon = step.lon, bond = (st.bond.keys + walked.keys).associateWith { (st.bond[it] ?: 0.0) + (walked[it] ?: 0.0) })
+            }
         }
     }
 
@@ -410,13 +420,14 @@ class Explorer(
     }
 
     /** Opens [c] for its loot; false when it was already open. */
-    private suspend fun open(c: Cache, at: Long): Boolean {
+    private suspend fun open(c: Cache, at: Long, s: app.fogwalk.data.Settings): Boolean {
         val day = Instant.ofEpochMilli(at).atZone(zone()).toLocalDate().toEpochDay()
         val loot = Caches.open(c, ownedRelics, Seasons.of(day, c.lat))
         val find = Find(
             key = c.key, at = at, rarity = c.rarity.ordinal,
             relic = loot.relic?.id.orEmpty(), duplicate = loot.duplicate,
-            coins = loot.coins, xp = loot.xp, lat = c.lat, lon = c.lon,
+            // The cat has an eye for a coin left in the corner.
+            coins = Bonds.chestCoins(s, loot.coins), xp = loot.xp, lat = c.lat, lon = c.lon,
         )
         if (db.dao().insertFind(find) == -1L) return false
         if (c.key.startsWith("c:$openedWeek:")) opened += c.key
@@ -432,13 +443,14 @@ class Explorer(
         val dao = db.dao()
         val now = System.currentTimeMillis()
         val day = today()
-        val gear = settings.now().gear
+        val s = settings.now()
+        val gear = s.gear
         if (dao.ledger().count { it.ref.startsWith("buy:${Hook.ref(day)}:") } >= Hook.throws(gear)) return@withContext Bought.BUSY
         if (dao.findKeys(c.key).contains(c.key)) return@withContext Bought.BUSY
-        val beyond = Grid.distance(fix.lat, fix.lon, c.lat, c.lon) - Gear.openM(gear)
+        val beyond = Grid.distance(fix.lat, fix.lon, c.lat, c.lon) - Bonds.openM(s)
         if (beyond > Hook.range(gear)) return@withContext Bought.FAR
         if (!buy(Hook.ref(day), Hook.price(beyond))) return@withContext Bought.NO_GOLD
-        if (open(c, now)) {
+        if (open(c, now, s)) {
             val row = dao.day(day) ?: Day(day)
             dao.upsertDay(row.copy(caches = row.caches + 1, rare = row.rare + if (c.rarity >= Rarity.RARE) 1 else 0))
         }
@@ -477,7 +489,7 @@ class Explorer(
             ShrineKind.GOLD -> dao.grant(Entry(ref, at, Beacons.GOLD_COINS, 0))
             ShrineKind.GROVE -> if (dao.grant(Entry(ref, at, 0, Beacons.GROVE_XP)) != -1L) {
                 val s = settings.now()
-                val boost = Gear.boostMs(s.gear)
+                val boost = Bonds.boostMs(s)
                 gift = Beacons.gift(day, s.shields)
                 settings.update {
                     when (gift) {
@@ -782,6 +794,68 @@ class Explorer(
         if (!buy("gear:$id:${level + 1}", price)) return@withContext Bought.NO_GOLD
         settings.update { it.copy(gear = it.gear + (id to level + 1)) }
         Bought.OK
+    }
+
+    /** Takes the chapters and gifts of the Great Road's stations reached and not yet taken. */
+    suspend fun claimStations(): Int = withContext(worker) {
+        ready.await()
+        val dao = db.dao()
+        val claimed = dao.ledger().mapTo(HashSet()) { it.ref }
+        val reached = app.fogwalk.domain.Road.reached(app.fogwalk.domain.Road.km(dao.days()))
+        val now = System.currentTimeMillis()
+        var n = 0
+        for (i in 0 until reached) {
+            if (app.fogwalk.domain.Road.ref(i) in claimed) continue
+            if (dao.grant(Entry(app.fogwalk.domain.Road.ref(i), now, app.fogwalk.domain.Road.coins(i), app.fogwalk.domain.Road.xp(i))) == -1L) continue
+            n++
+            val ref = app.fogwalk.domain.Road.giftRef(i)
+            when (val g = app.fogwalk.domain.Road.gift(i)) {
+                app.fogwalk.domain.Road.Gift.Ward -> giveWard(ref, now, app.fogwalk.domain.Road.WARD_COINS, 0)
+                app.fogwalk.domain.Road.Gift.Altar -> if (dao.grant(Entry(ref, now)) != -1L) settings.update { it.copy(altars = it.altars + 1) }
+                is app.fogwalk.domain.Road.Gift.Relic -> giveRelic(ref, g.rarity, now, i * 104_729L + 17, 0, 0)
+            }
+        }
+        n
+    }
+
+    /** Empties the satchel of the road's finds into the walker's hands; returns how many there were. */
+    suspend fun openSatchel(): Int = withContext(worker) {
+        ready.await()
+        val dao = db.dao()
+        val claimed = dao.ledger().mapTo(HashSet()) { it.ref }
+        val finds = app.fogwalk.domain.Wayside.satchel(app.fogwalk.domain.Road.km(dao.days()), claimed)
+        val now = System.currentTimeMillis()
+        for (f in finds) {
+            val ref = app.fogwalk.domain.Wayside.ref(f.km)
+            when (f.kind) {
+                app.fogwalk.domain.Wayside.Kind.WARD -> giveWard(ref, now, app.fogwalk.domain.Wayside.WARD_COINS, f.xp)
+                app.fogwalk.domain.Wayside.Kind.RELIC -> giveRelic(ref, f.rarity ?: Rarity.COMMON, now, f.km * 7_919L + 3, f.coins, f.xp)
+                else -> dao.grant(Entry(ref, now, f.coins, f.xp))
+            }
+        }
+        finds.size
+    }
+
+    /** A ward of the streak under [ref], or [coins] of gold when the walker carries all there is room for. */
+    private suspend fun giveWard(ref: String, at: Long, coins: Int, xp: Int) {
+        val full = settings.now().shields >= Shop.MAX_SHIELDS
+        if (db.dao().grant(Entry(ref, at, if (full) coins else 0, xp)) == -1L || full) return
+        settings.update { it.copy(shields = (it.shields + 1).coerceAtMost(Shop.MAX_SHIELDS)) }
+    }
+
+    /** A relic of [rarity] under [ref], one not yet owned if there is any, shown like a chest's. */
+    private suspend fun giveRelic(ref: String, rarity: Rarity, at: Long, seed: Long, coins: Int, xp: Int) {
+        val dao = db.dao()
+        if (dao.grant(Entry(ref, at, 0, 0)) == -1L) return
+        val fix = _live.value.fix
+        val (relic, dup) = pickRelic(rarity, ownedRelics, seed, Seasons.of(today(), fix?.lat ?: 0.0))
+        val find = Find(
+            key = ref, at = at, rarity = rarity.ordinal, relic = relic.id, duplicate = dup,
+            coins = coins + if (dup) Relics.dupeCoins(relic) else 0, xp = xp, lat = fix?.lat ?: 0.0, lon = fix?.lon ?: 0.0,
+        )
+        if (dao.insertFind(find) == -1L) return
+        found(relic.id)
+        grantSets(at)
     }
 
     private fun found(relic: String) {

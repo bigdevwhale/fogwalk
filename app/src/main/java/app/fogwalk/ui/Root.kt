@@ -37,6 +37,8 @@ import androidx.compose.material.icons.rounded.Storefront
 import androidx.compose.material.icons.rounded.Map
 import androidx.compose.material.icons.rounded.TaskAlt
 import androidx.compose.material.icons.rounded.Timer
+import androidx.compose.material.icons.rounded.Route
+import androidx.compose.material.icons.rounded.Pets
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -94,6 +96,7 @@ class Go(private val nav: NavHostController, private val setTab: (Tab) -> Unit) 
     fun relics() = nav.navigate("relics")
     fun walks() = nav.navigate("walks")
     fun walk(id: Long) = nav.navigate("walk/$id")
+    fun road() = nav.navigate("road")
     fun tab(t: Tab) = setTab(t)
     fun back() = nav.popBackStack()
 }
@@ -180,6 +183,7 @@ fun FogwalkRoot(openRoute: MutableStateFlow<String?>, settings: Settings) {
         composable("settings") { SettingsScreen(settings, onBack = { go.back() }) }
         composable("deeds") { app.fogwalk.ui.journal.DeedsScreen(data, onBack = { go.back() }) }
         composable("relics") { app.fogwalk.ui.journal.RelicsScreen(data, onBack = { go.back() }) }
+        composable("road") { app.fogwalk.ui.quests.RoadScreen(data, onBack = { go.back() }) }
         composable("walks") { app.fogwalk.ui.journal.WalksScreen(data, onBack = { go.back() }, onOpen = { go.walk(it) }) }
         composable("walk/{id}") { e ->
             val id = e.arguments?.getString("id")?.toLongOrNull() ?: -1L
@@ -250,8 +254,44 @@ private fun Celebrations(data: GameData) {
                 icon = Icons.Rounded.Flare, art = Art.shrine(kind), color = color, soft = color.copy(alpha = 0.18f),
                 eyebrow = stringResource(R.string.beacon_reached),
                 title = shrineName(context, kind),
-                text = shrineWon(context, kind, gift, s.gear),
+                text = shrineWon(context, kind, gift, s),
             ) { container.scope.launch { container.settings.update { it.copy(shrineNews = "") } } }
+        }
+        data.newStations.isNotEmpty() -> {
+            // Stations passed in one go (or walked before the road was there) show as one, the farthest.
+            val at = data.newStations
+            val last = at.last()
+            val imperial = s.units == app.fogwalk.data.Units.IMPERIAL
+            CelebrateDialog(
+                data = data,
+                icon = Icons.Rounded.Route, color = U.c.gold, soft = U.c.goldSoft,
+                eyebrow = stringResource(R.string.road_eyebrow, app.fogwalk.ui.distance(app.fogwalk.domain.Road.at(last) * 1000.0, imperial)),
+                title = c.stationName(last),
+                text = stringResource(R.string.road_station_text, c.stationLore(last), at.sumOf { app.fogwalk.domain.Road.coins(it) }, at.sumOf { app.fogwalk.domain.Road.xp(it) }) +
+                    "\n" + stringResource(R.string.road_gift, at.map { app.fogwalk.ui.quests.giftName(app.fogwalk.domain.Road.gift(it)) }.distinct().joinToString(", ")) +
+                    if (at.size > 1) "\n" + stringResource(R.string.badge_more, at.size - 1) else "",
+                art = app.fogwalk.ui.quests.stationArt(last),
+            ) { container.scope.launch { container.explorer.claimStations() } }
+        }
+        data.newBond.isNotEmpty() -> {
+            val levels = data.newBond
+            val level = levels.last()
+            val pal = data.pal
+            CelebrateDialog(
+                data = data,
+                icon = Icons.Rounded.Pets, art = app.fogwalk.ui.map.Sprites.ids["companion_$pal"], color = U.c.sage, soft = U.c.sageSoft,
+                eyebrow = stringResource(R.string.bond_up, level),
+                title = app.fogwalk.ui.treasury.companionName(pal),
+                text = stringResource(
+                    R.string.bond_up_text, app.fogwalk.ui.quests.palPerk(pal, level).orEmpty(),
+                    levels.sumOf { app.fogwalk.domain.Bonds.levelCoins(it) }, levels.sumOf { app.fogwalk.domain.Bonds.levelXp(it) },
+                ),
+            ) {
+                container.scope.launch {
+                    val now = System.currentTimeMillis()
+                    for (l in levels) container.db.dao().grant(Entry(app.fogwalk.domain.Bonds.levelRef(pal, l), now, app.fogwalk.domain.Bonds.levelCoins(l), app.fogwalk.domain.Bonds.levelXp(l)))
+                }
+            }
         }
         newSet != null -> {
             val (coins, _) = Relics.setReward(newSet)

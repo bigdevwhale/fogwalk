@@ -327,4 +327,40 @@ object ContentEn : Content {
     )
 
     override fun motto(day: Long) = mottos[Math.floorMod(day, mottos.size.toLong()).toInt()]
+
+    private val stations = listOf(
+        "The Guild's Gate" to "The road begins at the Guild's gate, where the Great Atlas lies open on its lectern. Its first road page is blank; your steps begin to ink it.",
+        "The Milestone Well" to "An old well by a milestone worn smooth. The Mist took the number off the stone, but the water still remembers which way the road runs.",
+        "The Ferryman's Crossing" to "A ferryman waits by a river that has forgotten its name. Tell him where you have walked from, and he carves it on his oar so the river can learn it again.",
+        "The Runner's Oak" to "Here a Guild runner once fell asleep under an oak, and the Mist passed him by. Forty-two kilometres: a runner's road, walked step by step.",
+        "The Lanternmakers' Village" to "The lanternmakers hang a lantern for every walker who passes. Yours is lit now, and the road behind you is never quite dark again.",
+        "The Hundredth Stone" to "A hundred kilometres. The Guild carves the name of everyone who reaches this stone; yours is the newest, and the chisel is still warm.",
+        "The Whispering Mill" to "The mill's sails turn with no wind at all. The miller says they grind the Mist into flour, and the bread tastes of roads not yet walked.",
+        "The Bridge of Echoes" to "Speak on this bridge and it answers in the voices of every walker who crossed it before. Today one of them is yours.",
+        "The Pilgrims' Inn" to "Three hundred kilometres from the gate, the inn keeps a bed and a bowl of soup for anyone who walked here. The innkeeper asks no coin, only a story of the way.",
+        "The Amber Pass" to "High in the hills the old road runs through amber rock. Caught in it, like flies, are scraps of maps the Mist tried to swallow and could not.",
+        "The Sunken Library" to "A library the Mist pulled under a lake. On calm days you can read the spines through the water, and every one of them is a road.",
+        "The Long Valley" to "A valley so long that walkers who enter it in spring come out in autumn. You did it faster; the valley noticed.",
+        "The Thousand-Mile Gate" to "A thousand kilometres. The gate opens only for those who walked here, never for those who rode. It has opened for you.",
+        "The Starwatch Tower" to "The Guild's astronomers chart the sky so walkers can chart the earth. They have named a small star after the road you walked.",
+        "The Shore of the Sea of Fog" to "Here the Mist is a sea, grey to the horizon. Wade in a little way: under your feet the sea floor turns to road.",
+        "The Cartographers' Rest" to "Old cartographers who walked the whole Atlas rest here and argue over coastlines. They make room on the bench for you.",
+        "The Lighthouse at the World's Edge" to "The road ends at a lighthouse whose fire the Mist fears most. Light it: the last page of the Atlas's road is drawn, and drawn by you.",
+    )
+
+    override fun stationName(i: Int) = stations.getOrNull(i)?.first ?: "Beyond the Edge, ${app.fogwalk.domain.Road.at(i)} km"
+
+    override fun stationLore(i: Int) = stations.getOrNull(i)?.second
+        ?: "Past the lighthouse the road goes on, and nobody but you has drawn it. Every kilometre here is a page no Atlas has had before."
+
+    private val wayside = mapOf(
+        "PURSE" to listOf("A purse dropped by the roadside", "Coins tucked under a milestone", "A tip from a grateful carter", "Coins in a hollow tree"),
+        "TALE" to listOf("A traveller's tale by a campfire", "The riddle of an old signpost", "A shepherd's song of the old roads", "A page of the Atlas blown along the road"),
+        "STRONGBOX" to listOf("A merchant's lost strongbox", "An offering at a wayside shrine", "A smugglers' cache under a bridge", "A reward for bringing back a runaway goat"),
+        "WARD" to listOf("A ward tied to a wayside tree", "A ward from a kind innkeeper", "A ward a pilgrim left for the next walker", "A ward in a bird's nest"),
+        "RELIC" to listOf("Something glints in the dust of the road", "A relic in an overturned cart", "A relic washed up by a ford", "A relic in a crow's hoard"),
+    )
+
+    override fun waysideFind(kind: app.fogwalk.domain.Wayside.Kind, variant: Int) =
+        wayside.getValue(kind.name).let { it[Math.floorMod(variant, it.size)] }
 }

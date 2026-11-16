@@ -85,6 +85,8 @@ data class Settings(
     val dismissed: Set<String> = emptySet(),
     /** Who walks the map in the walker's place, from [app.fogwalk.domain.Companions] (#41). */
     val companion: String = app.fogwalk.domain.Companions.TOKEN,
+    /** Metres walked with each companion on the map, for its friendship, see [app.fogwalk.domain.Bonds]. */
+    val bond: Map<String, Double> = emptyMap(),
 )
 
 class SettingsStore(context: Context) {
@@ -129,6 +131,7 @@ class SettingsStore(context: Context) {
         shrineNews = this[SHRINE_NEWS] ?: "",
         dismissed = this[DISMISSED] ?: emptySet(),
         companion = this[COMPANION] ?: app.fogwalk.domain.Companions.TOKEN,
+        bond = (this[BOND] ?: emptySet()).mapNotNull { e -> e.split(":").takeIf { it.size == 2 }?.let { (k, v) -> v.toDoubleOrNull()?.let { k to it } } }.toMap(),
     )
 
     suspend fun now(): Settings = settings.first()
@@ -172,6 +175,7 @@ class SettingsStore(context: Context) {
             it[SHRINE_NEWS] = s.shrineNews
             it[DISMISSED] = s.dismissed
             it[COMPANION] = s.companion
+            it[BOND] = s.bond.map { (k, v) -> "$k:${Math.round(v)}" }.toSet()
         }
     }
 
@@ -212,5 +216,6 @@ class SettingsStore(context: Context) {
         val SHRINE_NEWS = stringPreferencesKey("shrine_news")
         val DISMISSED = stringSetPreferencesKey("dismissed_chests")
         val COMPANION = stringPreferencesKey("companion")
+        val BOND = stringSetPreferencesKey("bond")
     }
 }

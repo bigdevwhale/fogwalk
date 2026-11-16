@@ -269,10 +269,10 @@ fun MapTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
         week = data.week, opened = data.opened + s.dismissed, radar = s.radarUntil > data.now,
         style = s.fog, density = s.fogDensity, rarityColors = rarityColors, accent = accent, gold = gold, shadow = shadowInk,
         picked = (pick as? Pick.OfLand)?.sector,
-        senseM = Gear.senseM(s.gear), rumor = data.rumor?.key, treasure = s.treasure, race = raceView,
+        senseM = app.fogwalk.domain.Bonds.senseM(s), rumor = data.rumor?.key, treasure = s.treasure, race = raceView,
         reach = when (val p = pick) {
-            is Pick.OfCache -> Triple(p.cache.lat, p.cache.lon, Gear.openM(s.gear))
-            is Pick.OfShrine -> shrines?.of(p.kind)?.takeIf { !data.todayRow.beacon }?.let { Triple(it.lat, it.lon, Gear.shrineM(s.gear)) }
+            is Pick.OfCache -> Triple(p.cache.lat, p.cache.lon, app.fogwalk.domain.Bonds.openM(s))
+            is Pick.OfShrine -> shrines?.of(p.kind)?.takeIf { !data.todayRow.beacon }?.let { Triple(it.lat, it.lon, app.fogwalk.domain.Bonds.shrineM(s)) }
             else -> null
         },
         companion = s.companion, monuments = data.monuments,
@@ -588,9 +588,9 @@ private fun PickCard(p: Pick, data: GameData, imperial: Boolean, race: RaceView?
             )
             Spacer(Modifier.height(2.dp))
             val hint = when (p) {
-                is Pick.OfCache -> stringResource(R.string.cache_hint, Gear.openM(data.settings.gear).toInt())
+                is Pick.OfCache -> stringResource(R.string.cache_hint, app.fogwalk.domain.Bonds.openM(data.settings).toInt())
                 is Pick.OfShrine -> when {
-                    !data.todayRow.beacon -> stringResource(R.string.beacon_hint, Gear.shrineM(data.settings.gear).toInt(), shrineGives(context, p.kind))
+                    !data.todayRow.beacon -> stringResource(R.string.beacon_hint, app.fogwalk.domain.Bonds.shrineM(data.settings).toInt(), shrineGives(context, p.kind))
                     shrines?.chosen == p.kind -> stringResource(R.string.beacon_done)
                     else -> stringResource(R.string.shrine_others)
                 }
@@ -697,7 +697,7 @@ fun MonumentLine(sector: Long, data: GameData) {
 private fun HookLine(cache: app.fogwalk.domain.Cache, meters: Double, data: GameData) {
     val context = LocalContext.current
     val container = context.container
-    val beyond = meters - Gear.openM(data.settings.gear)
+    val beyond = meters - app.fogwalk.domain.Bonds.openM(data.settings)
     if (beyond <= 0 || beyond > Hook.range(data.settings.gear)) return
     val throws = Hook.throws(data.settings.gear)
     val used = data.ledger.count { it.ref.startsWith("buy:${Hook.ref(data.today)}:") } >= throws
