@@ -112,7 +112,9 @@ class GameData(
         else (1..palLevel).filter { app.fogwalk.domain.Bonds.levelRef(pal, it) !in claimed }
     /** The companion's present for today's walk is waiting. */
     val giftReady: Boolean = app.fogwalk.domain.Bonds.befriends(pal) && todayRoadM >= app.fogwalk.domain.Bonds.GIFT_M &&
-        app.fogwalk.domain.Bonds.giftRef(today) !in claimed
+        app.fogwalk.domain.Bonds.giftFrom(today, claimed) == null
+    /** Today's present was brought by another companion: this one didn't walk today. */
+    val giftByOther: Boolean = app.fogwalk.domain.Bonds.giftFrom(today, claimed).let { !it.isNullOrEmpty() && it != pal }
     /** The last day the walker went a kilometre, for the companion's mood; null if never. */
     val lastWalkDay: Long? = days.lastOrNull { app.fogwalk.domain.Road.meters(it) >= app.fogwalk.domain.Bonds.GIFT_M }?.day
 

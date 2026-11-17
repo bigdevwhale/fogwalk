@@ -104,6 +104,7 @@ fun PalCard(data: GameData, go: Go) {
                 Text(stringResource(R.string.pal_level, level, Bonds.MAX), style = UType.Small.copy(color = U.c.sage))
                 val mood = when {
                     data.lastWalkDay == null && data.palMeters < 1 -> stringResource(R.string.pal_mood_new)
+                    data.giftByOther -> stringResource(R.string.pal_mood_other)
                     data.todayRoadM >= Bonds.GIFT_M -> stringResource(R.string.pal_mood_today)
                     data.lastWalkDay == null || data.today - data.lastWalkDay <= 1 -> stringResource(R.string.pal_mood_wait)
                     else -> (data.today - data.lastWalkDay - 1).toInt().let {
@@ -143,11 +144,12 @@ fun PalCard(data: GameData, go: Go) {
                     style = UType.Button.copy(color = U.c.onAccent),
                     modifier = Modifier.clip(CircleShape).background(U.c.accent).clickable {
                         val c = context.container
-                        c.scope.launch { c.db.dao().grant(Entry(Bonds.giftRef(data.today), System.currentTimeMillis(), coins, xp)) }
+                        c.scope.launch { c.db.dao().grant(Entry(Bonds.giftRef(data.today, data.pal), System.currentTimeMillis(), coins, xp)) }
                     }.padding(horizontal = 16.dp, vertical = 9.dp),
                 )
             }
-            Bonds.giftRef(data.today) in data.claimed -> Text(stringResource(R.string.pal_gift_taken), style = UType.Muted)
+            data.giftByOther -> Text(stringResource(R.string.pal_gift_other), style = UType.Muted)
+            Bonds.giftFrom(data.today, data.claimed) != null -> Text(stringResource(R.string.pal_gift_taken), style = UType.Muted)
             else -> {
                 Text(stringResource(R.string.pal_gift, distance(Bonds.GIFT_M, imperial), name), style = UType.Sub)
                 Spacer(Modifier.height(8.dp))

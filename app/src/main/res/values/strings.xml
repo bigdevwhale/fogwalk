@@ -540,12 +540,14 @@
     <string name="pal_to_next">%1$s more together to the next level</string>
     <string name="pal_max">The closest of friends</string>
     <string name="pal_mood_today">Walked with you today</string>
+    <string name="pal_mood_other">You walked with another companion today</string>
     <string name="pal_mood_wait">Waits by the door</string>
     <string name="pal_mood_miss">Misses the road: %1$s</string>
     <string name="pal_mood_new">The first walk together is still ahead</string>
     <string name="pal_gift">Walk %1$s together today, and %2$s brings you a present.</string>
     <string name="pal_gift_ready">%1$s has a present for you</string>
     <string name="pal_gift_taken">Today\'s present is taken. Tomorrow, another walk.</string>
+    <string name="pal_gift_other">Another companion brought today\'s present: there is one a day. Tomorrow you can walk together.</string>
     <string name="pal_gift_got">+%1$d gold, +%2$d XP</string>
     <string name="pal_token_hint">The gilt token befriends no one. A companion from the shop grows into a friend on walks: every kilometre together counts, and each friend brings a gift of its own.</string>
     <string name="pal_to_shop">To the companions</string>
@@ -559,7 +561,7 @@
     <string name="notif_pal">%1$s waits by the door. A kilometre together, and there is a present for you.</string>
     <string name="bond_up">Friendship · level %1$d</string>
     <string name="bond_up_text">Now: %1$s.\nThe friendship brings %2$d gold and %3$d experience.</string>
-    <string name="shop_pal_details">Walks the map in your place, turning the way you go, and grows into a friend on the road: every kilometre together counts. Five levels of friendship, each a little more of its gift; at the fifth: %1$s.\n\nAny day you walk a kilometre together, it brings you a present. Bought for good, switch any time.</string>
+    <string name="shop_pal_details">Walks the map in your place, turning the way you go, and grows into a friend on the road: every kilometre together counts. Five levels of friendship, each a little more of its gift; at the fifth: %1$s.\n\nAny day you walk a kilometre together, it brings you a present – one a day, whichever companion. Bought for good, switch any time.</string>
     <string name="shop_token_details">The Guild\'s gilt token: it walks the map in your place, but befriends no one.</string>
     <plurals name="days_without">
         <item quantity="one">%d day without a walk</item>

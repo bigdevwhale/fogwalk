@@ -176,5 +176,16 @@ object Bonds {
     fun levelXp(level: Int) = 60 * level
 
     fun levelRef(id: String, level: Int) = "bond:$id:$level"
-    fun giftRef(day: Long) = "gift:$day"
+    /** The day's present: one a day, whoever brings it; the ref keeps who did, so another pal can say so. */
+    fun giftRef(day: Long, pal: String) = "gift:$day:$pal"
+
+    /**
+     * Who brought [day]'s present, from the ledger's refs: "" for one taken before the refs named the pal,
+     * null if none was taken yet.
+     */
+    fun giftFrom(day: Long, claimed: Set<String>): String? {
+        if ("gift:$day" in claimed) return ""
+        val p = "gift:$day:"
+        return claimed.firstOrNull { it.startsWith(p) }?.removePrefix(p)
+    }
 }
