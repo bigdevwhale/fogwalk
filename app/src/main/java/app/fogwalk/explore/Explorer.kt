@@ -465,16 +465,26 @@ class Explorer(
         val level = Levels.level(Wallet.xp(fog.size, dao.finds(), dao.ledger()))
         val shrines = Beacons.place(day, 0, f.lat, f.lon, level) { la, lo -> fog.exploredAround(la, lo, 120.0) }
         settings.update { it.copy(shrines = ShrineDay(day, shrines)) }
-        // Then, if OpenStreetMap answers, move them onto paths and out of factory yards (#21).
-        val cands = Beacons.candidates(day, 0, f.lat, f.lon, level)
+        ontoPaths(day, 0, f.lat, f.lon, level, shrines)
+    }
+
+    /**
+     * Then, if OpenStreetMap answers, moves the shrines just set onto paths and out of factory yards (#21):
+     * the day's first ones and those the scroll of wandering moved (#68) alike.
+     */
+    private fun ontoPaths(day: Long, salt: Int, lat: Double, lon: Double, level: Int, placed: List<Shrine>) {
+        val cands = Beacons.candidates(day, salt, lat, lon, level)
         scope.launch {
             val ways = Paths.near(cands.flatMap { it.second }) ?: return@launch
             withContext(worker) {
                 val moved = Beacons.onPaths(cands, ways, { la, lo -> fog.exploredAround(la, lo, 120.0) }) { la, lo, w -> Paths.snap(la, lo, w) }
                     ?: return@withContext
-                // Not once one has been reached, nor after one was chosen, nor on another day.
-                if (dao.day(day)?.beacon == true) return@withContext
-                settings.update { s -> if (s.shrines.day == day && s.shrines.chosen == null) s.copy(shrines = s.shrines.copy(shrines = moved)) else s }
+                // Not once one has been reached, nor after one was chosen, nor on another day, nor after the
+                // scroll moved them again meanwhile.
+                if (db.dao().day(day)?.beacon == true) return@withContext
+                settings.update { s ->
+                    if (s.shrines.day == day && s.shrines.chosen == null && s.shrines.shrines == placed) s.copy(shrines = s.shrines.copy(shrines = moved)) else s
+                }
             }
         }
     }
@@ -518,6 +528,7 @@ class Explorer(
         val level = Levels.level(Wallet.xp(fog.size, dao.finds(), ledger))
         val shrines = Beacons.place(day, read + 1, fix.lat, fix.lon, level) { a, b -> fog.exploredAround(a, b, 120.0) }
         settings.update { it.copy(shrines = ShrineDay(day, shrines), rerollDay = day) }
+        ontoPaths(day, read + 1, fix.lat, fix.lon, level, shrines)
         Bought.OK
     }
 
