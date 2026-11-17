@@ -8,6 +8,19 @@ then close it like any HTML comment. The release notes carry it, and the chat bo
 
 All notable changes to Fogwalk. Versions follow [semantic versioning](https://semver.org/).
 
+## [1.11.1] - 2026-11-17
+### Fixed
+- **Chests breathe smoothly:** a chest's halo swells and ebbs instead of flaring up and snapping back dim, so a map full of chests no longer flickers (#65).
+- **No pale banks on the dark map:** the two drifting mist banks along the screen's edges are gone from the dark theme, where they read as glare or as fog left uncleared (#66).
+- **Shrines moved by the scroll of wandering land on paths,** like the day's first ones, instead of somewhere no one can walk (#68).
+- **Companions tell the truth about the day's present:** it is one a day, and a companion you switch to after a walk now says that another one walked and brought it, instead of «walked with you today».
+<!-- tg
+Сундуки на карте теперь мерцают плавно и больше не мельтешат.
+В тёмной теме по краям экрана нет светлых полос, похожих на неубранный туман.
+Святилища, перенесённые Свитком странствий, встают на пешеходные дорожки.
+Подарок спутника – один в день: если вы гуляли с Лисом, Сова честно скажет, что сегодня подарок уже принёс другой спутник.
+-->
+
 ## [1.11.0] - 2026-11-16
 ### Added
 - **The Great Road:** every kilometre, on new streets or old, moves you along a painted road of 17 stations, each with a chapter of the story and a ward, an altar or a relic.
