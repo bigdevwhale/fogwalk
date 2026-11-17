@@ -602,8 +602,10 @@ class WorldOverlay(
     private fun drawGem(c: Canvas, x: Float, y: Float, color: Int, pulse: Float, rarity: Rarity, art: Bitmap? = null) {
         val d = density
         val size = (10 + rarity.ordinal * 1.5f) * d
-        // A halo in the chest's rarity, breathing.
-        glow.shader = RadialGradient(x, y, size * 3f, intArrayOf(withAlpha(color, (110 + 90 * pulse).toInt()), withAlpha(color, 0)), null, Shader.TileMode.CLAMP)
+        // A halo in the chest's rarity, breathing: [pulse] runs 0..1 and starts over, so the light swells and
+        // ebbs on a cosine instead of following it, which flared up and then snapped back dim (#65).
+        val breath = (0.5 - 0.5 * kotlin.math.cos(pulse * 2 * PI)).toFloat()
+        glow.shader = RadialGradient(x, y, size * 3f, intArrayOf(withAlpha(color, (110 + 90 * breath).toInt()), withAlpha(color, 0)), null, Shader.TileMode.CLAMP)
         c.drawCircle(x, y, size * 3f, glow)
         glow.shader = null
         // The painted chest, standing up on a turned map.
@@ -645,9 +647,10 @@ class WorldOverlay(
     private fun motes(c: Canvas, x: Float, y: Float, size: Float, pulse: Float) {
         fill.shader = null
         fill.color = 0xFFFFF3C4.toInt()
+        // Whole turns only (a figure of eight), so the motes don't jump when the pulse starts over.
         for (i in 0 until 3) {
             val a = (pulse + i / 3f) * 2 * PI
-            c.drawCircle(x + (size * 1.4f * kotlin.math.cos(a)).toFloat(), y - size * 0.4f + (size * 0.9f * sin(a * 1.3)).toFloat(), 1.6f * density, fill)
+            c.drawCircle(x + (size * 1.4f * kotlin.math.cos(a)).toFloat(), y - size * 0.4f + (size * 0.9f * sin(a * 2)).toFloat(), 1.6f * density, fill)
         }
     }
 
