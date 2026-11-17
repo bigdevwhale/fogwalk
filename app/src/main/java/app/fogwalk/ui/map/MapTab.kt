@@ -448,8 +448,9 @@ private fun AtlasEdges(dark: Boolean) {
                 center = center, radius = kotlin.math.hypot(w, h) / 2,
             ),
         )
-        // Mist along the left and right margins, slowly changing places.
-        for ((x, y, k) in listOf(Triple(-0.05f + 0.06f * t, 0.30f + 0.10f * t, 1f), Triple(1.05f - 0.06f * t, 0.70f - 0.12f * t, 0.85f))) {
+        // Mist along the left and right margins, slowly changing places. Not at night: on the dark map the
+        // grey banks read as glare, or as fog left uncleared (#66).
+        if (!dark) for ((x, y, k) in listOf(Triple(-0.05f + 0.06f * t, 0.30f + 0.10f * t, 1f), Triple(1.05f - 0.06f * t, 0.70f - 0.12f * t, 0.85f))) {
             val c = Offset(w * x, h * y)
             val r = w * 0.55f * k
             drawCircle(Brush.radialGradient(listOf(mist.copy(alpha = 0.38f), Color.Transparent), c, r), r, c)
