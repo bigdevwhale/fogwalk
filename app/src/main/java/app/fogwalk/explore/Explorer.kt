@@ -93,6 +93,11 @@ data class Live(
     val trail: List<Pair<Double, Double>> = emptyList(),
     /** True while the last fixes looked like a car or a train: nothing is revealed then. */
     val tooFast: Boolean = false,
+    /**
+     * True while only coarse fixes come (network, or GPS worse than [Track.MAX_ACCURACY]) and the satellites
+     * have been silent a while: the dot still moves, but nothing is walked on (#82).
+     */
+    val weak: Boolean = false,
 )
 
 sealed interface GameEvent {
@@ -103,6 +108,8 @@ sealed interface GameEvent {
     data class Beacon(val kind: ShrineKind, val gift: Int = -1) : GameEvent
     /** The altars' ring closed and [cells] came clear of the mist. */
     data class RingClosed(val cells: Int) : GameEvent
+    /** The walker came on foot to their monument on [sector] and earned [xp]. */
+    data class Pilgrim(val sector: Long, val xp: Int) : GameEvent
     data class Near(val cache: Cache, val meters: Int) : GameEvent
     data object RaceStarted : GameEvent
     /** [margin] ms the walker beat the shadow by; negative when the shadow won. */
@@ -149,6 +156,9 @@ class Explorer(
     /** Metres walked with each companion since they were last written down. */
     private val pendingBond = HashMap<String, Double>()
     private var upkeepDay = Long.MIN_VALUE
+    /** Monument levels by land, kept at hand for pilgrimages; refreshed when one is raised and each new day. */
+    @Volatile
+    private var monuments: Map<Long, Int> = emptyMap()
     @Volatile
     private var simulatingUntil = 0L
     /** Set when a race ends: the walk after it is a new one, so the raced stretch stands as a journey of its own. */
@@ -161,7 +171,9 @@ class Explorer(
             fog.changed()
             walk = dao.lastWalk()
             dao.finds().forEach { if (it.relic.isNotEmpty()) found(it.relic) }
-            dao.ledger().forEach {
+            val ledger = dao.ledger()
+            monuments = Monuments.levels(ledger)
+            ledger.forEach {
                 if (it.ref.startsWith("sec:")) grantedSectors += it.ref
                 if (it.ref.startsWith("arms:")) it.ref.substringAfter(':').toIntOrNull()?.let { a -> raisedArms += a }
             }
@@ -193,6 +205,7 @@ class Explorer(
     private suspend fun upkeep(today: Long) {
         if (upkeepDay == today) return
         upkeepDay = today
+        monuments = Monuments.levels(db.dao().ledger())
         val s = settings.now()
         val days = db.dao().days()
         val cover = Streaks.toShield(days, s.shielded, s.shields, today)
@@ -212,10 +225,10 @@ class Explorer(
         if (step == null) {
             // Not walkable; still worth a dot on the map while satellites are silent, but only a fix no
             // worse than the one shown, so a poor GPS and the cell towers don't toss the dot about (#35).
-            if (!track.hasGps(f.time)) _live.update { if (Dot.moves(it.fix, f)) it.copy(fix = f) else it }
+            if (!track.hasGps(f.time)) _live.update { (if (Dot.moves(it.fix, f)) it.copy(fix = f) else it).copy(weak = true) }
             return
         }
-        _live.update { it.copy(fix = f.copy(lat = step.lat, lon = step.lon), tooFast = step.fast) }
+        _live.update { it.copy(fix = f.copy(lat = step.lat, lon = step.lon), tooFast = step.fast, weak = false) }
         if (step.fast) return
 
         val local = Instant.ofEpochMilli(f.time).atZone(zone())
@@ -288,6 +301,7 @@ class Explorer(
         var beacon = false
         val sd = settings.now().shrines
         val today = dao.day(day) ?: Day(day)
+        if (monuments.isNotEmpty()) pilgrimage(points, f, day, today.meters + moved, s)
         if (sd.day == day && !today.beacon) {
             val reachM = Bonds.shrineM(s) + min(f.accuracy.toDouble(), 20.0)
             val hit = sd.shrines.filter { sd.chosen == null || it.kind == sd.chosen }
@@ -541,12 +555,75 @@ class Explorer(
         Bought.OK
     }
 
-    /** Raises the monument on [sector] a level (#50); only a land charted enough to fly its banner takes one. */
+    /**
+     * Raises the monument on [sector] a level (#50); only a land charted enough to fly its banner takes one.
+     * The first level is raised on the spot (#78): the walker must stand in that land, and it stands where they do.
+     */
     suspend fun raiseMonument(sector: Long): Bought = withContext(worker) {
         if (fog.sectorShare(sector) < Sectors.CHARTED) return@withContext Bought.NOTHING
         val level = Monuments.levels(db.dao().ledger())[sector] ?: 0
+        val spot = if (level == 0) when (standingIn(sector)) {
+            null -> return@withContext Bought.NO_FIX
+            false -> return@withContext Bought.FAR
+            else -> _live.value.fix!!
+        } else null
+        if (coins() < Monuments.price(level)) return@withContext Bought.NO_GOLD
         if (!buy(Monuments.item(sector, level + 1), Monuments.price(level))) return@withContext Bought.NO_GOLD
+        if (spot != null) settings.update { it.copy(sites = it.sites + (sector to Monuments.Site(spot.lat, spot.lon))) }
+        monuments = Monuments.levels(db.dao().ledger())
         Bought.OK
+    }
+
+    /** Reads the monument levels anew, after they were granted from outside (the demo's seed). */
+    fun refreshMonuments() {
+        scope.launch(worker) { monuments = Monuments.levels(db.dao().ledger()) }
+    }
+
+    /** A monument from before sites, still at its land's heart, moved once to where the walker stands (#78). */
+    suspend fun settleMonument(sector: Long): Bought = withContext(worker) {
+        if ((monuments[sector] ?: 0) == 0 || sector in settings.now().sites) return@withContext Bought.NOTHING
+        when (standingIn(sector)) {
+            null -> return@withContext Bought.NO_FIX
+            false -> return@withContext Bought.FAR
+            else -> Unit
+        }
+        val fix = _live.value.fix!!
+        settings.update { it.copy(sites = it.sites + (sector to Monuments.Site(fix.lat, fix.lon))) }
+        Bought.OK
+    }
+
+    /** Carves [words] on the monument of [sector]; blank words wipe it clean. */
+    fun inscribe(sector: Long, words: String) {
+        scope.launch(worker) {
+            val clean = words.replace('\n', ' ').replace('|', '/').trim().take(Monuments.WORDS_MAX)
+            settings.update { s ->
+                val site = s.sites[sector] ?: Monuments.spot(sector, null).let { (la, lo) -> Monuments.Site(la, lo) }
+                s.copy(sites = s.sites + (sector to site.copy(words = clean)))
+            }
+        }
+    }
+
+    /** Null without a fix good enough to set a stone by, else whether the walker stands in [sector]. */
+    private fun standingIn(sector: Long): Boolean? {
+        val fix = _live.value.fix?.takeIf { it.time > 0 && it.accuracy <= ALTAR_ACCURACY } ?: return null
+        return Grid.sector(Grid.cell(fix.lat, fix.lon)) == sector
+    }
+
+    /**
+     * Coming on foot to one's own monument, once a day each: experience by its level. The day must already
+     * hold a walk, so a monument raised by the front door doesn't pay for stepping out of it.
+     */
+    private suspend fun pilgrimage(points: List<Pair<Double, Double>>, f: Fix, day: Long, dayMeters: Double, s: app.fogwalk.data.Settings) {
+        if (dayMeters < Monuments.PILGRIM_DAY_M) return
+        val reach = Monuments.REACH_M + min(f.accuracy.toDouble(), 20.0)
+        val (la0, lo0) = points.last()
+        for ((sector, level) in monuments) {
+            val (lat, lon) = Monuments.spot(sector, s.sites[sector])
+            if (Grid.distance(la0, lo0, lat, lon) > 3000) continue
+            if (points.none { (la, lo) -> Grid.distance(la, lo, lat, lon) <= reach }) continue
+            val xp = Monuments.pilgrimXp(level)
+            if (db.dao().grant(Entry(Monuments.pilgrimRef(day, sector), f.time, 0, xp)) != -1L) _events.tryEmit(GameEvent.Pilgrim(sector, xp))
+        }
     }
 
     /** Takes a chest that can't be reached off the map until the week's chests change (#46). Walked up to, it still opens. */
@@ -632,7 +709,23 @@ class Explorer(
                 if (wasNew) newSectors += sector
             }
         }
-        if (fresh.isNotEmpty()) db.dao().insertCells(fresh.map { Cell(it, now) })
+        val dao = db.dao()
+        if (fresh.isNotEmpty()) {
+            dao.insertCells(fresh.map { Cell(it, now) })
+            // Every altar was set where the walker stood, so the ground inside was walked for: it counts
+            // towards the day's cells and the quests that ask for them (#83).
+            val local = Instant.ofEpochMilli(now).atZone(zone())
+            val day = local.toLocalDate().toEpochDay()
+            val row = dao.day(day) ?: Day(day)
+            val hour = local.hour
+            dao.upsertDay(
+                row.copy(
+                    cells = row.cells + fresh.size,
+                    night = row.night + if (hour >= 22 || hour < 4) fresh.size else 0,
+                    dawn = row.dawn + if (hour in 4..6) fresh.size else 0,
+                )
+            )
+        }
         milestones(touched, now)
         newSectors.forEach { _events.tryEmit(GameEvent.NewSector(it)) }
         settings.update { it.copy(ring = emptyList()) }

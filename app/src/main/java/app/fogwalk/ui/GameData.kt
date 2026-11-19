@@ -150,7 +150,12 @@ class GameData(
         level = level,
         walks = walks.count { it.meters >= 300 },
         gold = finds.sumOf { it.coins } + ledger.sumOf { it.coins.coerceAtLeast(0) },
-        styles = settings.owned.size,
+        // The owned set holds companions next to the fog styles; a fox is not a mist (#70, #84).
+        styles = settings.owned.count { s -> app.fogwalk.domain.Shop.styles.any { it.id == s } },
+        companions = settings.owned.count { it.startsWith(app.fogwalk.domain.Companions.key("")) },
+        monuments = monuments.size,
+        monumentTop = monuments.values.maxOrNull() ?: 0,
+        pilgrimages = ledger.count { it.ref.startsWith("pilgrim:") },
         oaths = finds.count { it.key.startsWith("o:") },
         treasures = finds.count { it.key.startsWith("t:") },
         races = ledger.count { it.ref.startsWith("race:") && it.ref.endsWith(":w") },

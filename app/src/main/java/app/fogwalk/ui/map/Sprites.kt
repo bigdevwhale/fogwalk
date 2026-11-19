@@ -5,7 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import app.fogwalk.R
 
-/** The painted figures of the map: companions (#41) and monuments (#50), decoded once and kept. */
+/** The painted figures of the map: companions (#41), monuments (#50) and altars (#80), decoded once and kept. */
 class Sprites(private val context: Context) {
     private val cache = HashMap<String, Bitmap?>()
 
@@ -27,6 +27,7 @@ class Sprites(private val context: Context) {
             "monument_3" to R.drawable.monument_3,
             "monument_4" to R.drawable.monument_4,
             "chest_unknown" to app.fogwalk.ui.Art.chest(null),
+            "altar" to app.fogwalk.ui.Art.ALTAR,
         ) + app.fogwalk.domain.Rarity.entries.associate { "chest_${it.ordinal}" to app.fogwalk.ui.Art.chest(it) } +
             app.fogwalk.domain.ShrineKind.entries.associate { "shrine_${it.name}" to app.fogwalk.ui.Art.shrine(it) }
     }

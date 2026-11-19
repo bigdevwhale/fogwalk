@@ -304,6 +304,43 @@ object Monuments {
         return out
     }
 
+    /**
+     * Where a monument stands and what is carved on it. A new one stands where the walker stood when they
+     * raised it (#78); those from before stand at their land's heart until moved there once.
+     */
+    data class Site(val lat: Double, val lon: Double, val words: String = "")
+
+    /** How close counts as having come to a monument, m (plus some of the fix's own doubt). */
+    const val REACH_M = 30.0
+    /** Metres the day must already hold for a pilgrimage to count: it is walked to, not stood beside at home. */
+    const val PILGRIM_DAY_M = 1000.0
+    const val WORDS_MAX = 80
+
+    /** Experience for coming on foot to a monument of [level], once a day each: a pilgrimage. */
+    fun pilgrimXp(level: Int): Int = 20 + 10 * level.coerceIn(1, 10)
+
+    fun pilgrimRef(day: Long, sector: Long) = "pilgrim:$day:$sector"
+
+    /** Where the monument on [sector] stands: its site, else the land's heart. */
+    fun spot(sector: Long, site: Site?): Pair<Double, Double> =
+        if (site != null) site.lat to site.lon
+        else app.fogwalk.geo.Grid.centerLat(sector, app.fogwalk.geo.Grid.SECTOR_Z) to app.fogwalk.geo.Grid.centerLon(sector, app.fogwalk.geo.Grid.SECTOR_Z)
+
+    /** When the monument on [sector] was first raised, from its purchases. */
+    fun raisedAt(sector: Long, ledger: List<app.fogwalk.data.Entry>): Long? =
+        ledger.filter { it.ref.startsWith("buy:monument:$sector:") }.minOfOrNull { it.at }
+
+    fun encode(sector: Long, s: Site) = "$sector|${s.lat}|${s.lon}|${s.words}"
+
+    fun decode(text: String): Pair<Long, Site>? {
+        val p = text.split("|", limit = 4)
+        if (p.size < 3) return null
+        val sector = p[0].toLongOrNull() ?: return null
+        val lat = p[1].toDoubleOrNull() ?: return null
+        val lon = p[2].toDoubleOrNull() ?: return null
+        return sector to Site(lat, lon, p.getOrElse(3) { "" })
+    }
+
     /** Which of the four looks a monument of [level] wears: a standing stone, an obelisk, a column, a tower. */
     fun tier(level: Int): Int = when {
         level <= 1 -> 1

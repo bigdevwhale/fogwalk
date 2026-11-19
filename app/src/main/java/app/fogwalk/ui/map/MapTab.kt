@@ -22,6 +22,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -49,6 +51,8 @@ import androidx.compose.material.icons.rounded.MyLocation
 import androidx.compose.material.icons.rounded.Navigation
 import androidx.compose.material.icons.rounded.Radar
 import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material.icons.rounded.AccountBalance
+import androidx.compose.material.icons.rounded.GpsOff
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.TravelExplore
 import androidx.compose.material3.Icon
@@ -93,6 +97,7 @@ import app.fogwalk.R
 import app.fogwalk.container
 import app.fogwalk.data.Units
 import app.fogwalk.domain.Altars
+import app.fogwalk.domain.Monuments
 import app.fogwalk.domain.Caches
 import app.fogwalk.domain.Shrine
 import app.fogwalk.domain.Levels
@@ -103,6 +108,7 @@ import app.fogwalk.domain.Hook
 import app.fogwalk.explore.Bought
 import app.fogwalk.ui.Tab
 import app.fogwalk.ui.components.ConfirmDialog
+import app.fogwalk.ui.components.UTextField
 import kotlinx.coroutines.launch
 import app.fogwalk.domain.Races
 import app.fogwalk.domain.Treasures
@@ -126,6 +132,7 @@ import app.fogwalk.ui.components.ProgressRing
 import app.fogwalk.ui.components.rememberNow
 import app.fogwalk.ui.content
 import app.fogwalk.ui.distance
+import app.fogwalk.ui.dateFormat
 import app.fogwalk.ui.rarityColor
 import app.fogwalk.ui.shrineColor
 import app.fogwalk.ui.shrineGives
@@ -275,7 +282,7 @@ fun MapTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
             is Pick.OfShrine -> shrines?.of(p.kind)?.takeIf { !data.todayRow.beacon }?.let { Triple(it.lat, it.lon, app.fogwalk.domain.Bonds.shrineM(s)) }
             else -> null
         },
-        companion = s.companion, monuments = data.monuments,
+        companion = s.companion, monuments = data.monuments, sites = s.sites,
     )
     LaunchedEffect(Unit) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
@@ -321,6 +328,7 @@ fun MapTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
     val milestoneText = stringResource(R.string.toast_milestone)
     val ringText = stringResource(R.string.ring_closed)
     val raceText = stringResource(R.string.race_started)
+    val pilgrimText = stringResource(R.string.pilgrim_done)
     val sageC = U.c.sage
     val flame = U.c.flame
     val accentC = U.c.accent
@@ -337,6 +345,7 @@ fun MapTab(data: GameData, go: Go, focus: MutableStateFlow<MapFocus?>) {
                 is GameEvent.Near -> null
                 is GameEvent.RaceStarted -> Toast(System.nanoTime(), Icons.Rounded.Timer, raceText, sageC)
                 is GameEvent.RaceDone -> null
+                is GameEvent.Pilgrim -> Toast(System.nanoTime(), Icons.Rounded.AccountBalance, pilgrimText.format(c.sectorName(e.sector), e.xp), goldC)
             }
             if (s.haptics && (e is GameEvent.Opened || e is GameEvent.Beacon)) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             if (t != null) {
@@ -608,7 +617,7 @@ private fun PickCard(p: Pick, data: GameData, imperial: Boolean, race: RaceView?
                 }
             }
             Text((meters?.let { distance(it, imperial) + " · " } ?: "") + hint, style = UType.Muted)
-            if (p is Pick.OfLand) MonumentLine(p.sector, data)
+            if (p is Pick.OfLand) MonumentLine(p.sector, data, here = fix != null && Grid.sector(Grid.cell(fix.lat, fix.lon)) == p.sector)
             if (p is Pick.OfRace) {
                 Spacer(Modifier.height(8.dp))
                 Chip(stringResource(R.string.race_cancel), U.c.surface2) {
@@ -643,52 +652,129 @@ private fun PickCard(p: Pick, data: GameData, imperial: Boolean, race: RaceView?
 
 /** A small rounded action inside a card. */
 @Composable
-private fun Chip(text: String, background: Color, onClick: () -> Unit) {
+private fun Chip(text: String, background: Color, color: Color = U.c.ink, onClick: () -> Unit) {
     Text(
-        text, style = UType.Strong.copy(fontSize = 14.sp), maxLines = 1,
+        text, style = UType.Strong.copy(fontSize = 14.sp, color = color), maxLines = 1,
         modifier = Modifier.clip(CircleShape).background(background).clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 6.dp),
     )
 }
 
-/** A charted land's monument (#50): raised, or raised a level higher, for gold. */
+/**
+ * A charted land's monument (#50): raised where the walker stands (#78), or a level higher, for gold; its date
+ * and the words carved on it; the day's pilgrimage to it; and, for one from before sites, a move to the spot.
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun MonumentLine(sector: Long, data: GameData) {
+fun MonumentLine(sector: Long, data: GameData, here: Boolean) {
     if (data.share(sector) < Sectors.CHARTED) return
     val context = LocalContext.current
     val container = context.container
     val level = data.monuments[sector] ?: 0
-    val price = app.fogwalk.domain.Monuments.price(level)
+    val price = Monuments.price(level)
+    val site = data.settings.sites[sector]
     var asking by remember { mutableStateOf(false) }
+    var carving by remember { mutableStateOf(false) }
+    var settling by remember { mutableStateOf(false) }
+    val say: (Bought) -> Unit = { b ->
+        val text = when (b) {
+            Bought.NO_GOLD -> R.string.not_enough
+            Bought.NO_FIX -> R.string.monument_no_fix
+            Bought.FAR -> R.string.monument_far
+            else -> null
+        }
+        if (text != null) android.widget.Toast.makeText(context, text, android.widget.Toast.LENGTH_LONG).show()
+    }
     Spacer(Modifier.height(8.dp))
     if (level > 0) {
-        Text(stringResource(R.string.monument_level, level), style = UType.Small)
+        val raised = Monuments.raisedAt(sector, data.ledger)
+        Text(
+            stringResource(R.string.monument_level, level) +
+                (raised?.let { " · " + stringResource(R.string.monument_raised_on, java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneId.systemDefault()).toLocalDate().format(dateFormat(java.time.format.FormatStyle.MEDIUM))) } ?: ""),
+            style = UType.Small,
+        )
+        if (!site?.words.isNullOrBlank()) {
+            Spacer(Modifier.height(4.dp))
+            Text("«${site!!.words}»", style = UType.Sub.copy(fontStyle = androidx.compose.ui.text.font.FontStyle.Italic, color = U.c.ink))
+        }
+        Spacer(Modifier.height(4.dp))
+        val walked = data.ledger.any { it.ref == Monuments.pilgrimRef(data.today, sector) }
+        Text(
+            if (walked) stringResource(R.string.pilgrim_today)
+            else stringResource(R.string.pilgrim_open, Monuments.pilgrimXp(level), distance(Monuments.PILGRIM_DAY_M, data.settings.units == app.fogwalk.data.Units.IMPERIAL)),
+            style = UType.Muted,
+        )
+        Spacer(Modifier.height(6.dp))
+    } else {
+        Text(stringResource(if (here) R.string.monument_here_hint else R.string.monument_far), style = UType.Muted)
         Spacer(Modifier.height(6.dp))
     }
-    Row(
-        Modifier.clip(CircleShape).background(U.c.goldSoft).clickable { asking = true }.padding(horizontal = 12.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(stringResource(if (level == 0) R.string.monument_raise else R.string.monument_up), style = UType.Strong.copy(fontSize = 14.sp))
-        Spacer(Modifier.width(8.dp))
-        CoinIcon(Modifier.size(13.dp), if (data.coins >= price) U.c.gold else U.c.faint)
-        Spacer(Modifier.width(4.dp))
-        Text("%,d".format(price), style = UType.Strong.copy(fontSize = 14.sp, color = if (data.coins >= price) U.c.gold else U.c.faint))
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        val can = level > 0 || here
+        Row(
+            Modifier.clip(CircleShape).background(if (can) U.c.goldSoft else U.c.surface2).clickable { if (can) asking = true else say(Bought.FAR) }
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(stringResource(if (level == 0) R.string.monument_raise else R.string.monument_up), style = UType.Strong.copy(fontSize = 14.sp))
+            Spacer(Modifier.width(8.dp))
+            CoinIcon(Modifier.size(13.dp), if (data.coins >= price) U.c.gold else U.c.faint)
+            Spacer(Modifier.width(4.dp))
+            Text("%,d".format(price), style = UType.Strong.copy(fontSize = 14.sp, color = if (data.coins >= price) U.c.gold else U.c.faint))
+        }
+        if (level > 0) Chip(stringResource(R.string.monument_words), U.c.surface2) { carving = true }
+        if (level > 0 && site == null && here) Chip(stringResource(R.string.monument_settle), U.c.accentSoft) { settling = true }
     }
     if (asking) {
-        val short = stringResource(R.string.not_enough)
         ConfirmDialog(
             title = stringResource(if (level == 0) R.string.monument_raise_q else R.string.monument_up_q, content().sectorName(sector)),
-            text = stringResource(R.string.monument_text, level + 1, price, data.coins),
+            text = stringResource(R.string.monument_text, level + 1, price, data.coins) + if (level == 0) "\n\n" + stringResource(R.string.monument_here_hint) else "",
             confirm = stringResource(R.string.buy),
             onConfirm = {
                 asking = false
                 container.scope.launch {
-                    if (container.explorer.raiseMonument(sector) == Bought.NO_GOLD) withContext(Dispatchers.Main) {
-                        android.widget.Toast.makeText(context, short, android.widget.Toast.LENGTH_SHORT).show()
-                    }
+                    val b = container.explorer.raiseMonument(sector)
+                    withContext(Dispatchers.Main) { say(b) }
                 }
             },
             onDismiss = { asking = false },
+        )
+    }
+    if (settling) {
+        ConfirmDialog(
+            title = stringResource(R.string.monument_settle_q),
+            text = stringResource(R.string.monument_settle_text),
+            confirm = stringResource(R.string.monument_settle),
+            onConfirm = {
+                settling = false
+                container.scope.launch {
+                    val b = container.explorer.settleMonument(sector)
+                    withContext(Dispatchers.Main) { say(b) }
+                }
+            },
+            onDismiss = { settling = false },
+        )
+    }
+    if (carving) {
+        var words by remember { mutableStateOf(site?.words.orEmpty()) }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { carving = false },
+            containerColor = U.c.bg,
+            title = { Text(stringResource(R.string.monument_words_title), style = UType.Strong.copy(fontSize = 19.sp)) },
+            text = {
+                Column {
+                    UTextField(words, { words = it.take(Monuments.WORDS_MAX) }, placeholder = stringResource(R.string.monument_words_hint), minLines = 2)
+                    Spacer(Modifier.height(4.dp))
+                    Text("${words.length} / ${Monuments.WORDS_MAX}", style = UType.Muted)
+                }
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = { container.explorer.inscribe(sector, words); carving = false }) {
+                    Text(stringResource(R.string.save), color = U.c.accent, style = UType.Button)
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { carving = false }) { Text(stringResource(R.string.cancel), color = U.c.muted, style = UType.Button) }
+            },
         )
     }
 }
@@ -790,6 +876,17 @@ private fun BottomPanel(
                 GameIcon(Icons.Rounded.Speed, null, Modifier.size(18.dp), tint = U.c.flame)
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.too_fast), style = UType.Muted.copy(color = U.c.ink))
+            }
+        } else if (s.walking && live.weak) {
+            // The dot still moves on a cell tower's guess, but the walk doesn't count: say so before the walker finds out (#82).
+            Spacer(Modifier.height(8.dp))
+            Row(Modifier.fillMaxWidth().clip(U.RSm).background(U.c.flameSoft).padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                GameIcon(Icons.Rounded.GpsOff, null, Modifier.size(18.dp), tint = U.c.flame)
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    stringResource(R.string.weak_gps, distance((fix?.accuracy ?: 0f).toDouble(), imperial)),
+                    style = UType.Muted.copy(color = U.c.ink),
+                )
             }
         }
         Spacer(Modifier.height(8.dp))
@@ -960,20 +1057,27 @@ private fun altars(data: GameData, imperial: Boolean, onFocus: (Double, Double) 
         // How it works, a step to a page with a drawing each: the line alone is too short to learn from (#28, #55).
         var guide by remember { mutableStateOf(false) }
         if (guide) AltarsGuide(Altars.MIN, side, distance(app.fogwalk.explore.Explorer.ALTAR_ACCURACY.toDouble(), imperial)) { guide = false }
-        Row(Modifier.padding(start = 50.dp, top = 2.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Chip(stringResource(R.string.altars_how), U.c.surface2) { guide = true }
+        // Three chips don't fit a phone's width in one line: the last was squeezed to a sliver (#83). They wrap,
+        // and a ring that can close leads, filled and bright, as the one thing to do now.
+        @OptIn(ExperimentalLayoutApi::class)
+        FlowRow(
+            Modifier.padding(start = 50.dp, top = 2.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            val closable = Altars.canClose(s.ring)
+            if (s.ring.size >= Altars.MIN) Chip(stringResource(R.string.altar_close), if (closable) Color(0xFF2F6FC4) else U.c.surface2, if (closable) Color.White else U.c.ink) {
+                container.scope.launch {
+                    val b = container.explorer.closeRing()
+                    withContext(Dispatchers.Main) { if (b == Bought.FAR) android.widget.Toast.makeText(context, context.getString(R.string.ring_too_long, side), android.widget.Toast.LENGTH_SHORT).show() }
+                }
+            }
             if (s.altars > 0) Chip(stringResource(R.string.altar_place), azure.copy(alpha = 0.18f)) {
                 container.scope.launch {
                     val b = container.explorer.placeAltar()
                     withContext(Dispatchers.Main) { say(b) }
                 }
             }
-            if (s.ring.size >= Altars.MIN) Chip(stringResource(R.string.altar_close), if (Altars.canClose(s.ring)) U.c.accentSoft else U.c.surface2) {
-                container.scope.launch {
-                    val b = container.explorer.closeRing()
-                    withContext(Dispatchers.Main) { if (b == Bought.FAR) android.widget.Toast.makeText(context, context.getString(R.string.ring_too_long, side), android.widget.Toast.LENGTH_SHORT).show() }
-                }
-            }
+            Chip(stringResource(R.string.altars_how), U.c.surface2) { guide = true }
         }
     }
 }

@@ -125,6 +125,11 @@ object DemoSeed {
             best.forEachIndexed { i, sector ->
                 for (l in 1..(if (i == 0) 6 else 2)) dao.grant(Entry("buy:${app.fogwalk.domain.Monuments.item(sector, l)}:${at + l}", at + l, 0, 0))
             }
+            // The tower stands a little off its land's heart, with words on it; the other waits at the heart to be moved (#78).
+            best.firstOrNull()?.let { sector ->
+                val (la, lo) = app.fogwalk.domain.Monuments.spot(sector, null)
+                settings.update { it.copy(sites = it.sites + (sector to app.fogwalk.domain.Monuments.Site(la + 0.0012, lo - 0.0015, "Here my road began"))) }
+            }
         }
         // The fox walks the demo's map.
         val fox = app.fogwalk.domain.Companions.key("fox")
@@ -134,6 +139,11 @@ object DemoSeed {
                 rumor = it.rumor?.takeIf { r -> r.week == week } ?: rumor,
                 race = it.race ?: raced?.let { w -> app.fogwalk.domain.Race(w, 0, 0) },
                 altars = maxOf(it.altars, 2),
+                // Three altars standing a short walk off, ready to close, so the map shows the ring and its button (#80, #83).
+                ring = it.ring.ifEmpty {
+                    val k = 1 / kotlin.math.cos(Math.toRadians(lat))
+                    listOf(lat + 0.0016 to lon + 0.0004 * k, lat + 0.0006 to lon + 0.0024 * k, lat - 0.0002 to lon + 0.0006 * k)
+                },
                 owned = it.owned + fox,
                 companion = if (fox in it.owned) it.companion else "fox",
             )

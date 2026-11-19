@@ -87,6 +87,8 @@ data class Settings(
     val companion: String = app.fogwalk.domain.Companions.TOKEN,
     /** Metres walked with each companion on the map, for its friendship, see [app.fogwalk.domain.Bonds]. */
     val bond: Map<String, Double> = emptyMap(),
+    /** Where each land's monument stands and its words, by land (#78). */
+    val sites: Map<Long, app.fogwalk.domain.Monuments.Site> = emptyMap(),
 )
 
 class SettingsStore(context: Context) {
@@ -132,6 +134,7 @@ class SettingsStore(context: Context) {
         dismissed = this[DISMISSED] ?: emptySet(),
         companion = this[COMPANION] ?: app.fogwalk.domain.Companions.TOKEN,
         bond = (this[BOND] ?: emptySet()).mapNotNull { e -> e.split(":").takeIf { it.size == 2 }?.let { (k, v) -> v.toDoubleOrNull()?.let { k to it } } }.toMap(),
+        sites = (this[SITES] ?: emptySet()).mapNotNull { app.fogwalk.domain.Monuments.decode(it) }.toMap(),
     )
 
     suspend fun now(): Settings = settings.first()
@@ -176,6 +179,7 @@ class SettingsStore(context: Context) {
             it[DISMISSED] = s.dismissed
             it[COMPANION] = s.companion
             it[BOND] = s.bond.map { (k, v) -> "$k:${Math.round(v)}" }.toSet()
+            it[SITES] = s.sites.map { (k, v) -> app.fogwalk.domain.Monuments.encode(k, v) }.toSet()
         }
     }
 
@@ -217,5 +221,6 @@ class SettingsStore(context: Context) {
         val DISMISSED = stringSetPreferencesKey("dismissed_chests")
         val COMPANION = stringPreferencesKey("companion")
         val BOND = stringSetPreferencesKey("bond")
+        val SITES = stringSetPreferencesKey("monument_sites")
     }
 }

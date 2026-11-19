@@ -176,6 +176,10 @@ object ContentEn : Content {
         "walks" to listOf("First Journey", "Ten Journeys", "Fifty Journeys", "Hundred Journeys", "Two Hundred Fifty Journeys", "Five Hundred Journeys"),
         "gold" to listOf("Coin Purse", "Heavy Purse", "Dragon's Gold"),
         "style" to listOf("Weather Witch", "Mistcaller", "Master of Mists"),
+        "pal" to listOf("Not Alone on the Road", "Good Company", "Friend of the Whole Wood"),
+        "monument" to listOf("I Was Here", "Stones to Remember", "Lord of the Lands", "Chronicle in Stone"),
+        "tower" to listOf("Obelisk", "Column", "Tower to the Clouds"),
+        "pilgrim" to listOf("First Pilgrimage", "A Familiar Path", "Faithful Pilgrim", "A Hundred Roads to the Stone"),
         "oath" to listOf("Word Kept", "Oathbound", "True to the Word", "Voice of Iron"),
         "treasure" to listOf("X Marks the Spot", "Treasure Seeker", "Digger of Hoards", "Lord of Lost Maps"),
         "race" to listOf("Faster Than Yesterday", "Shadow Chaser", "Outrunner", "Swifter Than Memory"),
@@ -221,6 +225,10 @@ object ContentEn : Content {
         "treasure" -> "Treasures dug up"
         "race" -> "Shadows outrun"
         "gear" -> "Gear"
+        "pal" -> "Companions"
+        "monument" -> "Monuments"
+        "tower" -> "Monument height"
+        "pilgrim" -> "Pilgrimages"
         else -> "Mists"
     }
 
@@ -257,6 +265,10 @@ object ContentEn : Content {
             "walks" -> if (g == 1L) "Finish your first journey" else "Make $n journeys"
             "gold" -> "Earn $n gold in all"
             "style" -> "Own $n mists"
+            "monument" -> if (g == 1L) "Raise a monument" else "Raise monuments in $n lands"
+            "tower" -> "Raise a monument to level $n"
+            "pilgrim" -> if (g == 1L) "Walk to your own monument" else "Make $n pilgrimages to your monuments"
+            "pal" -> if (g == 1L) "Find your first companion" else if (g == 6L) "Gather every companion" else "Gather $n companions"
             "oath" -> if (g == 1L) "Keep an oath" else "Keep $n oaths"
             "treasure" -> if (g == 1L) "Dig up a treasure from a map" else "Dig up $n treasures"
             "race" -> if (g == 1L) "Outrun your shadow" else "Outrun your shadow $n times"

@@ -103,6 +103,12 @@ data class Facts(
     val walks: Int,
     val gold: Int,
     val styles: Int,
+    /** Companions bought (#70, #71). */
+    val companions: Int = 0,
+    /** Lands with a monument, the highest monument's level, and pilgrimages made to them. */
+    val monuments: Int = 0,
+    val monumentTop: Int = 0,
+    val pilgrimages: Int = 0,
     val oaths: Int,
     val treasures: Int,
     val races: Int,
@@ -158,6 +164,11 @@ object Badges {
         g("walks", 1, 10, 50, 100, 250, 500) { it.walks },
         g("gold", 500, 2000, 10_000) { it.gold },
         g("style", 2, 4, 6) { it.styles },
+        g("pal", 1, 3, 6) { it.companions },
+        // A new look at each of these heights: the obelisk, the column, the tower.
+        g("monument", 1, 3, 5, 10) { it.monuments },
+        g("tower", 2, 4, 7) { it.monumentTop },
+        g("pilgrim", 1, 10, 50, 100) { it.pilgrimages },
         g("oath", 1, 3, 10, 25) { it.oaths },
         g("treasure", 1, 3, 10, 25) { it.treasures },
         g("race", 1, 3, 10, 25) { it.races },

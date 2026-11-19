@@ -12,6 +12,7 @@ import app.fogwalk.domain.Badges
 import app.fogwalk.domain.Caches
 import app.fogwalk.domain.FogStore
 import app.fogwalk.domain.Levels
+import app.fogwalk.domain.Monuments
 import app.fogwalk.domain.Quests
 import app.fogwalk.domain.Relics
 import app.fogwalk.domain.Seasons
@@ -532,5 +533,27 @@ class FogwalkTest {
         val moved = Beacons.onPaths(cands, near, { _, _ -> 0 }) { a, b, w -> app.fogwalk.explore.Paths.snap(a, b, w) }!!
         assertEquals(3, moved.size)
         assertEquals(null, Beacons.onPaths(cands, emptyList(), { _, _ -> 0 }) { a, b, w -> app.fogwalk.explore.Paths.snap(a, b, w) })
+    }
+
+    @Test
+    fun monumentSitesKeepTheirWordsAndPlace() {
+
+        val sector = Grid.sector(Grid.cell(55.75, 37.62))
+        val site = Monuments.Site(55.751, 37.621, "Здесь | начался путь")
+        assertEquals(sector to site, Monuments.decode(Monuments.encode(sector, site)))
+        assertEquals(sector to Monuments.Site(1.0, 2.0, ""), Monuments.decode("$sector|1.0|2.0"))
+        assertEquals(null, Monuments.decode("junk"))
+        // A monument from before sites stands at its land's heart, inside that land.
+        val (lat, lon) = Monuments.spot(sector, null)
+        assertEquals(sector, Grid.sector(Grid.cell(lat, lon)))
+        assertEquals(site.lat to site.lon, Monuments.spot(sector, site))
+        assertTrue(Monuments.pilgrimXp(1) < Monuments.pilgrimXp(5))
+        assertEquals(Monuments.pilgrimXp(10), Monuments.pilgrimXp(40))
+    }
+
+    @Test
+    fun companionsAreNotMists() {
+        val ids = Badges.groups.map { it.id }
+        assertTrue("pal" in ids && "monument" in ids && "tower" in ids && "pilgrim" in ids)
     }
 }

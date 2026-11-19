@@ -57,6 +57,7 @@ import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material.icons.rounded.Radar
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.RecordVoiceOver
+import androidx.compose.material.icons.rounded.AccountBalance
 import androidx.compose.material.icons.rounded.Backpack
 import androidx.compose.material.icons.rounded.Hiking
 import androidx.compose.material.icons.rounded.Visibility
@@ -173,7 +174,7 @@ private val painted: Map<ImageVector, Int> by lazy {
             Inventory2 to R.drawable.chest_common, Flare to R.drawable.shrine_gold, ChangeHistory to R.drawable.item_altar,
             Lightbulb to R.drawable.item_torch, Radar to R.drawable.item_seeing_stone, Shield to R.drawable.item_ward,
             RecordVoiceOver to R.drawable.item_rumor, Backpack to R.drawable.gear_satchel, Hiking to R.drawable.gear_boots,
-            Visibility to R.drawable.gear_senses,
+            Visibility to R.drawable.gear_senses, AccountBalance to R.drawable.monument_3,
         )
     }
 }

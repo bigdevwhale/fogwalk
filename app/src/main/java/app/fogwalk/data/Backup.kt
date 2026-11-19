@@ -37,13 +37,14 @@ object Backup {
                     .put("caches", w.caches).put("steps", w.steps).put("lat", w.lat).put("lon", w.lon).put("route", route))
             }
         })
-        // What was bought and earned to keep (#22): fog styles, gear, wards and altars.
+        // What was bought and earned to keep (#22): fog styles, gear, wards, altars and where monuments stand.
         if (s != null) o.put("kit", JSONObject()
             .put("owned", JSONArray(s.owned.toList())).put("fog", s.fog).put("fogDensity", s.fogDensity.toDouble()).put("companion", s.companion)
             .put("gear", JSONObject().apply { s.gear.forEach { (k, v) -> put(k, v) } })
             .put("bond", JSONObject().apply { s.bond.forEach { (k, v) -> put(k, v) } })
             .put("shields", s.shields).put("shielded", JSONArray(s.shielded.toList())).put("altars", s.altars)
-            .put("ring", JSONArray().apply { s.ring.forEach { (la, lo) -> put(la).put(lo) } }))
+            .put("ring", JSONArray().apply { s.ring.forEach { (la, lo) -> put(la).put(lo) } })
+            .put("sites", JSONArray(s.sites.map { (k, v) -> app.fogwalk.domain.Monuments.encode(k, v) })))
         return o.toString()
     }
 
@@ -54,6 +55,7 @@ object Backup {
         val bond = kit.optJSONObject("bond")?.let { b -> b.keys().asSequence().associateWith { b.getDouble(it) } }.orEmpty()
         val shielded = kit.optJSONArray("shielded")?.let { a -> (0 until a.length()).map { a.getLong(it) } }.orEmpty()
         val ring = kit.optJSONArray("ring")?.let { a -> (0 until a.length() / 2).map { a.getDouble(it * 2) to a.getDouble(it * 2 + 1) } }.orEmpty()
+        val sites = kit.optJSONArray("sites")?.let { a -> (0 until a.length()).mapNotNull { app.fogwalk.domain.Monuments.decode(a.getString(it)) } }.orEmpty().toMap()
         val fog = kit.optString("fog")
         val untouched = mine.fog == Settings().fog
         return mine.copy(
@@ -66,6 +68,7 @@ object Backup {
             shielded = mine.shielded + shielded,
             altars = maxOf(mine.altars, kit.optInt("altars")),
             ring = mine.ring.ifEmpty { ring },
+            sites = sites + mine.sites,
             companion = kit.optString("companion").takeIf { pal ->
                 mine.companion == Settings().companion && pal.isNotEmpty() && app.fogwalk.domain.Companions.key(pal) in mine.owned + owned
             } ?: mine.companion,

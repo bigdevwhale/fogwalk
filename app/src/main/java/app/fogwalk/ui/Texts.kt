@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.DirectionsWalk
 import androidx.compose.material.icons.rounded.AcUnit
+import androidx.compose.material.icons.rounded.AccountBalance
 import androidx.compose.material.icons.rounded.AllInclusive
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Backpack
@@ -287,6 +288,9 @@ fun groupIcon(group: String): ImageVector = when (group) {
     "treasure" -> Icons.Rounded.Map
     "race" -> Icons.Rounded.Timer
     "gear" -> Icons.Rounded.Backpack
+    "pal" -> Icons.Rounded.Pets
+    "monument", "tower" -> Icons.Rounded.AccountBalance
+    "pilgrim" -> Icons.Rounded.Hiking
     else -> Icons.Rounded.Brush
 }
 
@@ -302,9 +306,10 @@ fun groupColor(group: String): Pair<Color, Color> = when (group) {
     "streak", "level" -> U.c.flame to U.c.flameSoft
     "beacon", "dawn", "oath" -> U.c.rose to U.c.roseSoft
     "treasure", "gear" -> U.c.gold to U.c.goldSoft
-    "race", "season" -> U.c.sage to U.c.sageSoft
+    "race", "season", "pal" -> U.c.sage to U.c.sageSoft
     "stars", "radiant" -> U.c.gold to U.c.goldSoft
     "arms" -> U.c.accent to U.c.accentSoft
+    "monument", "tower", "pilgrim" -> U.c.gold to U.c.goldSoft
     else -> U.c.sky to U.c.skySoft
 }
 

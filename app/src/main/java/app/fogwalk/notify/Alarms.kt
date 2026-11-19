@@ -165,6 +165,7 @@ object Alarms {
                 "map",
             )
             is GameEvent.Beacon -> notify(context, ID_BEACON, context.getString(R.string.beacon_reached), app.fogwalk.ui.shrineReached(context, e.kind, e.gift), "map")
+            is GameEvent.Pilgrim -> notify(context, ID_BEACON, context.getString(R.string.pilgrim_title), context.getString(R.string.pilgrim_done, content.sectorName(e.sector), e.xp), "map")
             else -> Unit
         }
     }

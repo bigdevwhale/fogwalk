@@ -93,6 +93,8 @@ class Scene(
     val companion: String = app.fogwalk.domain.Companions.TOKEN,
     /** Monuments on lands, by level. */
     val monuments: Map<Long, Int> = emptyMap(),
+    /** Where monuments stand, by land; one without a site stands at its land's heart. */
+    val sites: Map<Long, app.fogwalk.domain.Monuments.Site> = emptyMap(),
 )
 
 /**
@@ -507,9 +509,14 @@ class WorldOverlay(
             fill.color = withAlpha(AZURE, 40)
             c.drawPath(path, fill)
         }
-        ring.forEach { (lat, lon) ->
+        val art = sprite("altar")
+        ring.forEachIndexed { i, (lat, lon) ->
             val x = sx(lon)
             val y = sy(lat)
+            if (art != null) {
+                drawAltar(c, art, x, y, t, i)
+                return@forEachIndexed
+            }
             // A small standing stone with a blue flame.
             fill.shader = null
             fill.color = 0x55000000
@@ -523,6 +530,34 @@ class WorldOverlay(
             fill.color = 0xFFDDEEFF.toInt()
             c.drawCircle(x, y - 15 * d - flick, 3 * d, fill)
         }
+    }
+
+    /**
+     * The painted altar from the merchant's shelf (#80), stood upright on a turned map: an azure halo breathing
+     * behind it, its rune glowing in time, and a thin thread of light rising from it so the ring reads from afar.
+     */
+    private fun drawAltar(c: Canvas, art: Bitmap, x: Float, y: Float, t: Long, i: Int) {
+        val d = density
+        val h = 34 * d
+        // Each altar breathes a little out of step with the last, so the ring shimmers rather than blinks.
+        val breath = ((sin(t / 520.0 + i * 1.3) + 1) / 2).toFloat()
+        c.save()
+        c.rotate(-turn, x, y)
+        fill.shader = null
+        fill.color = 0x48000000
+        c.drawOval(RectF(x - h * 0.5f, y - h * 0.08f, x + h * 0.5f, y + h * 0.1f), fill)
+        glow.shader = android.graphics.LinearGradient(x, y - h * 2.6f, x, y - h * 0.5f, withAlpha(AZURE, 0), withAlpha(AZURE, (90 + 60 * breath).toInt()), Shader.TileMode.CLAMP)
+        c.drawRect(x - 2.5f * d, y - h * 2.6f, x + 2.5f * d, y - h * 0.5f, glow)
+        glow.shader = RadialGradient(x, y - h * 0.5f, h * (0.85f + 0.1f * breath), intArrayOf(withAlpha(AZURE, (110 + 50 * breath).toInt()), withAlpha(AZURE, 0)), null, Shader.TileMode.CLAMP)
+        c.drawCircle(x, y - h * 0.5f, h * (0.85f + 0.1f * breath), glow)
+        drawSprite(c, art, x, y + 2 * d, h, upright = true)
+        // The rune on its face sits about 40% up the stone.
+        val rx = x
+        val ry = y + 2 * d - h * 0.4f
+        glow.shader = RadialGradient(rx, ry, h * 0.28f, intArrayOf(withAlpha(0xFFDDF4FF.toInt(), (70 + 120 * breath).toInt()), withAlpha(AZURE, 0)), null, Shader.TileMode.CLAMP)
+        c.drawCircle(rx, ry, h * 0.28f, glow)
+        glow.shader = null
+        c.restore()
     }
 
     /** A dashed ring around the tapped chest or shrine: step inside it and it is yours. */
@@ -810,7 +845,7 @@ class WorldOverlay(
         c.restore()
     }
 
-    /** Monuments raised on lands (#50), at each land's heart, grander with their level, with the level beneath. */
+    /** Monuments raised on lands (#50), where each was set (#78) or at its land's heart, grander with their level, with the level beneath. */
     private fun drawMonuments(c: Canvas, s: Scene, mx0: Double, mx1: Double, my0: Double, my1: Double) {
         if (s.monuments.isEmpty()) return
         val n = 1 shl Grid.SECTOR_Z
@@ -819,8 +854,9 @@ class WorldOverlay(
         // Too far out the lands are specks; a monument would only clutter.
         if (sidePx < 36 * d) return
         for ((sector, level) in s.monuments) {
-            val gx = (Grid.x(sector) + 0.5) / n
-            val gy = (Grid.y(sector) + 0.5) / n
+            val (lat, lon) = app.fogwalk.domain.Monuments.spot(sector, s.sites[sector])
+            val gx = Grid.mx(lon)
+            val gy = Grid.my(lat)
             if (gx < mx0 - 0.5 / n || gx > mx1 + 0.5 / n || gy < my0 - 0.5 / n || gy > my1 + 0.5 / n) continue
             val x = (ax * gx + bx).toFloat()
             val y = (ay * gy + by).toFloat()
