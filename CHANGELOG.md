@@ -8,6 +8,26 @@ then close it like any HTML comment. The release notes carry it, and the chat bo
 
 All notable changes to Fogwalk. Versions follow [semantic versioning](https://semver.org/).
 
+## [1.12.0] - 2026-11-19
+### Added
+- **A monument where you stand:** the first stone of a monument is raised on the spot, not at the land's heart, so you choose the place yourself; a monument from before can be moved there once, for free (#78).
+- **Words on the stone:** carve a line of your own on a monument; the land's card shows it with the day it was raised.
+- **Pilgrimage:** walk to your own monument and earn experience, more for a taller one, once a day each, on a day you have walked a kilometre.
+- **New deeds:** for monuments raised, a monument's height, pilgrimages made, and companions found.
+- **A warning when the GPS is weak:** during a walk the map says when only a coarse position comes, and that this stretch won't count (#82).
+### Changed
+- **Altars on the map are painted,** like the one on the merchant's shelf, with an azure glow and a thread of light above (#80).
+### Fixed
+- **Companions are no longer counted as mists** in the deeds (#84, #70).
+- **The «Close the ring» button is easy to see:** it no longer gets squeezed off the card, and it lights up blue once the ring can close (#83).
+- **Cells cleared by an altar ring count towards the day,** its quests and deeds (#83).
+<!-- tg
+Памятник теперь ставится там, где вы стоите. Старый можно один раз бесплатно перенести.
+На памятнике можно вырезать свою надпись, а дойдя до него пешком, получить опыт: паломничество раз в день.
+Новые деяния за памятники, паломничества и спутников. Спутники больше не считаются туманами.
+Алтари нарисованы заново, кнопку «Замкнуть круг» хорошо видно, а при слабом GPS карта предупредит, что путь не засчитается.
+-->
+
 ## [1.11.1] - 2026-11-17
 ### Fixed
 - **Chests breathe smoothly:** a chest's halo swells and ebbs instead of flaring up and snapping back dim, so a map full of chests no longer flickers (#65).
