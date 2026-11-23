@@ -883,10 +883,10 @@ class WorldOverlay(
 
     override fun onSingleTapConfirmed(e: MotionEvent, mapView: MapView): Boolean {
         val r = 30 * density
-        // Markers sit on the turned canvas; the finger is on the screen.
-        val pt = mapView.projection.unrotateAndScalePoint(e.x.toInt(), e.y.toInt(), null)
-        val ex = pt.x.toFloat()
-        val ey = pt.y.toFloat()
+        // MapView already turns the finger back onto the turned canvas before overlays see it; turning it
+        // once more threw taps off the chests and shrines on a turned map (#89).
+        val ex = e.x
+        val ey = e.y
         val hit = hits.minByOrNull { (_, p) -> (p[0] - ex) * (p[0] - ex) + (p[1] - ey) * (p[1] - ey) }
             ?.takeIf { (_, p) -> (p[0] - ex) * (p[0] - ex) + (p[1] - ey) * (p[1] - ey) <= r * r }
         if (hit != null) {

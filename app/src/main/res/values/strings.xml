@@ -157,6 +157,7 @@
     <string name="treasure_found">Treasure dug up</string>
     <string name="treasure_one">Treasure map</string>
     <string name="treasure_hint">Walk inside the circle; the closer you are, the warmer it gets</string>
+    <string name="treasure_centre">The “?” marks the middle of the circle; the treasure is somewhere inside, follow the warmth</string>
     <string name="tavern_title">The tavern</string>
     <string name="rumor">Tavern rumour</string>
     <string name="rumor_text">The innkeeper tells where the finest chest within 2 km lies this week</string>
@@ -445,8 +446,9 @@
     <string name="altar_buy_text">For a ring that lifts the mist where you can\'t walk. In the satchel: %1$d</string>
     <string name="altar_buy_week">This week: %1$d of %2$d bought, each next one twice as dear</string>
     <string name="altar_buy_sold">This week\'s altars are sold. More on Monday</string>
-    <string name="cache_dismiss">Can\'t get there: take it off the map</string>
-    <string name="cache_dismissed">The chest is off the map until Monday. Walk up to it and it still opens</string>
+    <string name="cache_dismiss">Can\'t get there: remove</string>
+    <string name="cache_dismissed">If a fence, a building site or water is in the way, the chest can go off the map until Monday. Walk up to it anyway and it still opens</string>
+    <string name="cache_dismissed_short">Off the map until Monday</string>
     <string name="shrine_won">+%1$d gold and +%2$d experience</string>
     <string name="shrine_won_lantern">The torch is lit for %1$d min: the mist parts wider</string>
     <string name="shrine_won_stone">The seeing stone glows for %1$d min: every chest shows</string>
@@ -482,6 +484,7 @@
     <string name="monument_words">Inscription</string>
     <string name="monument_words_title">Words on the monument</string>
     <string name="monument_words_hint">For example: “Here my road began”</string>
+    <string name="monument_settle_far">The monument stands at the land\'s heart. Come to this land and it can be moved, once and for free, to where you stand.</string>
     <string name="monument_settle">Move it here</string>
     <string name="monument_settle_q">Move the monument here?</string>
     <string name="monument_settle_text">It stands at the heart of the land for now. Once, for free, it can be moved to where you stand.</string>
@@ -491,7 +494,7 @@
     <string name="pilgrim_done">Pilgrimage to the monument on %1$s: +%2$d XP</string>
     <string name="monuments_title">Monuments</string>
     <string name="shop_to_monuments">Monuments</string>
-    <string name="shop_monuments_note">On lands you have charted a quarter of. Each level costs twice the last, and there is no last level</string>
+    <string name="shop_monuments_note">On lands charted a quarter. Each level costs twice the last and brings half its price in XP</string>
     <string name="monuments_none">Chart a quarter of a land to fly its banner, and a monument can stand on it.</string>
     <string name="monument_level">Monument, level %1$d</string>
     <string name="monument_next">to level %1$d</string>
@@ -500,7 +503,7 @@
     <string name="monument_up">Raise it higher</string>
     <string name="monument_raise_q">A monument on %1$s?</string>
     <string name="monument_up_q">Raise the monument on %1$s?</string>
-    <string name="monument_text">It will stand on the map at level %1$d, for all to see. It costs %2$d gold. You have %3$d.</string>
+    <string name="monument_text">It will stand on the map at level %1$d, for all to see, and bring %4$d XP. It costs %2$d gold. You have %3$d.</string>
     <string name="shop_to_looks">Looks</string>
     <string name="shop_looks_note">Companions and fogs for the map. Looks only, bought for good</string>
     <string name="shop_buy_for">Buy for %1$d</string>
@@ -512,7 +515,7 @@
     <string name="shop_sold">Sold out this week</string>
     <string name="shop_map_busy">One map at a time</string>
     <string name="shop_heard">Heard this week</string>
-    <string name="monument_text_short">Raised, it stands on the map at level %1$d. Each level costs twice the last, with no ceiling.</string>
+    <string name="monument_text_short">Raised, it stands on the map at level %1$d and brings %2$d XP. Each level costs twice the last and brings twice the XP, with no ceiling.</string>
     <string name="journal_streak">Streak %1$d · best %2$d</string>
     <string name="door_deeds">Deeds</string>
     <string name="door_relics">Relics</string>

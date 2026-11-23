@@ -551,7 +551,8 @@ private fun PickCard(p: Pick, data: GameData, imperial: Boolean, race: RaceView?
         is Pick.OfCache -> p.cache.lat to p.cache.lon
         is Pick.OfShrine -> shrines?.of(p.kind)?.let { it.lat to it.lon }
         is Pick.OfLand -> null
-        Pick.OfTreasure -> data.settings.treasure?.let { it.cLat to it.cLon }
+        // The "?" marks the circle's middle, not the treasure: no metres to it (#90).
+        Pick.OfTreasure -> null
         Pick.OfRace -> race?.route?.first()
     }
     val meters = if (fix != null && target != null) Grid.distance(fix.lat, fix.lon, target.first, target.second) else null
@@ -604,14 +605,15 @@ private fun PickCard(p: Pick, data: GameData, imperial: Boolean, race: RaceView?
                     shrines?.chosen == p.kind -> stringResource(R.string.beacon_done)
                     else -> stringResource(R.string.shrine_others)
                 }
-                Pick.OfTreasure -> stringResource(R.string.treasure_hint)
+                Pick.OfTreasure -> data.settings.treasure?.let { treasureLine(it, fix, imperial) + " · " + stringResource(R.string.treasure_centre) }
+                    ?: stringResource(R.string.treasure_hint)
                 Pick.OfRace -> stringResource(if (race?.started == 0L) R.string.race_challenge_text else R.string.race_on)
                 is Pick.OfLand -> {
                     val share = data.share(p.sector)
                     val next = Sectors.milestones.firstOrNull { share < it.first }
                     listOfNotNull(
                         stringResource(R.string.land_here).takeIf { fix != null && Grid.sector(Grid.cell(fix.lat, fix.lon)) == p.sector },
-                        stringResource(R.string.land_charted, (share * 100).toInt()),
+                        stringResource(R.string.land_charted, app.fogwalk.domain.percentUp(share, app.fogwalk.domain.landMarks)),
                         if (next != null) stringResource(R.string.land_next, (next.first * 100).toInt()) else stringResource(R.string.land_done),
                     ).joinToString(" · ")
                 }
@@ -627,9 +629,12 @@ private fun PickCard(p: Pick, data: GameData, imperial: Boolean, race: RaceView?
             }
             if (p is Pick.OfCache && meters != null) HookLine(p.cache, meters, data)
             // A chest behind a fence or on a building site can go off the map till Monday (#46).
+            // What going off the map means is said in the card, not in a toast that clips it to a line (#92).
             if (p is Pick.OfCache) {
-                val gone = stringResource(R.string.cache_dismissed)
+                val gone = stringResource(R.string.cache_dismissed_short)
                 Spacer(Modifier.height(8.dp))
+                Text(stringResource(R.string.cache_dismissed), style = UType.Small)
+                Spacer(Modifier.height(6.dp))
                 Chip(stringResource(R.string.cache_dismiss), U.c.surface2) {
                     context.container.explorer.dismiss(p.cache)
                     android.widget.Toast.makeText(context, gone, android.widget.Toast.LENGTH_SHORT).show()
@@ -654,7 +659,7 @@ private fun PickCard(p: Pick, data: GameData, imperial: Boolean, race: RaceView?
 @Composable
 private fun Chip(text: String, background: Color, color: Color = U.c.ink, onClick: () -> Unit) {
     Text(
-        text, style = UType.Strong.copy(fontSize = 14.sp, color = color), maxLines = 1,
+        text, style = UType.Strong.copy(fontSize = 14.sp, color = color), maxLines = 2,
         modifier = Modifier.clip(CircleShape).background(background).clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 6.dp),
     )
 }
@@ -722,12 +727,17 @@ fun MonumentLine(sector: Long, data: GameData, here: Boolean) {
             Text("%,d".format(price), style = UType.Strong.copy(fontSize = 14.sp, color = if (data.coins >= price) U.c.gold else U.c.faint))
         }
         if (level > 0) Chip(stringResource(R.string.monument_words), U.c.surface2) { carving = true }
-        if (level > 0 && site == null && here) Chip(stringResource(R.string.monument_settle), U.c.accentSoft) { settling = true }
+        if (level > 0 && Monuments.unsettled(sector, site) && here) Chip(stringResource(R.string.monument_settle), U.c.accentSoft) { settling = true }
+    }
+    // Away from the land the move is not offered, so say how to get it (#93).
+    if (level > 0 && Monuments.unsettled(sector, site) && !here) {
+        Spacer(Modifier.height(6.dp))
+        Text(stringResource(R.string.monument_settle_far), style = UType.Small)
     }
     if (asking) {
         ConfirmDialog(
             title = stringResource(if (level == 0) R.string.monument_raise_q else R.string.monument_up_q, content().sectorName(sector)),
-            text = stringResource(R.string.monument_text, level + 1, price, data.coins) + if (level == 0) "\n\n" + stringResource(R.string.monument_here_hint) else "",
+            text = stringResource(R.string.monument_text, level + 1, price, data.coins, Monuments.raiseXp(level + 1)) + if (level == 0) "\n\n" + stringResource(R.string.monument_here_hint) else "",
             confirm = stringResource(R.string.buy),
             onConfirm = {
                 asking = false
@@ -937,6 +947,21 @@ private class Venture(
     val extra: (@Composable () -> Unit)? = null,
 )
 
+/** How close the treasure is, once the walker is inside its circle; null outside it or without a fix. */
+private fun treasureWarmth(t: app.fogwalk.domain.TreasureMap, fix: app.fogwalk.explore.Fix?): Int? =
+    if (fix != null && Grid.distance(fix.lat, fix.lon, t.cLat, t.cLon) <= t.radius) Treasures.warmth(Grid.distance(fix.lat, fix.lon, t.lat, t.lon)) else null
+
+/** Warmer or colder inside the circle, the way to it outside (#90): never metres to the "?", which is not the treasure. */
+@Composable
+private fun treasureLine(t: app.fogwalk.domain.TreasureMap, fix: app.fogwalk.explore.Fix?, imperial: Boolean): String {
+    val warmth = treasureWarmth(t, fix)
+    return when {
+        fix == null -> stringResource(R.string.treasure_hint)
+        warmth == null -> stringResource(R.string.treasure_to_circle, distance(Grid.distance(fix.lat, fix.lon, t.cLat, t.cLon) - t.radius, imperial))
+        else -> stringResource(listOf(R.string.treasure_hot, R.string.treasure_warm, R.string.treasure_cool).getOrElse(warmth) { R.string.treasure_cold })
+    }
+}
+
 /** What the walker is after: a treasure, a rumoured chest, a race, the altars and the day's shrines. */
 @Composable
 private fun ventures(
@@ -950,12 +975,8 @@ private fun ventures(
     val list = mutableListOf<Venture>()
     s.treasure?.let { t ->
         val toCentre = fix?.let { Grid.distance(it.lat, it.lon, t.cLat, t.cLon) }
-        val warmth = if (fix != null && toCentre != null && toCentre <= t.radius) Treasures.warmth(Grid.distance(fix.lat, fix.lon, t.lat, t.lon)) else null
-        val text = when {
-            toCentre == null -> stringResource(R.string.treasure_hint)
-            warmth == null -> stringResource(R.string.treasure_to_circle, distance(toCentre - t.radius, imperial))
-            else -> stringResource(listOf(R.string.treasure_hot, R.string.treasure_warm, R.string.treasure_cool).getOrElse(warmth) { R.string.treasure_cold })
-        }
+        val warmth = treasureWarmth(t, fix)
+        val text = treasureLine(t, fix, imperial)
         val short = when {
             toCentre == null -> "…"
             warmth == null -> distance(toCentre - t.radius, imperial)

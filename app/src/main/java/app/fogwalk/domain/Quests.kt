@@ -47,9 +47,31 @@ object Beacons {
     const val GOLD_COINS = 60
     const val GROVE_XP = 80
 
-    /** [explored] counts explored cells around a point; in each third the least explored of six candidates wins. */
-    fun place(day: Long, salt: Int, lat: Double, lon: Double, level: Int, explored: (Double, Double) -> Int): List<Shrine> =
-        candidates(day, salt, lat, lon, level).map { (kind, cs) -> cs.minBy { (a, b) -> explored(a, b) }.let { (a, b) -> Shrine(kind, a, b) } }
+    /** Places shrines stood on lately, and before the scroll was read today, are kept this far from, m (#99). */
+    const val AVOID_M = 300.0
+    /** Spots of past shrines remembered for that: about four days' worth. */
+    const val PAST = 12
+
+    /**
+     * [explored] counts explored cells around a point. In each third, away from the [avoid]ed spots, one of
+     * the three least explored of six candidates: always the very least explored drew the shrines back to the
+     * same pockets of mist day after day, only their colours changing (#99).
+     */
+    fun place(
+        day: Long, salt: Int, lat: Double, lon: Double, level: Int,
+        avoid: List<Pair<Double, Double>> = emptyList(), explored: (Double, Double) -> Int,
+    ): List<Shrine> = candidates(day, salt, lat, lon, level).map { (kind, cs) ->
+        choose(cs, avoid, day * 31 + salt * 7L + kind.ordinal, explored).let { (a, b) -> Shrine(kind, a, b) }
+    }
+
+    /** Of [cs], those clear of [avoid] (all, if none is), and among them one of the three least explored, by [seed]. */
+    fun choose(
+        cs: List<Pair<Double, Double>>, avoid: List<Pair<Double, Double>>, seed: Long, explored: (Double, Double) -> Int,
+    ): Pair<Double, Double> {
+        val clear = cs.filter { (a, b) -> avoid.none { Grid.distance(a, b, it.first, it.second) < AVOID_M } }.ifEmpty { cs }
+        val best = clear.sortedBy { (a, b) -> explored(a, b) }.take(3)
+        return best[Random(seed).nextInt(best.size)]
+    }
 
     /** Six places for each kind of shrine, a third of the compass each; the same for the same day and start. */
     fun candidates(day: Long, salt: Int, lat: Double, lon: Double, level: Int): List<Pair<ShrineKind, List<Pair<Double, Double>>>> {
@@ -72,11 +94,13 @@ object Beacons {
         cands: List<Pair<ShrineKind, List<Pair<Double, Double>>>>,
         ways: List<List<Pair<Double, Double>>>,
         explored: (Double, Double) -> Int,
+        avoid: List<Pair<Double, Double>> = emptyList(),
+        seed: Long = 0,
         snap: (Double, Double, List<List<Pair<Double, Double>>>) -> Pair<Double, Double>?,
     ): List<Shrine>? = cands.map { (kind, cs) ->
         val on = cs.mapNotNull { (a, b) -> snap(a, b, ways) }
         if (on.isEmpty()) return null
-        on.minBy { (a, b) -> explored(a, b) }.let { (a, b) -> Shrine(kind, a, b) }
+        choose(on, avoid, seed + kind.ordinal, explored).let { (a, b) -> Shrine(kind, a, b) }
     }
 
     /** The grove's gift on [day]: 0 a lantern, 1 a seeing stone, 2 a streak shield while there is room for one. */
@@ -316,8 +340,25 @@ object Monuments {
     const val PILGRIM_DAY_M = 1000.0
     const val WORDS_MAX = 80
 
-    /** Experience for coming on foot to a monument of [level], once a day each: a pilgrimage. */
-    fun pilgrimXp(level: Int): Int = 20 + 10 * level.coerceIn(1, 10)
+    /** Experience for coming on foot to a monument of [level], once a day each: a pilgrimage. It has no ceiling, like the price (#85). */
+    fun pilgrimXp(level: Int): Int = 20 + 10 * level.coerceAtLeast(1)
+
+    /**
+     * Experience for raising a monument to [level]: half its price, the oath's rate for gold staked, so a dearer
+     * level is worth as much more as it costs (#85), and gold still never breeds gold.
+     */
+    fun raiseXp(level: Int): Int = price(level - 1) / 2
+
+    fun raiseRef(sector: Long, level: Int) = "monxp:$sector:$level"
+
+    /** Every level ever bought, as (sector, level), so its experience is granted once, those from before #85 too. */
+    fun raised(ledger: List<app.fogwalk.data.Entry>): List<Pair<Long, Int>> = ledger.mapNotNull { e ->
+        if (!e.ref.startsWith("buy:monument:")) return@mapNotNull null
+        val p = e.ref.split(":")
+        val sector = p.getOrNull(2)?.toLongOrNull() ?: return@mapNotNull null
+        val level = p.getOrNull(3)?.toIntOrNull() ?: return@mapNotNull null
+        sector to level
+    }
 
     fun pilgrimRef(day: Long, sector: Long) = "pilgrim:$day:$sector"
 
@@ -325,6 +366,16 @@ object Monuments {
     fun spot(sector: Long, site: Site?): Pair<Double, Double> =
         if (site != null) site.lat to site.lon
         else app.fogwalk.geo.Grid.centerLat(sector, app.fogwalk.geo.Grid.SECTOR_Z) to app.fogwalk.geo.Grid.centerLon(sector, app.fogwalk.geo.Grid.SECTOR_Z)
+
+    /**
+     * Whether the monument on [sector] still stands at its land's heart and may be moved once: words carved on
+     * one there keep its site at the heart, and must not take the move away (#93).
+     */
+    fun unsettled(sector: Long, site: Site?): Boolean {
+        if (site == null) return true
+        val (la, lo) = spot(sector, null)
+        return app.fogwalk.geo.Grid.distance(site.lat, site.lon, la, lo) < 1.0
+    }
 
     /** When the monument on [sector] was first raised, from its purchases. */
     fun raisedAt(sector: Long, ledger: List<app.fogwalk.data.Entry>): Long? =
@@ -349,3 +400,16 @@ object Monuments {
         else -> 4
     }
 }
+
+/**
+ * A share as whole per cent, rounded up (#96): 99.4% of a land reads 100, not 99. Only never up onto a mark of
+ * [marks] not yet reached, so 24.3% of a land whose banner needs 25 still reads 24.
+ */
+fun percentUp(share: Double, marks: List<Double> = emptyList()): Int {
+    val up = kotlin.math.ceil(share * 100 - 1e-9).toInt()
+    val mark = marks.filter { share < it }.minOrNull() ?: return up
+    return minOf(up, kotlin.math.round(mark * 100).toInt() - 1)
+}
+
+/** The marks a land's share is read against: its milestones, the banner among them. */
+val landMarks: List<Double> get() = Sectors.milestones.map { it.first }

@@ -123,7 +123,7 @@ fun DeedsScreen(data: GameData, onBack: () -> Unit) {
             icon = groupIcon(b.group), color = if (on) color else U.c.faint, soft = if (on) soft else U.c.surface2,
             eyebrow = stringResource(if (on) R.string.badge_unlocked else R.string.badge_locked),
             title = c.badgeTitle(b.id),
-            text = c.badgeText(b) + if (!on) "\n" + stringResource(R.string.badge_progress, (b.share(data.facts) * 100).toInt()) else "",
+            text = c.badgeText(b) + if (!on) "\n" + stringResource(R.string.badge_progress, app.fogwalk.domain.percentUp(b.share(data.facts))) else "",
             confetti = false,
         ) { shown = null }
     }

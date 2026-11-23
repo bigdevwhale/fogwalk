@@ -25,6 +25,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
@@ -66,27 +68,35 @@ fun AltarsGuide(min: Int, side: String, accuracy: String, onDismiss: () -> Unit)
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
             Modifier.padding(horizontal = 16.dp).fillMaxWidth().clip(U.RLg).background(U.c.bg)
-                .border(1.5.dp, U.c.gilt, U.RLg).padding(18.dp),
+                .border(1.5.dp, U.c.gilt, U.RLg).verticalScroll(rememberScrollState()).padding(18.dp),
         ) {
+            val texts = listOf(
+                stringResource(R.string.altars_guide1_t) to stringResource(R.string.altars_guide1),
+                stringResource(R.string.altars_guide2_t) to stringResource(R.string.altars_guide2),
+                stringResource(R.string.altars_guide3_t) to stringResource(R.string.altars_guide3, min, side, accuracy),
+                stringResource(R.string.altars_guide4_t) to stringResource(R.string.altars_guide4, side),
+            )
             Text(stringResource(R.string.altars_guide_t), style = UType.Strong.copy(fontSize = 19.sp))
             Spacer(Modifier.height(12.dp))
             HorizontalPager(pager, Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) { page ->
-                val (title, text) = when (page) {
-                    0 -> stringResource(R.string.altars_guide1_t) to stringResource(R.string.altars_guide1)
-                    1 -> stringResource(R.string.altars_guide2_t) to stringResource(R.string.altars_guide2)
-                    2 -> stringResource(R.string.altars_guide3_t) to stringResource(R.string.altars_guide3, min, side, accuracy)
-                    else -> stringResource(R.string.altars_guide4_t) to stringResource(R.string.altars_guide4, side)
-                }
-                Column(Modifier.fillMaxWidth().height(430.dp).verticalScroll(rememberScrollState())) {
+                // A page of fixed height cut the last step's text off with no sign it scrolled (#98): every page now
+                // takes the height of the longest, so all of it shows and the buttons stay put between steps.
+                Column(Modifier.fillMaxWidth()) {
                     Box(
                         Modifier.fillMaxWidth().aspectRatio(1.6f).clip(U.RMd).border(1.dp, U.c.gilt.copy(alpha = 0.6f), U.RMd),
                     ) { Picture(page, side) }
                     Spacer(Modifier.height(14.dp))
                     Text(stringResource(R.string.altars_step, page + 1, PAGES).uppercase(), style = UType.Eyebrow.copy(color = U.c.gold))
                     Spacer(Modifier.height(4.dp))
-                    Text(title, style = UType.Strong.copy(fontSize = 18.sp))
-                    Spacer(Modifier.height(6.dp))
-                    Text(text, style = UType.Sub)
+                    Box {
+                        texts.forEachIndexed { i, (title, text) ->
+                            Column(if (i == page) Modifier else Modifier.alpha(0f).clearAndSetSemantics {}) {
+                                Text(title, style = UType.Strong.copy(fontSize = 18.sp))
+                                Spacer(Modifier.height(6.dp))
+                                Text(text, style = UType.Sub)
+                            }
+                        }
+                    }
                 }
             }
             Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), horizontalArrangement = Arrangement.Center) {

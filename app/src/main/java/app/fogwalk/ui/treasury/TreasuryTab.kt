@@ -371,8 +371,8 @@ private fun offers(data: GameData, ware: Ware): List<Offer> {
                     out += Offer(
                         "land:$sector", c.sectorName(sector),
                         if (level > 0) stringResource(R.string.monument_level, level) else null,
-                        (if (level > 0) stringResource(R.string.monument_level, level) else stringResource(R.string.monument_none_here, (data.share(sector) * 100).toInt())) +
-                            "\n\n" + stringResource(R.string.monument_text_short, level + 1) +
+                        (if (level > 0) stringResource(R.string.monument_level, level) else stringResource(R.string.monument_none_here, app.fogwalk.domain.percentUp(data.share(sector), app.fogwalk.domain.landMarks))) +
+                            "\n\n" + stringResource(R.string.monument_text_short, level + 1, Monuments.raiseXp(level + 1)) +
                             (if (level == 0) "\n\n" + stringResource(R.string.monument_far) else ""),
                         Monuments.price(level), { m -> ArtImage(tier, m, dim = level == 0) },
                         buy = {

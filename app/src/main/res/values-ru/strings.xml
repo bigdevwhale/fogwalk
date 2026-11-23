@@ -165,6 +165,7 @@
     <string name="treasure_found">Клад выкопан</string>
     <string name="treasure_one">Карта сокровищ</string>
     <string name="treasure_hint">Ходите внутри круга: чем ближе к кладу, тем теплее</string>
+    <string name="treasure_centre">«?» отмечает середину круга, а клад где-то внутри: ищите по теплу</string>
     <string name="tavern_title">Таверна</string>
     <string name="rumor">Слух из таверны</string>
     <string name="rumor_text">Трактирщик расскажет, где на этой неделе лежит лучший сундук в пределах 2 км</string>
@@ -455,8 +456,9 @@
     <string name="altar_buy_text">Из алтарей складывают круг, чтобы снять туман там, куда не пройти. В суме: %1$d</string>
     <string name="altar_buy_week">На этой неделе куплено %1$d из %2$d, каждый следующий вдвое дороже</string>
     <string name="altar_buy_sold">Алтари этой недели раскуплены. Новые в понедельник</string>
-    <string name="cache_dismiss">Не добраться — убрать с карты</string>
-    <string name="cache_dismissed">Сундук убран с карты до понедельника. Если всё же доберётесь до него, он откроется</string>
+    <string name="cache_dismiss">Не добраться: убрать</string>
+    <string name="cache_dismissed">Если до сундука не добраться (забор, стройка, вода), его можно убрать с карты до понедельника. Дойдёте всё же — он откроется</string>
+    <string name="cache_dismissed_short">Сундук убран до понедельника</string>
     <string name="shrine_won">+%1$d золота и +%2$d опыта</string>
     <string name="shrine_won_lantern">Факел горит %1$d мин — туман расступается шире</string>
     <string name="shrine_won_stone">Камень прозрения светится %1$d мин — видны все сундуки</string>
@@ -497,6 +499,7 @@
     <string name="monument_words_title">Надпись на памятнике</string>
     <string name="monument_words_hint">Например: «Здесь начался мой путь»</string>
     <string name="monument_settle">Перенести сюда</string>
+    <string name="monument_settle_far">Памятник стоит в центре земли. Придите на эту землю, и его можно будет один раз бесплатно перенести туда, где вы стоите.</string>
     <string name="monument_settle_q">Перенести памятник сюда?</string>
     <string name="monument_settle_text">Сейчас он стоит в центре земли. Один раз его можно бесплатно перенести туда, где вы стоите.</string>
     <string name="pilgrim_open">Паломничество: придите сюда пешком, пройдя за день не меньше %2$s, и получите +%1$d опыта. Раз в день.</string>
@@ -505,7 +508,7 @@
     <string name="pilgrim_done">Паломничество к памятнику на земле «%1$s»: +%2$d опыта</string>
     <string name="monuments_title">Памятники</string>
     <string name="shop_to_monuments">Памятники</string>
-    <string name="shop_monuments_note">Ставятся на землях, хотя бы на четверть освобождённых от тумана. Каждый уровень вдвое дороже прошлого, предела нет</string>
+    <string name="shop_monuments_note">Ставятся на землях, на четверть освобождённых от тумана. Уровень вдвое дороже прошлого и даёт опыт в полцены</string>
     <string name="monuments_none">Освободите от тумана четверть земли, и над ней поднимется знамя. Тогда на ней можно будет поставить памятник.</string>
     <string name="monument_level">Памятник, уровень %1$d</string>
     <string name="monument_next">до уровня %1$d</string>
@@ -514,7 +517,7 @@
     <string name="monument_up">Поднять выше</string>
     <string name="monument_raise_q">Поставить памятник на земле «%1$s»?</string>
     <string name="monument_up_q">Поднять памятник на земле «%1$s»?</string>
-    <string name="monument_text">На карте встанет памятник %1$d-го уровня. Он стоит %2$d золота, у вас %3$d.</string>
+    <string name="monument_text">На карте встанет памятник %1$d-го уровня и принесёт %4$d опыта. Он стоит %2$d золота, у вас %3$d.</string>
     <string name="shop_to_looks">Облик</string>
     <string name="shop_looks_note">Спутники и туманы для карты. Только внешний вид, покупаются навсегда</string>
     <string name="shop_buy_for">Купить за %1$d</string>
@@ -526,7 +529,7 @@
     <string name="shop_sold">На этой неделе раскуплено</string>
     <string name="shop_map_busy">Одна карта за раз</string>
     <string name="shop_heard">Уже рассказан</string>
-    <string name="monument_text_short">На карте встанет памятник %1$d-го уровня. Каждый следующий уровень вдвое дороже, предела нет.</string>
+    <string name="monument_text_short">На карте встанет памятник %1$d-го уровня и принесёт %2$d опыта. Каждый следующий уровень вдвое дороже и даёт вдвое больше опыта, предела нет.</string>
     <string name="journal_streak">Серия %1$d · рекорд %2$d</string>
     <string name="door_deeds">Деяния</string>
     <string name="door_relics">Реликвии</string>

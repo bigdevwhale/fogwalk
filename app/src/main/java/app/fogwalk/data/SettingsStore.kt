@@ -41,6 +41,8 @@ data class Settings(
     val radarUntil: Long = 0,
     /** Today's shrines, placed in the fog; day 0 means none yet. */
     val shrines: app.fogwalk.domain.ShrineDay = app.fogwalk.domain.ShrineDay(),
+    /** Where shrines stood lately, newest first, so new ones are set elsewhere (#99). */
+    val shrinesPast: List<Pair<Double, Double>> = emptyList(),
     /** Epoch day of the last beacon reroll, one per day. */
     val rerollDay: Long = 0,
     /** Epoch days a streak shield covered. */
@@ -110,6 +112,7 @@ class SettingsStore(context: Context) {
         radarUntil = this[RADAR] ?: 0,
         shrines = this[SHRINES]?.let { app.fogwalk.domain.ShrineDay.decode(it) } ?: app.fogwalk.domain.ShrineDay(),
         rerollDay = this[REROLL_DAY] ?: 0,
+        shrinesPast = this[SHRINES_PAST]?.let { app.fogwalk.domain.Altars.decode(it) } ?: emptyList(),
         shielded = (this[SHIELDED] ?: emptySet()).mapNotNull { it.toLongOrNull() }.toSet(),
         remind = this[REMIND] ?: true,
         remindAt = this[REMIND_AT] ?: (18 * 60 + 30),
@@ -155,6 +158,7 @@ class SettingsStore(context: Context) {
             it[RADAR] = s.radarUntil
             it[SHRINES] = s.shrines.encode()
             it[REROLL_DAY] = s.rerollDay
+            it[SHRINES_PAST] = app.fogwalk.domain.Altars.encode(s.shrinesPast)
             it[SHIELDED] = s.shielded.map { d -> d.toString() }.toSet()
             it[REMIND] = s.remind
             it[REMIND_AT] = s.remindAt
@@ -197,6 +201,7 @@ class SettingsStore(context: Context) {
         val RADAR = longPreferencesKey("radar_until")
         val SHRINES = stringPreferencesKey("shrines")
         val REROLL_DAY = longPreferencesKey("reroll_day")
+        val SHRINES_PAST = stringPreferencesKey("shrines_past")
         val SHIELDED = stringSetPreferencesKey("shielded")
         val REMIND = booleanPreferencesKey("remind")
         val REMIND_AT = intPreferencesKey("remind_at")

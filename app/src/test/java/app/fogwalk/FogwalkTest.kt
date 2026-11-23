@@ -548,12 +548,56 @@ class FogwalkTest {
         assertEquals(sector, Grid.sector(Grid.cell(lat, lon)))
         assertEquals(site.lat to site.lon, Monuments.spot(sector, site))
         assertTrue(Monuments.pilgrimXp(1) < Monuments.pilgrimXp(5))
-        assertEquals(Monuments.pilgrimXp(10), Monuments.pilgrimXp(40))
+        // No ceiling, like the price (#85).
+        assertTrue(Monuments.pilgrimXp(10) < Monuments.pilgrimXp(40))
     }
 
     @Test
     fun companionsAreNotMists() {
         val ids = Badges.groups.map { it.id }
         assertTrue("pal" in ids && "monument" in ids && "tower" in ids && "pilgrim" in ids)
+    }
+
+    @Test
+    fun shrinesKeepAwayFromWhereTheyStood() {
+        val (lat, lon) = 55.75 to 37.62
+        val first = Beacons.place(20_000, 0, lat, lon, 5) { _, _ -> 0 }
+        // The scroll read on the same spot puts every shrine at least AVOID_M from all of today's (#99).
+        val avoid = first.map { it.lat to it.lon }
+        val moved = Beacons.place(20_000, 1, lat, lon, 5, avoid) { _, _ -> 0 }
+        moved.forEach { m -> avoid.forEach { assertTrue(Grid.distance(m.lat, m.lon, it.first, it.second) >= Beacons.AVOID_M) } }
+        // With every candidate near an avoided spot, a shrine is still set.
+        val cs = listOf(lat to lon, (lat + 0.0001) to lon)
+        assertTrue(Beacons.choose(cs, listOf(lat to lon), 3) { _, _ -> 0 } in cs)
+        // Not always the very least explored: the pick varies among the three least.
+        val six = (0 until 6).map { (lat + it * 0.01) to lon }
+        val picks = (0L until 40).map { Beacons.choose(six, emptyList(), it) { a, _ -> ((a - lat) * 100).toInt() } }.toSet()
+        assertEquals(six.take(3).toSet(), picks)
+    }
+
+    @Test
+    fun percentsRoundUpButNotOntoMarks() {
+        assertEquals(100, app.fogwalk.domain.percentUp(1.0))
+        assertEquals(100, app.fogwalk.domain.percentUp(0.994))
+        assertEquals(43, app.fogwalk.domain.percentUp(0.421))
+        assertEquals(24, app.fogwalk.domain.percentUp(0.243, app.fogwalk.domain.landMarks))
+        assertEquals(25, app.fogwalk.domain.percentUp(0.25, app.fogwalk.domain.landMarks))
+        assertEquals(26, app.fogwalk.domain.percentUp(0.2501, app.fogwalk.domain.landMarks))
+        assertEquals(100, app.fogwalk.domain.percentUp(0.9901, app.fogwalk.domain.landMarks))
+    }
+
+    @Test
+    fun monumentsPayExperienceAndMoveAfterWords() {
+        assertEquals(500, Monuments.raiseXp(1))
+        assertEquals(1000, Monuments.raiseXp(2))
+        assertEquals(120, Monuments.pilgrimXp(10))
+        assertEquals(170, Monuments.pilgrimXp(15))
+        val ledger = listOf(app.fogwalk.data.Entry("buy:monument:42:1:100", 100, -1000, 0), app.fogwalk.data.Entry("buy:reroll:5", 5, -10, 0))
+        assertEquals(listOf(42L to 1), Monuments.raised(ledger))
+        // Words carved at the heart keep the free move (#93); a site of its own does not.
+        val (la, lo) = Monuments.spot(42, null)
+        assertTrue(Monuments.unsettled(42, null))
+        assertTrue(Monuments.unsettled(42, Monuments.Site(la, lo, "hi")))
+        assertFalse(Monuments.unsettled(42, Monuments.Site(la + 0.001, lo, "hi")))
     }
 }

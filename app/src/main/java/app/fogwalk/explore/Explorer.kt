@@ -183,6 +183,8 @@ class Explorer(
                 .forEach { ref -> ref.split(":")[1].toLongOrNull()?.let { raiseArms(it, now) } }
             // So do the stars of copies found before stars were counted.
             grantSets(now)
+            // And monuments raised before raising them gave experience (#85).
+            Monuments.raised(ledger).forEach { (sector, level) -> dao.grant(Entry(Monuments.raiseRef(sector, level), now, 0, Monuments.raiseXp(level))) }
             val s = settings.now()
             if (s.lastLat != 0.0 || s.lastLon != 0.0) {
                 _live.update { it.copy(fix = Fix(s.lastLat, s.lastLon, 9999f, 0)) }
@@ -477,21 +479,26 @@ class Explorer(
         if (settings.now().shrines.day == day) return
         val dao = db.dao()
         val level = Levels.level(Wallet.xp(fog.size, dao.finds(), dao.ledger()))
-        val shrines = Beacons.place(day, 0, f.lat, f.lon, level) { la, lo -> fog.exploredAround(la, lo, 120.0) }
-        settings.update { it.copy(shrines = ShrineDay(day, shrines)) }
-        ontoPaths(day, 0, f.lat, f.lon, level, shrines)
+        val past = past(settings.now())
+        val shrines = Beacons.place(day, 0, f.lat, f.lon, level, past) { la, lo -> fog.exploredAround(la, lo, 120.0) }
+        settings.update { it.copy(shrines = ShrineDay(day, shrines), shrinesPast = past) }
+        ontoPaths(day, 0, f.lat, f.lon, level, shrines, past)
     }
+
+    /** Where shrines stood lately, the ones about to be replaced first. */
+    private fun past(s: app.fogwalk.data.Settings): List<Pair<Double, Double>> =
+        (s.shrines.shrines.map { it.lat to it.lon } + s.shrinesPast).take(Beacons.PAST)
 
     /**
      * Then, if OpenStreetMap answers, moves the shrines just set onto paths and out of factory yards (#21):
      * the day's first ones and those the scroll of wandering moved (#68) alike.
      */
-    private fun ontoPaths(day: Long, salt: Int, lat: Double, lon: Double, level: Int, placed: List<Shrine>) {
+    private fun ontoPaths(day: Long, salt: Int, lat: Double, lon: Double, level: Int, placed: List<Shrine>, past: List<Pair<Double, Double>>) {
         val cands = Beacons.candidates(day, salt, lat, lon, level)
         scope.launch {
             val ways = Paths.near(cands.flatMap { it.second }) ?: return@launch
             withContext(worker) {
-                val moved = Beacons.onPaths(cands, ways, { la, lo -> fog.exploredAround(la, lo, 120.0) }) { la, lo, w -> Paths.snap(la, lo, w) }
+                val moved = Beacons.onPaths(cands, ways, { la, lo -> fog.exploredAround(la, lo, 120.0) }, past, day * 31 + salt * 7L) { la, lo, w -> Paths.snap(la, lo, w) }
                     ?: return@withContext
                 // Not once one has been reached, nor after one was chosen, nor on another day, nor after the
                 // scroll moved them again meanwhile.
@@ -540,9 +547,11 @@ class Explorer(
         val read = Shop.rerollsOn(day, ledger, zone())
         if (!buy("reroll", Shop.rerollPrice(read))) return@withContext Bought.NO_GOLD
         val level = Levels.level(Wallet.xp(fog.size, dao.finds(), ledger))
-        val shrines = Beacons.place(day, read + 1, fix.lat, fix.lon, level) { a, b -> fog.exploredAround(a, b, 120.0) }
-        settings.update { it.copy(shrines = ShrineDay(day, shrines), rerollDay = day) }
-        ontoPaths(day, read + 1, fix.lat, fix.lon, level, shrines)
+        // The scroll moves them away from where they stood, not back to the same spots in new colours (#99).
+        val past = past(settings.now())
+        val shrines = Beacons.place(day, read + 1, fix.lat, fix.lon, level, past) { a, b -> fog.exploredAround(a, b, 120.0) }
+        settings.update { it.copy(shrines = ShrineDay(day, shrines), rerollDay = day, shrinesPast = past) }
+        ontoPaths(day, read + 1, fix.lat, fix.lon, level, shrines, past)
         Bought.OK
     }
 
@@ -570,6 +579,7 @@ class Explorer(
         if (coins() < Monuments.price(level)) return@withContext Bought.NO_GOLD
         if (!buy(Monuments.item(sector, level + 1), Monuments.price(level))) return@withContext Bought.NO_GOLD
         if (spot != null) settings.update { it.copy(sites = it.sites + (sector to Monuments.Site(spot.lat, spot.lon))) }
+        db.dao().grant(Entry(Monuments.raiseRef(sector, level + 1), System.currentTimeMillis(), 0, Monuments.raiseXp(level + 1)))
         monuments = Monuments.levels(db.dao().ledger())
         Bought.OK
     }
@@ -581,14 +591,15 @@ class Explorer(
 
     /** A monument from before sites, still at its land's heart, moved once to where the walker stands (#78). */
     suspend fun settleMonument(sector: Long): Bought = withContext(worker) {
-        if ((monuments[sector] ?: 0) == 0 || sector in settings.now().sites) return@withContext Bought.NOTHING
+        if ((monuments[sector] ?: 0) == 0 || !Monuments.unsettled(sector, settings.now().sites[sector])) return@withContext Bought.NOTHING
         when (standingIn(sector)) {
             null -> return@withContext Bought.NO_FIX
             false -> return@withContext Bought.FAR
             else -> Unit
         }
         val fix = _live.value.fix!!
-        settings.update { it.copy(sites = it.sites + (sector to Monuments.Site(fix.lat, fix.lon))) }
+        // The words carved on it move with it.
+        settings.update { it.copy(sites = it.sites + (sector to Monuments.Site(fix.lat, fix.lon, it.sites[sector]?.words.orEmpty()))) }
         Bought.OK
     }
 

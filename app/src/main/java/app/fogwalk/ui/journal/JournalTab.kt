@@ -268,7 +268,7 @@ internal fun worldShare(m2: Double): String {
     return String.format(java.util.Locale.ROOT, "%.${digits}f", p)
 }
 
-private fun percent(share: Double): String = if (share < 0.01) "<1%" else "${(share * 100).toInt()}%"
+private fun percent(share: Double): String = if (share < 0.01) "<1%" else "${app.fogwalk.domain.percentUp(share, app.fogwalk.domain.landMarks)}%"
 
 @Composable
 private fun Stat(icon: ImageVector, value: String, label: String, color: Color, modifier: Modifier) {
