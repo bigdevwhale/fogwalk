@@ -8,6 +8,23 @@ then close it like any HTML comment. The release notes carry it, and the chat bo
 
 All notable changes to Fogwalk. Versions follow [semantic versioning](https://semver.org/).
 
+## [1.12.1] - 2026-11-23
+### Changed
+- **Monuments pay back:** each level brings XP worth half its price, levels raised before too; pilgrimages grow without a ceiling (#85).
+- **Shrines go somewhere new,** and the scroll moves them 300 m or more, not just recolours them (#99).
+- **A land 99.4% clear reads 100%** (#96).
+### Fixed
+- **Chests and shrines can be tapped on a turned map** (#89).
+- **The treasure map says warmer or colder,** not "0 m" to the «?» (#90).
+- **A monument moves even after words are carved on it** (#93).
+- **Chest and altar guide texts are no longer cut off** (#92, #98).
+<!-- tg
+Сундуки и святилища снова нажимаются на повёрнутой карте, а карта сокровищ подсказывает «тепло/холодно» вместо «0 м» до знака «?».
+Святилища больше не встают в одни и те же места, а свиток уносит их минимум на 300 м.
+Памятник приносит опыт в половину цены уровня, в том числе за уже построенные, и его можно перенести даже после надписи.
+Тексты про недоступный сундук и алтари больше не обрезаются, а 99,x% земли показываются как 100%.
+-->
+
 ## [1.12.0] - 2026-11-19
 ### Added
 - **A monument where you stand:** the first stone of a monument is raised on the spot, not at the land's heart, so you choose the place yourself; a monument from before can be moved there once, for free (#78).
